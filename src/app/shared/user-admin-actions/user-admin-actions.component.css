@@ -1,0 +1,125 @@
+:host {
+  display: block;
+}
+
+.aa-panel {
+  max-width: 560px;
+  display: grid;
+  gap: 14px;
+}
+
+.aa-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ---- Botones ---- */
+.ghost,
+.primary {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ghost {
+  border: 1px solid var(--cf-border);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+.ghost:hover:not(:disabled) {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+.ghost.danger {
+  color: var(--cf-danger, #e14b4b);
+}
+.ghost.danger:hover:not(:disabled) {
+  border-color: var(--cf-danger, #e14b4b);
+  color: var(--cf-danger, #e14b4b);
+}
+.primary {
+  border: 0;
+  background: var(--cf-teal-500);
+  color: #04221c;
+}
+.primary:hover:not(:disabled) {
+  background: var(--cf-teal-600);
+}
+.ghost:disabled,
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ghost i {
+  color: var(--cf-teal-600);
+}
+.ghost.danger i {
+  color: var(--cf-danger, #e14b4b);
+}
+
+.aa-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.aa-note i {
+  color: var(--cf-teal-600);
+  margin-top: 2px;
+}
+
+/* ---- Formulario de edición ---- */
+.aa-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface-2);
+}
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field > span {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.field input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.field input:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.err {
+  color: var(--cf-danger, #e14b4b);
+  font-size: 0.78rem;
+}
+.aa-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

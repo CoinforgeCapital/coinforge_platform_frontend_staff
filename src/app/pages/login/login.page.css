@@ -1,0 +1,186 @@
+/* Tarjeta de login alineada con el front de cliente: marca (favicon) en caja redondeada,
+   ancho ~448px, borde teal, línea superior de acento y fondo oscuro. */
+
+/* El host de la ruta es hijo flex de .auth-layout; sin esto sería `inline` y la tarjeta
+   no quedaría centrada horizontalmente. Lo hacemos ocupar todo el ancho y centrar la
+   tarjeta dentro, igual que el wrapper .auth-stage del frontend cliente. */
+:host {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.auth-card {
+  position: relative;
+  width: min(100%, 448px);
+  overflow: hidden;
+  padding: 28px;
+  border: 1px solid rgba(0, 212, 170, 0.28);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(12, 22, 27, 0.96), rgba(4, 13, 16, 0.98)),
+    rgba(10, 17, 21, 0.94);
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.54),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+}
+
+.auth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 170, 0.86), transparent);
+}
+
+.auth-card-header {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.auth-card-logo {
+  width: 64px;
+  height: 64px;
+  display: block;
+  align-self: center;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 212, 170, 0.46);
+  border-radius: 16px;
+  padding: 7px;
+  background:
+    linear-gradient(135deg, rgba(0, 212, 170, 0.12), rgba(0, 212, 170, 0.02)),
+    #041012;
+  object-fit: contain;
+  box-shadow:
+    0 0 0 5px rgba(0, 212, 170, 0.035),
+    0 18px 42px rgba(0, 212, 170, 0.16);
+}
+
+.auth-eyebrow {
+  margin: 0 0 6px;
+  color: var(--cf-teal-400);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.auth-card-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.72rem;
+  line-height: 1.1;
+}
+
+.auth-card-subtitle {
+  margin: 10px 0 0;
+  color: #9fb1bd;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.auth-form {
+  display: grid;
+  gap: 15px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field span {
+  color: #d9e8e3;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  border: 1px solid rgba(210, 255, 244, 0.1);
+  border-radius: 12px;
+  padding: 0 14px;
+  background: rgba(1, 7, 9, 0.72);
+  color: #ffffff;
+  font: inherit;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.auth-field input::placeholder {
+  color: rgba(142, 161, 155, 0.74);
+}
+
+.auth-field input:focus {
+  border-color: rgba(0, 212, 170, 0.76);
+  box-shadow: 0 0 0 4px rgba(0, 212, 170, 0.12), 0 14px 34px rgba(0, 0, 0, 0.22);
+  background: rgba(1, 8, 10, 0.95);
+}
+
+.auth-field-error {
+  margin: 0;
+  color: #fecaca;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.auth-alert {
+  margin: 2px 0 0;
+  border: 1px solid rgba(91, 184, 255, 0.38);
+  border-radius: 12px;
+  padding: 11px 13px;
+  background: rgba(91, 184, 255, 0.1);
+  color: #c7e5ff;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.auth-alert.error {
+  border-color: rgba(239, 68, 68, 0.42);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+}
+
+.auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 212, 170, 0.76);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #00d4aa, #31efbe);
+  color: #031211;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 18px 44px rgba(0, 212, 170, 0.22);
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+}
+
+.auth-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 22px 54px rgba(0, 212, 170, 0.32);
+}
+
+.auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .auth-card { padding: 22px; border-radius: 16px; }
+  .auth-card-logo { width: 56px; height: 56px; }
+  .auth-card-header { grid-template-columns: 56px minmax(0, 1fr); gap: 14px; }
+  .auth-card-title { font-size: 1.45rem; }
+}

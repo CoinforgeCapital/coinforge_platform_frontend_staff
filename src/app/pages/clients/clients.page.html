@@ -1,0 +1,601 @@
+@if (creatingUser()) {
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">User management</p>
+      <h1>Create user</h1>
+      <p>Create a new account. The user will receive a secure link to set their password.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="ghost" (click)="cancelCreateUser()">
+        <i class="pi pi-arrow-left" aria-hidden="true"></i>
+        <span>Back to clients</span>
+      </button>
+    </div>
+  </section>
+  <app-user-create-form kind="client" (created)="onUserCreated()" />
+} @else if (view() === 'list') {
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">User management</p>
+      <h1>Clients</h1>
+      <p>Review the clients visible to your role. Click a row to see the full detail.</p>
+    </div>
+
+    <div class="header-actions">
+      <div class="search">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          type="search"
+          placeholder="Search by email…"
+          [value]="search()"
+          (input)="onSearch($event)"
+        />
+        @if (search()) {
+          <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">
+            <i class="pi pi-times" aria-hidden="true"></i>
+          </button>
+        }
+      </div>
+      @if (canCreateUser) {
+        <button type="button" class="ghost" (click)="startCreateUser()">
+          <i class="pi pi-user-plus" aria-hidden="true"></i>
+          <span>Create user</span>
+        </button>
+      } @else {
+        <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+          <i class="pi pi-refresh" aria-hidden="true"></i>
+          <span>{{ loading() ? 'Loading…' : 'Refresh' }}</span>
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="data-panel">
+    <p-table
+      [value]="filtered()"
+      [loading]="loading()"
+      [paginator]="filtered().length > 0"
+      [rows]="10"
+      [rowsPerPageOptions]="[10, 25, 50]"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="{first}–{last} of {totalRecords}"
+      [tableStyle]="{ 'min-width': '48rem' }"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          @for (column of columns; track column.field) {
+            <th [pSortableColumn]="column.field">
+              {{ column.label }}
+              <p-sortIcon [field]="column.field" />
+            </th>
+          }
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-row>
+        <tr class="is-clickable" (click)="openDetail(row)">
+          @for (column of columns; track column.field) {
+            <td>
+              @if (column.field === 'state' || column.field === 'kyc.kycState') {
+                <span [class]="badgeClass(value(row, column.field))">{{ value(row, column.field) }}</span>
+              } @else {
+                {{ value(row, column.field) }}
+              }
+            </td>
+          }
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="columns.length" class="empty-cell">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            <span>{{ loading() ? 'Loading…' : (search() ? 'No clients match that search.' : 'No clients found.') }}</span>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+} @else if (selected(); as c) {
+  <section class="detail-head">
+    <div class="head-main">
+      <p class="eyebrow">Client</p>
+      <h1>{{ value(c, 'email') }}</h1>
+      <div class="badges">
+        <span [class]="badgeClass(c['state'])">State: {{ stateLabel(c['state']) }}</span>
+        @if (c['type']) {
+          <span class="cf-badge cf-badge--neutral">Type: {{ typeLabel(c['type']) }}</span>
+        }
+        @if (c['kyc']) {
+          <span [class]="badgeClass(value(c, 'kyc.kycState'))">KYC: {{ value(c, 'kyc.kycState') }}</span>
+        }
+      </div>
+    </div>
+
+    <dl class="meta">
+      <div><dt>Client ID</dt><dd class="mono">{{ value(c, 'id') }}</dd></div>
+      <div><dt>Created</dt><dd>{{ value(c, 'createdAt') }}</dd></div>
+    </dl>
+  </section>
+
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <button type="button" class="crumb" (click)="backToList()">
+      <i class="pi pi-users" aria-hidden="true"></i>
+      <span>Clients</span>
+    </button>
+    @if (drillItem(); as item) {
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <button type="button" class="crumb" (click)="closeItem()">{{ value(c, 'email') }}</button>
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <button type="button" class="crumb" (click)="closeItem()">{{ activeLabel() }}</button>
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <span class="crumb current">{{ itemTitle(item) }}</span>
+    } @else {
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <span class="crumb current">{{ value(c, 'email') }}</span>
+    }
+  </nav>
+
+  @if (!drillItem()) {
+    <div class="entity-buttons">
+      @for (g of entityGroups(); track g.key) {
+        <button
+          type="button"
+          class="entity-btn"
+          [class.active]="activeEntity() === g.key"
+          (click)="selectEntity(g.key)"
+        >
+          <i [class]="g.icon" aria-hidden="true"></i>
+          <span>{{ g.label }}</span>
+          @if (hasCount(g.key)) {
+            <span class="count">{{ entityCount(g.key) }}</span>
+          }
+        </button>
+      }
+    </div>
+  }
+
+  <div class="entity-panel">
+    @if (activeEntity() === profileKey) {
+      <app-client-profile-overview [client]="c" />
+    } @else if (activeEntity() === riskProfileKey) {
+      @if (riskClientRef(); as rc) {
+        <app-risk-profile-detail [client]="rc" (profileSynced)="onClientRiskSynced($event)" />
+      }
+    } @else if (activeEntity() === stateKey) {
+      <div class="state-categories">
+        @if (canChangeState) {
+          <section class="state-block">
+            <h3><i class="pi pi-user" aria-hidden="true"></i> Account state</h3>
+            <div class="state-current">
+              <span class="state-current-label">Current</span>
+              <span [class]="badgeClass(c['state'])">{{ stateLabel(c['state']) }}</span>
+            </div>
+            <label class="field state-field">
+              <span>New state</span>
+              <select class="cf-select" [ngModel]="stateTarget" (ngModelChange)="onStateTargetChange($event)">
+                @for (o of clientStateOptions; track o.value) {
+                  <option [value]="o.value">{{ o.label }}</option>
+                }
+              </select>
+            </label>
+            <p class="state-hint">
+              <i class="pi pi-info-circle" aria-hidden="true"></i>
+              <span>Blocking or restricting a client revokes their access to the platform.</span>
+            </p>
+            <div class="state-actions">
+              <button
+                type="button"
+                class="ghost create-btn"
+                (click)="applyClientState()"
+                [disabled]="stateSaving() || !stateTarget || stateTarget === c['state']"
+              >
+                <i class="pi pi-check" aria-hidden="true"></i>
+                <span>{{ stateSaving() ? 'Applying…' : 'Apply state' }}</span>
+              </button>
+            </div>
+          </section>
+        }
+
+        @if (canKyc) {
+          @if (c['kyc']) {
+            <section class="state-block">
+              <h3><i class="pi pi-verified" aria-hidden="true"></i> KYC state</h3>
+              <div class="state-current">
+                <span class="state-current-label">Current</span>
+                <span [class]="badgeClass(value(c, 'kyc.kycState'))">{{ value(c, 'kyc.kycState') }}</span>
+              </div>
+              <label class="field state-field">
+                <span>Action</span>
+                <select class="cf-select" [ngModel]="kycTarget" (ngModelChange)="onKycTargetChange($event)">
+                  <option value="" disabled>Select an action…</option>
+                  @for (a of kycActions; track a.value) {
+                    <option [value]="a.value">{{ a.label }}</option>
+                  }
+                </select>
+              </label>
+              <p class="state-hint">
+                <i class="pi pi-info-circle" aria-hidden="true"></i>
+                <span>Verifying, restricting or resetting the KYC also affects the client's access.</span>
+              </p>
+              <div class="state-actions">
+                <button
+                  type="button"
+                  class="ghost create-btn"
+                  (click)="applyKycAction()"
+                  [disabled]="kycSaving() || !kycTarget"
+                >
+                  <i class="pi pi-check" aria-hidden="true"></i>
+                  <span>{{ kycSaving() ? 'Applying…' : 'Apply KYC action' }}</span>
+                </button>
+              </div>
+            </section>
+          } @else {
+            <section class="state-block">
+              <h3><i class="pi pi-verified" aria-hidden="true"></i> KYC state</h3>
+              <p class="state-hint">
+                <i class="pi pi-info-circle" aria-hidden="true"></i>
+                <span>This client has no KYC record yet.</span>
+              </p>
+            </section>
+          }
+        }
+      </div>
+    } @else if (activeEntity() === adminKey) {
+      @if (adminUser(); as au) {
+        <app-user-admin-actions
+          [user]="au"
+          (updated)="onClientUpdated($event)"
+          (deleted)="onClientDeleted($event)"
+        />
+      }
+    } @else if (activeEntity() === pendingKey) {
+      @if (internalClientRef(); as pc) {
+        <app-client-pending-approvals [clientId]="pc.id" [clientEmail]="pc.email" />
+      }
+    } @else if (activeEntity() === activityAlertsKey) {
+      @if (internalClientRef(); as ac) {
+        <app-client-activity-alerts
+          [clientId]="ac.id"
+          [clientEmail]="ac.email"
+          [canManage]="canManageActivityWarnings()"
+        />
+      }
+    } @else if (activeEntity() === documentsKey) {
+      <p-tabs [value]="activeDocTab()" (valueChange)="onDocTabChange($event)" styleClass="cf-doc-tabs">
+        <p-tablist>
+          @for (t of documentTabs; track t.key) {
+            <p-tab [value]="t.key"><span>{{ t.label }}</span></p-tab>
+          }
+        </p-tablist>
+        <p-tabpanels>
+          @for (t of documentTabs; track t.key) {
+            <p-tabpanel [value]="t.key">
+              @if (activeDocTab() === t.key) {
+                <p-table [value]="docItems()" [paginator]="docItems().length > 10" [rows]="10" styleClass="cf-doc-table">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+                      <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+                      <th class="col-dl">Actions</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-d>
+                    <tr>
+                      <td>{{ value(d, 'name') }}</td>
+                      <td>{{ value(d, 'createdAt') }}</td>
+                      <td class="col-dl">
+                        <div class="doc-actions">
+                          <button type="button" class="dl-btn" (click)="viewDoc(d, t.type)" [disabled]="viewingDocId() === d.id">
+                            @if (viewingDocId() === d.id) {
+                              <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                            } @else {
+                              <i class="pi pi-eye" aria-hidden="true"></i>
+                            }
+                            <span>View</span>
+                          </button>
+                          <button type="button" class="dl-btn" (click)="downloadDoc(d, t.type)" [disabled]="downloadingDocId() === d.id">
+                            @if (downloadingDocId() === d.id) {
+                              <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                            } @else {
+                              <i class="pi pi-download" aria-hidden="true"></i>
+                            }
+                            <span>Download</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr><td colspan="3" class="doc-empty">No documents.</td></tr>
+                  </ng-template>
+                </p-table>
+              }
+            </p-tabpanel>
+          }
+        </p-tabpanels>
+      </p-tabs>
+    } @else if (activeEntity() === 'internalConversationsCustomer') {
+      @if (internalClientRef(); as ic) {
+        <app-client-internal-conversations
+          [clientId]="ic.id"
+          [clientEmail]="ic.email"
+          [canWrite]="canWriteInternal()"
+        />
+      }
+    } @else {
+      @if (activeEntity() === 'requirementsCustomer' && canCreateRequirement && !drillItem()) {
+        <div class="req-toolbar">
+          <button type="button" class="ghost create-btn" (click)="toggleReqForm()">
+            <i [class]="reqFormOpen() ? 'pi pi-chevron-up' : 'pi pi-plus'" aria-hidden="true"></i>
+            <span>{{ reqFormOpen() ? 'Close form' : 'New requirement' }}</span>
+          </button>
+        </div>
+        @if (reqFormOpen()) {
+          <section class="req-create">
+            <div class="req-grid">
+              <label class="field">
+                <span>Document type</span>
+                <select class="cf-select" [ngModel]="reqDocType()" (ngModelChange)="onReqDocTypeChange($event)">
+                  <option value="" disabled>Select a type…</option>
+                  @for (o of reqDocTypeOptions; track o.value) {
+                    <option [value]="o.value">{{ o.label }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Name</span>
+                <input type="text" class="cf-input" [(ngModel)]="reqName" maxlength="350" placeholder="Requirement name" />
+              </label>
+
+              @if (reqRequiresBank()) {
+                <label class="field full">
+                  <span>Client bank account</span>
+                  <select class="cf-select" [(ngModel)]="reqLinkId">
+                    <option value="" disabled>Select a bank account…</option>
+                    @for (b of reqBankOptions(); track b['id']) {
+                      <option [value]="b['id']">{{ value(b, 'accountHolder') }} · {{ value(b, 'iban') }}</option>
+                    }
+                  </select>
+                  @if (!reqBankOptions().length) {
+                    <small class="muted-note"><i class="pi pi-info-circle" aria-hidden="true"></i> This client has no bank accounts to link.</small>
+                  }
+                </label>
+              }
+
+              @if (reqRequiresTx()) {
+                <label class="field full">
+                  <span>Transaction</span>
+                  <select class="cf-select" [(ngModel)]="reqLinkId">
+                    <option value="" disabled>Select a transaction…</option>
+                    @for (t of reqTxOptions(); track t['id']) {
+                      <option [value]="t['id']">{{ value(t, 'cryptoSymbol') }}/{{ value(t, 'fiatSymbol') }} · {{ value(t, 'amountSent') }} · {{ value(t, 'createdAt') }}</option>
+                    }
+                  </select>
+                  @if (!reqTxOptions().length) {
+                    <small class="muted-note"><i class="pi pi-info-circle" aria-hidden="true"></i> This client has no transactions to link.</small>
+                  }
+                </label>
+              }
+
+              <label class="field full">
+                <span>Description</span>
+                <textarea class="cf-input" rows="3" [(ngModel)]="reqDescription" maxlength="10000" placeholder="What does the client need to provide?"></textarea>
+              </label>
+
+              <label class="field">
+                <span>Attachment (optional)</span>
+                <input type="file" class="cf-file" (change)="onReqFile($event)" />
+              </label>
+            </div>
+
+            <div class="req-actions">
+              <button type="button" class="ghost create-btn" (click)="submitRequirement()" [disabled]="reqCreating()">
+                <i class="pi pi-check" aria-hidden="true"></i>
+                <span>{{ reqCreating() ? 'Creating…' : 'Create requirement' }}</span>
+              </button>
+            </div>
+          </section>
+        }
+      }
+      <app-entity-collection
+        [items]="entityItems()"
+        [columns]="currentColumns()"
+        [selectedItem]="drillItem()"
+        [emptyLabel]="'No records in ' + activeLabel().toLowerCase() + '.'"
+        (open)="onDrill($event)"
+      >
+        <div detailActions class="inline-actions">
+          @if (drillItem(); as item) {
+            @if (actionableEntity()) {
+              @if (activeEntity() === 'transactions') {
+                @if (canChangeTx(item)) {
+                  <select class="cf-select" [(ngModel)]="txTarget">
+                    <option value="" disabled>Set state…</option>
+                    @for (o of txStateOptions; track o.value) {
+                      <option [value]="o.value">{{ o.label }}</option>
+                    }
+                  </select>
+                  <button type="button" class="ghost" (click)="applyTxState(item)" [disabled]="actionBusy() || !txTarget">
+                    <i class="pi pi-save" aria-hidden="true"></i><span>Apply</span>
+                  </button>
+                }
+              } @else {
+                @if (canVerify(item)) {
+                  <button type="button" class="ghost" (click)="verifyItem(item)" [disabled]="actionBusy()">
+                    <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
+                  </button>
+                }
+                @if (canBlock(item)) {
+                  <button type="button" class="ghost danger" (click)="blockItem(item)" [disabled]="actionBusy()">
+                    <i class="pi pi-ban" aria-hidden="true"></i><span>Block</span>
+                  </button>
+                }
+                @if (activeEntity() === walletKey && canViewWalletKycaidAudit) {
+                  <button type="button" class="ghost" (click)="viewWalletAudit(item)" [disabled]="walletAuditLoading()">
+                    <i [class]="walletAuditLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-shield'" aria-hidden="true"></i>
+                    <span>View KYCAID audit</span>
+                  </button>
+                }
+                @if (activeEntity() === walletKey && canRequestWalletAudit(item)) {
+                  <button type="button" class="ghost create-btn" (click)="requestWalletAudit(item)" [disabled]="walletAuditBusy()">
+                    <i [class]="walletAuditBusy() ? 'pi pi-spin pi-spinner' : 'pi pi-search'" aria-hidden="true"></i>
+                    <span>Run KYCAID audit</span>
+                  </button>
+                }
+              }
+              @if (itemDocType()) {
+                <button type="button" class="ghost" (click)="toggleItemDocs()">
+                  <i class="pi pi-folder" aria-hidden="true"></i>
+                  <span>{{ showItemDocs() ? 'Hide' : 'View' }} documents ({{ itemDocs().length }})</span>
+                </button>
+              }
+            }
+          }
+        </div>
+      </app-entity-collection>
+
+      @if (showItemDocs() && itemDocType(); as dt) {
+        <div class="item-docs">
+          <p-table [value]="itemDocs()" [paginator]="itemDocs().length > 10" [rows]="10" styleClass="cf-doc-table">
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+                <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+                <th class="col-dl">Actions</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-d>
+              <tr>
+                <td>{{ value(d, 'name') }}</td>
+                <td>{{ value(d, 'createdAt') }}</td>
+                <td class="col-dl">
+                  <div class="doc-actions">
+                    <button type="button" class="dl-btn" (click)="viewDoc(d, dt)" [disabled]="viewingDocId() === d.id">
+                      @if (viewingDocId() === d.id) {
+                        <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                      } @else {
+                        <i class="pi pi-eye" aria-hidden="true"></i>
+                      }
+                      <span>View</span>
+                    </button>
+                    <button type="button" class="dl-btn" (click)="downloadDoc(d, dt)" [disabled]="downloadingDocId() === d.id">
+                      @if (downloadingDocId() === d.id) {
+                        <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                      } @else {
+                        <i class="pi pi-download" aria-hidden="true"></i>
+                      }
+                      <span>Download</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="3" class="doc-empty">No documents.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      }
+    }
+  </div>
+
+  <p-dialog
+    [visible]="walletAuditDialogVisible()"
+    (visibleChange)="walletAuditDialogVisible.set($event)"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [dismissableMask]="true"
+    [style]="{ width: '760px' }"
+    header="KYCAID wallet audit"
+  >
+    @if (walletAuditWallet(); as wallet) {
+      <section class="audit-summary">
+        <div>
+          <span>Wallet address</span>
+          <strong class="mono">{{ value(wallet, 'publicAddress') }}</strong>
+        </div>
+        <div>
+          <span>Blockchain</span>
+          <strong>{{ walletBlockchain(wallet) }}</strong>
+        </div>
+        <div>
+          <span>Wallet state</span>
+          <strong>{{ value(wallet, 'state') }}</strong>
+        </div>
+      </section>
+    }
+
+    @if (walletAuditLoading()) {
+      <div class="dialog-placeholder">
+        <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+        <span>Loading KYCAID audit...</span>
+      </div>
+    } @else if (walletAuditError()) {
+      <div class="dialog-placeholder is-error">
+        <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+        <span>{{ walletAuditError() }}</span>
+      </div>
+    } @else if (walletAudit(); as audit) {
+      <section class="audit-section">
+        <div class="audit-section-head">
+          <h3>Latest audit</h3>
+          <span [class]="walletAuditBadge(audit.riskState)">{{ prettyAuditState(audit.riskState) }}</span>
+        </div>
+        <dl class="audit-grid">
+          @for (field of walletAuditFields(audit); track field.label) {
+            <div [class.is-wide]="field.mono || field.value.length > 42">
+              <dt>{{ field.label }}</dt>
+              <dd [class.mono]="field.mono">{{ field.value }}</dd>
+            </div>
+          }
+        </dl>
+        @if (audit.pdfReportUrl) {
+          <div class="audit-actions">
+            <a class="ghost" [href]="audit.pdfReportUrl" target="_blank" rel="noopener">
+              <i class="pi pi-file-pdf" aria-hidden="true"></i>
+              <span>Open KYCAID report</span>
+            </a>
+          </div>
+        }
+      </section>
+
+      @if (hasAuditPayload(audit.riskSignals)) {
+        <section class="audit-json">
+          <h4>Risk signals</h4>
+          <pre>{{ walletAuditJson(audit.riskSignals) }}</pre>
+        </section>
+      }
+      @if (hasAuditPayload(audit.rawResult)) {
+        <section class="audit-json">
+          <h4>Raw result</h4>
+          <pre>{{ walletAuditJson(audit.rawResult) }}</pre>
+        </section>
+      }
+      @if (hasAuditPayload(audit.rawLastCallback)) {
+        <section class="audit-json">
+          <h4>Raw last callback</h4>
+          <pre>{{ walletAuditJson(audit.rawLastCallback) }}</pre>
+        </section>
+      }
+    } @else {
+      <div class="dialog-placeholder">
+        <i class="pi pi-shield" aria-hidden="true"></i>
+        <span>No KYCAID audit has been recorded for this wallet yet.</span>
+      </div>
+    }
+
+    @if (walletAuditWallet(); as wallet) {
+      @if (canRequestWalletAudit(wallet)) {
+        <div class="audit-actions">
+          <button type="button" class="ghost create-btn" (click)="requestWalletAudit(wallet)" [disabled]="walletAuditBusy()">
+            <i [class]="walletAuditBusy() ? 'pi pi-spin pi-spinner' : 'pi pi-search'" aria-hidden="true"></i>
+            <span>{{ walletAuditBusy() ? 'Requesting...' : 'Run new audit' }}</span>
+          </button>
+        </div>
+      }
+    }
+  </p-dialog>
+}

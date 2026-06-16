@@ -1,0 +1,174 @@
+@if (selectedItem()) {
+  <div class="detail">
+    @if (detail().title || detail().badges.length) {
+      <header class="detail-head">
+        <div class="detail-head-main">
+          @if (detail().title) {
+            <h3 class="detail-title">{{ detail().title }}</h3>
+          }
+          @if (detail().badges.length) {
+            <div class="detail-badges">
+              @for (b of detail().badges; track b.label) {
+                <span class="chip">
+                  <span class="chip-label">{{ b.label }}</span>
+                  <span [class]="b.badgeClass">{{ b.value }}</span>
+                </span>
+              }
+            </div>
+          }
+        </div>
+        <div class="detail-actions">
+          <ng-content select="[detailActions]"></ng-content>
+        </div>
+      </header>
+    }
+
+    @if (detail().people.length) {
+      <div class="people">
+        @for (p of detail().people; track p.label) {
+          @if (p.user; as u) {
+            <button type="button" class="person" (click)="openUser(u)">
+              <span class="person-avatar">{{ initials(p.email || (u['id'] + '')) }}</span>
+              <span class="person-info">
+                <span class="person-label">{{ p.label }}</span>
+                <span class="person-email">{{ p.email || u['id'] }}</span>
+              </span>
+              <i class="pi pi-arrow-up-right person-go" aria-hidden="true"></i>
+            </button>
+          } @else {
+            <div class="person is-empty">
+              <span class="person-avatar muted"><i class="pi pi-user-minus" aria-hidden="true"></i></span>
+              <span class="person-info">
+                <span class="person-label">{{ p.label }}</span>
+                <span class="person-email muted">{{ p.emptyText }}</span>
+              </span>
+            </div>
+          }
+        }
+      </div>
+    }
+
+    <dl class="detail-grid">
+      @for (f of detail().fields; track f.label) {
+        <div class="detail-field" [class.is-wide]="f.wide">
+          <dt>{{ f.label }}</dt>
+          <dd [class.mono]="f.mono">{{ f.value }}</dd>
+        </div>
+      }
+    </dl>
+
+    @if (detail().messages.length) {
+      <section class="thread">
+        <h4 class="thread-title">
+          <i class="pi pi-comments" aria-hidden="true"></i>
+          Conversation
+          <span class="thread-count">{{ detail().messages.length }}</span>
+        </h4>
+        <ol class="thread-list">
+          @for (m of detail().messages; track $index) {
+            <li class="msg">
+              <div class="msg-avatar">{{ initials(m.sender) }}</div>
+              <div class="msg-bubble">
+                <div class="msg-head">
+                  <span class="msg-sender">{{ m.sender }}</span>
+                  <span class="msg-date">{{ m.date }}</span>
+                </div>
+                @if (m.body) {
+                  <p class="msg-text">{{ m.body }}</p>
+                }
+                @if (m.attachments.length) {
+                  <div class="msg-attachments">
+                    @for (a of m.attachments; track $index) {
+                      <span class="attachment">
+                        <i class="pi pi-paperclip" aria-hidden="true"></i> {{ a }}
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      </section>
+    }
+  </div>
+
+  <p-dialog
+    [visible]="userDialogVisible()"
+    (visibleChange)="userDialogVisible.set($event)"
+    [modal]="true"
+    [draggable]="false"
+    [dismissableMask]="true"
+    [style]="{ width: '440px' }"
+    header="User details"
+  >
+    @if (selectedUser(); as u) {
+      <div class="user-detail">
+        <div class="user-detail-head">
+          <span class="person-avatar lg">{{ initials(userEmail(u)) }}</span>
+          <div>
+            <span class="user-detail-email">{{ userEmail(u) }}</span>
+            <div class="user-detail-badges">
+              @if (u['role']) {
+                <span class="cf-badge cf-badge--neutral">{{ roleText(u['role']) }}</span>
+              }
+              @if (u['state']) {
+                <span [class]="stateBadgeClass(u['state'])">{{ u['state'] }}</span>
+              }
+            </div>
+          </div>
+        </div>
+        <dl class="detail-grid">
+          @if (u['type']) {
+            <div class="detail-field"><dt>Type</dt><dd>{{ u['type'] }}</dd></div>
+          }
+          @if (u['createdAt']) {
+            <div class="detail-field"><dt>Created</dt><dd>{{ formatValue(u['createdAt']) }}</dd></div>
+          }
+          @if (u['lastLoginAt']) {
+            <div class="detail-field"><dt>Last login</dt><dd>{{ formatValue(u['lastLoginAt']) }}</dd></div>
+          }
+          <div class="detail-field is-wide"><dt>User ID</dt><dd class="mono">{{ u['id'] }}</dd></div>
+        </dl>
+      </div>
+    }
+  </p-dialog>
+} @else {
+  <p-table
+    [value]="items()"
+    [paginator]="items().length > 0"
+    [rows]="10"
+    [rowsPerPageOptions]="[10, 25, 50]"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first}–{last} of {totalRecords}"
+    [tableStyle]="{ 'min-width': '40rem' }"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        @for (column of columns(); track column.field) {
+          <th [pSortableColumn]="column.field">
+            {{ column.label }}
+            <p-sortIcon [field]="column.field" />
+          </th>
+        }
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-row>
+      <tr class="is-clickable" (click)="open.emit(row)">
+        @for (column of columns(); track column.field) {
+          <td>{{ value(row, column.field) }}</td>
+        }
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td [attr.colspan]="columns().length" class="empty-cell">
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          <span>{{ emptyLabel() }}</span>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+}

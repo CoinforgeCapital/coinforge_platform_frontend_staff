@@ -1,0 +1,137 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Platform parameters</h1>
+    <p>Configure the SMTP server and scheduled transaction PDF report interval.</p>
+  </div>
+
+  <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+    <i class="pi pi-refresh" aria-hidden="true"></i>
+    <span>{{ loading() ? 'Loading…' : 'Reload' }}</span>
+  </button>
+</section>
+
+@if (loadError()) {
+  <p class="alert error" role="alert">{{ loadError() }}</p>
+}
+
+<section class="form-card">
+  <header class="card-head">
+    <div>
+      <p class="eyebrow">Email · Reports</p>
+      <h2>Platform configuration</h2>
+    </div>
+    @if (configured() === true) {
+      <span class="status ok"><i class="pi pi-check-circle" aria-hidden="true"></i> Configured</span>
+    } @else if (configured() === false) {
+      <span class="status pending"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> Not configured yet</span>
+    }
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <div class="form-grid">
+      <label class="field">
+        <span>SMTP host</span>
+        <input type="text" formControlName="smtpHost" autocomplete="off" maxlength="50" placeholder="smtp.example.com" />
+        @if (smtpHost.touched && smtpHost.invalid) {
+          <small class="err">Enter the SMTP host (max 50 characters).</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>SMTP port</span>
+        <input type="number" formControlName="smtpPort" min="1" max="65535" placeholder="587" />
+        @if (smtpPort.touched && smtpPort.invalid) {
+          <small class="err">Enter a valid port (1–65535).</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>SMTP user</span>
+        <input type="text" formControlName="smtpUser" autocomplete="off" maxlength="50" placeholder="no-reply@example.com" />
+        @if (smtpUser.touched && smtpUser.invalid) {
+          <small class="err">Enter the SMTP user (max 50 characters).</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>SMTP password</span>
+        <div class="control">
+          <input
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="smtpPass"
+            autocomplete="off"
+            maxlength="50"
+            placeholder="SMTP password"
+          />
+          <button type="button" class="toggle" (click)="togglePassword()">
+            {{ showPassword() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        @if (smtpPass.touched && smtpPass.invalid) {
+          <small class="err">Enter the SMTP password (max 50 characters).</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Transaction PDF interval</span>
+        <input type="number" formControlName="backupTransactionsPdfDays" min="1" placeholder="7" />
+        @if (backupTransactionsPdfDays.touched && backupTransactionsPdfDays.invalid) {
+          <small class="err">Enter a positive number of days.</small>
+        }
+      </label>
+    </div>
+
+    <h3 class="subsection-title">Security code expiry (hours)</h3>
+    <p class="hint">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      Hours before each one-time code/link expires. Account activation links never expire.
+    </p>
+
+    <div class="form-grid">
+      <label class="field">
+        <span>Set-password link (new accounts &amp; admin reset)</span>
+        <input type="number" formControlName="setPasswordCodeTtlHours" min="1" max="8760" placeholder="72" />
+        @if (setPasswordCodeTtlHours.touched && setPasswordCodeTtlHours.invalid) {
+          <small class="err">Enter 1–8760 hours.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Password recovery code</span>
+        <input type="number" formControlName="recoverPasswordCodeTtlHours" min="1" max="8760" placeholder="1" />
+        @if (recoverPasswordCodeTtlHours.touched && recoverPasswordCodeTtlHours.invalid) {
+          <small class="err">Enter 1–8760 hours.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Change password code</span>
+        <input type="number" formControlName="changePasswordCodeTtlHours" min="1" max="8760" placeholder="1" />
+        @if (changePasswordCodeTtlHours.touched && changePasswordCodeTtlHours.invalid) {
+          <small class="err">Enter 1–8760 hours.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Change email code</span>
+        <input type="number" formControlName="changeEmailCodeTtlHours" min="1" max="8760" placeholder="1" />
+        @if (changeEmailCodeTtlHours.touched && changeEmailCodeTtlHours.invalid) {
+          <small class="err">Enter 1–8760 hours.</small>
+        }
+      </label>
+    </div>
+
+    <p class="hint">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      Saving reloads the mailer and updates the scheduled PDF report interval.
+    </p>
+
+    <div class="form-actions">
+      <button type="submit" class="primary" [disabled]="saving() || loading() || form.invalid">
+        <i class="pi pi-save" aria-hidden="true"></i>
+        {{ saving() ? 'Saving…' : (configured() ? 'Save changes' : 'Create configuration') }}
+      </button>
+    </div>
+  </form>
+</section>

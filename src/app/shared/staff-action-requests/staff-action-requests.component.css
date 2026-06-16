@@ -1,0 +1,244 @@
+:host {
+  display: block;
+}
+
+.sar-panel {
+  display: grid;
+  gap: 14px;
+}
+
+/* ---- Barra superior ---- */
+.sar-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sar-bar h3 {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 1rem;
+}
+.sar-bar-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.sar-bar-main h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sar-bar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Botones ---- */
+.ghost,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ghost.sm {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+.ghost {
+  border: 1px solid var(--cf-border);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+.ghost:hover:not(:disabled) {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+.ghost i {
+  color: var(--cf-teal-600);
+}
+.ghost.danger {
+  color: var(--cf-danger, #e14b4b);
+}
+.ghost.danger:hover:not(:disabled) {
+  border-color: var(--cf-danger, #e14b4b);
+}
+.ghost.danger i {
+  color: var(--cf-danger, #e14b4b);
+}
+.primary {
+  border: 0;
+  background: var(--cf-teal-500);
+  color: #04221c;
+}
+.primary:hover:not(:disabled) {
+  background: var(--cf-teal-600);
+}
+.ghost:disabled,
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Listado ---- */
+.sar-group-label {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sar-list {
+  display: grid;
+  gap: 8px;
+}
+.sar-item {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  padding: 12px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.sar-item:hover {
+  border-color: var(--cf-teal-500);
+  background: var(--cf-surface-2);
+}
+.sar-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sar-item-top strong {
+  color: var(--cf-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sar-item-last {
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sar-item-date {
+  color: var(--cf-text-muted);
+  font-size: 0.74rem;
+}
+
+/* ---- Hilo de mensajes ---- */
+.sar-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface-2);
+}
+.sar-msg {
+  max-width: 78%;
+  justify-self: start;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  padding: 10px 12px;
+}
+.sar-msg.own {
+  justify-self: end;
+  border-color: rgba(0, 184, 150, 0.4);
+  background: rgba(0, 184, 150, 0.08);
+}
+.sar-msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.sar-msg-head strong {
+  color: var(--cf-text);
+  font-size: 0.84rem;
+}
+.sar-msg-head small {
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.sar-msg-body {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Responder ---- */
+.sar-reply {
+  display: grid;
+  gap: 8px;
+}
+.sar-reply textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 10px 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  resize: vertical;
+}
+.sar-reply textarea:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.sar-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---- Estados ---- */
+.sar-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--cf-text-muted);
+}
+.sar-empty i {
+  font-size: 1.6rem;
+  color: var(--cf-teal-600);
+}
+.sar-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.86rem;
+}
+.sar-note i {
+  color: var(--cf-teal-600);
+}

@@ -1,0 +1,149 @@
+@switch (view()) {
+  @case ('create') {
+    <section class="cic-panel">
+      <div class="cic-bar">
+        <button type="button" class="ghost sm" (click)="showList()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i><span>Back</span>
+        </button>
+        <h3>New conversation@if (clientEmail()) { · {{ clientEmail() }} }</h3>
+      </div>
+
+      <form class="cic-form" [formGroup]="createForm" (ngSubmit)="onCreate()" novalidate>
+        <label class="field">
+          <span>Subject</span>
+          <input type="text" formControlName="subject" maxlength="100" placeholder="Conversation subject" />
+          @if (createSubject.touched && createSubject.invalid) {
+            <small class="err">A subject is required (max 100 characters).</small>
+          }
+        </label>
+        <label class="field">
+          <span>Message</span>
+          <textarea formControlName="body" rows="5" maxlength="10000" placeholder="Write the first message…"></textarea>
+          @if (createBody.touched && createBody.invalid) {
+            <small class="err">A message is required.</small>
+          }
+        </label>
+        <div class="cic-actions">
+          <button type="button" class="ghost" (click)="showList()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="createLoading() || createForm.invalid">
+            <i class="pi pi-check" aria-hidden="true"></i>
+            <span>{{ createLoading() ? 'Creating…' : 'Create conversation' }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @case ('detail') {
+    @if (selectedConversation(); as c) {
+      <section class="cic-panel">
+        <div class="cic-bar">
+          <button type="button" class="ghost sm" (click)="back()">
+            <i class="pi pi-arrow-left" aria-hidden="true"></i><span>Conversations</span>
+          </button>
+          <div class="cic-bar-main">
+            <h3>{{ c.subject || shortId(c) }}</h3>
+            <span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span>
+          </div>
+          @if (canWrite() && c.status !== 'closed') {
+            <button type="button" class="ghost sm danger" (click)="onClose(c.id)" [disabled]="closingId() === c.id">
+              <i class="pi pi-times-circle" aria-hidden="true"></i>
+              <span>{{ closingId() === c.id ? 'Closing…' : 'Close' }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="cic-thread">
+          @for (m of selectedMessages(); track m.id) {
+            <div class="cic-msg" [class.own]="isOwn(m)">
+              <div class="cic-msg-head">
+                <strong>{{ senderLabel(m) }}</strong>
+                <small>{{ formatDate(m.createdAt) }}</small>
+              </div>
+              <p class="cic-msg-body">{{ m.body }}</p>
+            </div>
+          } @empty {
+            <div class="cic-empty"><i class="pi pi-comments" aria-hidden="true"></i><span>No messages yet.</span></div>
+          }
+        </div>
+
+        @if (canReply()) {
+          <form class="cic-reply" [formGroup]="replyForm" (ngSubmit)="onSend()" novalidate>
+            <textarea formControlName="body" rows="3" maxlength="10000" placeholder="Write a reply…"></textarea>
+            <div class="cic-actions">
+              <button type="submit" class="primary" [disabled]="sendLoading() || replyForm.invalid">
+                <i class="pi pi-send" aria-hidden="true"></i>
+                <span>{{ sendLoading() ? 'Sending…' : 'Send' }}</span>
+              </button>
+            </div>
+          </form>
+        } @else if (c.status === 'closed') {
+          <p class="cic-note"><i class="pi pi-lock" aria-hidden="true"></i> This conversation is closed.</p>
+        } @else if (!canWrite()) {
+          <p class="cic-note"><i class="pi pi-eye" aria-hidden="true"></i> You can view this conversation but not reply.</p>
+        }
+      </section>
+    }
+  }
+
+  @default {
+    <section class="cic-panel">
+      <div class="cic-bar">
+        <h3>Internal conversations</h3>
+        <div class="cic-bar-actions">
+          <button type="button" class="ghost sm" (click)="load()" [disabled]="loading()">
+            <i class="pi pi-refresh" aria-hidden="true"></i><span>Refresh</span>
+          </button>
+          @if (canWrite()) {
+            <button type="button" class="primary sm" (click)="showCreate()">
+              <i class="pi pi-plus" aria-hidden="true"></i><span>New conversation</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (loading()) {
+        <div class="cic-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>
+      } @else {
+        @if (activeConversations().length) {
+          <div class="cic-group-label">Open</div>
+          <div class="cic-list">
+            @for (c of activeConversations(); track c.id) {
+              <button type="button" class="cic-item" (click)="openDetail(c)">
+                <div class="cic-item-top">
+                  <strong>{{ c.subject || shortId(c) }}</strong>
+                  <span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span>
+                </div>
+                <p class="cic-item-last">{{ latestMessage(c) }}</p>
+                <small class="cic-item-date">{{ latestDate(c) }}</small>
+              </button>
+            }
+          </div>
+        }
+
+        @if (closedConversations().length) {
+          <div class="cic-group-label">Closed</div>
+          <div class="cic-list">
+            @for (c of closedConversations(); track c.id) {
+              <button type="button" class="cic-item" (click)="openDetail(c)">
+                <div class="cic-item-top">
+                  <strong>{{ c.subject || shortId(c) }}</strong>
+                  <span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span>
+                </div>
+                <p class="cic-item-last">{{ latestMessage(c) }}</p>
+                <small class="cic-item-date">{{ latestDate(c) }}</small>
+              </button>
+            }
+          </div>
+        }
+
+        @if (!activeConversations().length && !closedConversations().length) {
+          <div class="cic-empty">
+            <i class="pi pi-comments" aria-hidden="true"></i>
+            <span>No internal conversations for this client yet.</span>
+          </div>
+        }
+      }
+    </section>
+  }
+}

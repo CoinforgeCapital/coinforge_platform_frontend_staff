@@ -1,0 +1,22 @@
+<section class="hero-panel">
+  <div>
+    <p class="eyebrow">Staff workspace</p>
+    <h1>Welcome to the CoinForge operations console</h1>
+    <p>Review platform activity, manage allowed staff workflows and access only the areas enabled for your role.</p>
+  </div>
+
+  <div class="role-card">
+    <span>Current role</span>
+    <strong>{{ roleLabel() }}</strong>
+  </div>
+</section>
+
+<section class="section-grid" aria-label="Available sections">
+  @for (item of visibleSections(); track item.path) {
+    <a class="section-card" [routerLink]="item.path">
+      <i [class]="item.icon" aria-hidden="true"></i>
+      <span>{{ item.label }}</span>
+      <small>Open section</small>
+    </a>
+  }
+</section>

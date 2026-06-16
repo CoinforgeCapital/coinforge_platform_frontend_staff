@@ -1,0 +1,56 @@
+@if (hasProfileData()) {
+  <div class="profile-grid">
+    @if (personalDataFields().length) {
+      <section class="info-card">
+        <h3><i class="pi pi-user" aria-hidden="true"></i> Personal data</h3>
+        <dl>
+          @for (f of personalDataFields(); track f.label) {
+            <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+          }
+        </dl>
+      </section>
+    }
+    @if (kycFields().length) {
+      <section class="info-card">
+        <h3><i class="pi pi-verified" aria-hidden="true"></i> KYC</h3>
+        <dl>
+          @for (f of kycFields(); track f.label) {
+            <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+          }
+        </dl>
+      </section>
+    }
+    @if (riskFields().length) {
+      <section class="info-card">
+        <h3><i class="pi pi-shield" aria-hidden="true"></i> Risk profile</h3>
+        <dl>
+          @for (f of riskFields(); track f.label) {
+            <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+          }
+        </dl>
+        @if (riskNotes().length) {
+          <button type="button" class="notes-btn" (click)="toggleRiskNotes()">
+            <i class="pi pi-list" aria-hidden="true"></i>
+            <span>{{ showRiskNotes() ? 'Hide' : 'View' }} risk notes ({{ riskNotes().length }})</span>
+          </button>
+          @if (showRiskNotes()) {
+            <ul class="risk-notes">
+              @for (n of riskNotes(); track $index) {
+                <li>
+                  <strong>{{ value(n, 'title') }}</strong>
+                  <p>{{ value(n, 'description') }}</p>
+                  <small>{{ value(n, 'createdAt') }}</small>
+                </li>
+              }
+            </ul>
+          }
+        }
+      </section>
+    }
+  </div>
+} @else {
+  <div class="profile-empty">
+    <i class="pi pi-id-card" aria-hidden="true"></i>
+    <span>No profile, KYC or risk data for this client yet.</span>
+  </div>
+}

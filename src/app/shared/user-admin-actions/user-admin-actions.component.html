@@ -1,0 +1,60 @@
+@if (user(); as u) {
+  <section class="aa-panel">
+    @if (!editing()) {
+      <div class="aa-buttons">
+        <button type="button" class="ghost" (click)="startEdit()">
+          <i class="pi pi-pencil" aria-hidden="true"></i>
+          <span>Edit details</span>
+        </button>
+        @if (u.isStaff) {
+          <button type="button" class="ghost" (click)="onResetPassword()" [disabled]="resetting()">
+            <i class="pi pi-key" aria-hidden="true"></i>
+            <span>{{ resetting() ? 'Resetting…' : 'Reset password' }}</span>
+          </button>
+        }
+        @if (!u.isSelf) {
+          <button type="button" class="ghost danger" (click)="onDelete()" [disabled]="deleting()">
+            <i class="pi pi-trash" aria-hidden="true"></i>
+            <span>{{ deleting() ? 'Deleting…' : 'Delete' }}</span>
+          </button>
+        }
+      </div>
+
+      <p class="aa-note">
+        <i class="pi pi-info-circle" aria-hidden="true"></i>
+        <span>
+          Role is fixed at creation.
+          @if (u.isStaff) { “Reset password” emails the user a secure link to set a new password. }
+          Deleting marks the account as deleted (kept for audit, cannot sign in).
+        </span>
+      </p>
+    } @else {
+      <form class="aa-form" [formGroup]="editForm" (ngSubmit)="onSaveDetails()" novalidate>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" formControlName="email" autocomplete="off" />
+          @if (editEmail.touched && editEmail.invalid) {
+            <small class="err">Enter a valid email address.</small>
+          }
+        </label>
+
+        @if (u.isStaff) {
+          <label class="field">
+            <span>Nickname</span>
+            <input type="text" formControlName="nickname" maxlength="100" placeholder="Shown to clients instead of the email" />
+            @if (editNickname.touched && editNickname.invalid) {
+              <small class="err">A nickname is required for staff (max 100 characters).</small>
+            }
+          </label>
+        }
+
+        <div class="aa-form-actions">
+          <button type="button" class="ghost" (click)="cancelEdit()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="saving() || editForm.invalid">
+            {{ saving() ? 'Saving…' : 'Save changes' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+}

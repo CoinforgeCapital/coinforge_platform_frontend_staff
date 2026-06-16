@@ -1,0 +1,275 @@
+<div class="activity-shell">
+  <section class="limits-panel">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Limits</p>
+        <h3>Transaction warning limits</h3>
+      </div>
+      <button type="button" class="ghost" (click)="reload()" [disabled]="limitLoading() || warningsLoading()">
+        <i [class]="limitLoading() || warningsLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
+        <span>{{ limitLoading() || warningsLoading() ? 'Loading...' : 'Refresh' }}</span>
+      </button>
+    </div>
+
+    @if (limit(); as l) {
+      <div class="limit-grid">
+        <label class="limit-card editable">
+          <span>Single transaction limit</span>
+          @if (canManage()) {
+            <div class="limit-edit">
+              <input
+                type="text"
+                inputmode="decimal"
+                [ngModel]="limitDraft()"
+                (ngModelChange)="onLimitDraft($event)"
+                aria-label="Single transaction limit in EUR"
+              />
+              <strong>EUR</strong>
+            </div>
+          } @else {
+            <strong>{{ formatAmount(l.fiatSingleTransactionLimit) }} EUR</strong>
+          }
+          <small>Editable by compliance officers and the assigned compliance reviewer.</small>
+        </label>
+
+        <div class="limit-card">
+          <span>Big single transaction</span>
+          <strong>{{ formatAmount(l.fiatBigSingleTransactionLimit) }} EUR</strong>
+          <small>Fixed platform threshold.</small>
+        </div>
+
+        <div class="limit-card">
+          <span>Total volume low threshold</span>
+          <strong>{{ formatAmount(l.fiatAllLowTransactionsLimit) }} EUR</strong>
+          <small>One-time alert threshold.</small>
+        </div>
+
+        <div class="limit-card">
+          <span>Total volume high threshold</span>
+          <strong>{{ formatAmount(l.fiatAllBigTransactionsLimit) }} EUR</strong>
+          <small>One-time alert threshold.</small>
+        </div>
+      </div>
+
+      @if (canManage()) {
+        <div class="limit-actions">
+          <button
+            type="button"
+            class="ghost success"
+            (click)="saveLimit()"
+            [disabled]="limitSaving() || limitDraft() === l.fiatSingleTransactionLimit"
+          >
+            <i class="pi pi-save" aria-hidden="true"></i>
+            <span>{{ limitSaving() ? 'Saving...' : 'Save limit' }}</span>
+          </button>
+        </div>
+      } @else {
+        <p class="muted-note">
+          <i class="pi pi-info-circle" aria-hidden="true"></i>
+          <span>Your role can view these limits, but only compliance officers and assigned compliance reviewers can edit the single-transaction limit.</span>
+        </p>
+      }
+    } @else {
+      <div class="placeholder">
+        <i [class]="limitLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-sliders-h'" aria-hidden="true"></i>
+        <span>{{ limitLoading() ? 'Loading limits...' : 'No transaction warning limits found for this client.' }}</span>
+      </div>
+    }
+  </section>
+
+  <section class="warnings-panel">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Alerts</p>
+        <h3>Activity alerts</h3>
+      </div>
+      <span class="totals">
+        {{ activeWarnings().length }} active / {{ solvedWarnings().length }} solved
+      </span>
+    </div>
+
+    <p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)" styleClass="cf-tabs">
+      <p-tablist>
+        <p-tab value="active">
+          <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+          <span class="tab-label">Active</span>
+          <span class="tab-count">{{ activeWarnings().length }}</span>
+        </p-tab>
+        <p-tab value="solved">
+          <i class="pi pi-check-circle" aria-hidden="true"></i>
+          <span class="tab-label">Solved</span>
+          <span class="tab-count">{{ solvedWarnings().length }}</span>
+        </p-tab>
+      </p-tablist>
+
+      <p-tabpanels>
+        <p-tabpanel value="active">
+          @if (activeTab() === 'active') {
+            <p-table
+              [value]="activeWarnings()"
+              [loading]="warningsLoading()"
+              [paginator]="activeWarnings().length > pageSize"
+              [rows]="pageSize"
+              styleClass="cf-table"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="type">Type <p-sortIcon field="type" /></th>
+                  <th pSortableColumn="triggerAmountEur">Trigger <p-sortIcon field="triggerAmountEur" /></th>
+                  <th>Summary</th>
+                  <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+                  <th class="action-col">Action</th>
+                </tr>
+              </ng-template>
+
+              <ng-template pTemplate="body" let-w>
+                <tr class="clickable" (click)="openWarning(w)">
+                  <td><span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span></td>
+                  <td>
+                    <strong>{{ formatAmount(w.triggerAmountEur ?? w.totalAmountEur) }} EUR</strong>
+                    @if (w.thresholdAmountEur) {
+                      <small>Limit {{ formatAmount(w.thresholdAmountEur) }} EUR</small>
+                    }
+                  </td>
+                  <td class="summary">{{ warningSummary(w) }}</td>
+                  <td>{{ formatDate(w.createdAt) }}</td>
+                  <td class="action-col" (click)="$event.stopPropagation()">
+                    @if (canManage()) {
+                      <button type="button" class="mini" (click)="markSolved(w)" [disabled]="busy()">
+                        <i class="pi pi-check" aria-hidden="true"></i>
+                        <span>Solve</span>
+                      </button>
+                    } @else {
+                      <span class="dash">-</span>
+                    }
+                  </td>
+                </tr>
+              </ng-template>
+
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="5" class="empty">{{ warningsLoading() ? 'Loading alerts...' : 'No active alerts.' }}</td></tr>
+              </ng-template>
+            </p-table>
+          }
+        </p-tabpanel>
+
+        <p-tabpanel value="solved">
+          @if (activeTab() === 'solved') {
+            <p-table
+              [value]="solvedWarnings()"
+              [loading]="warningsLoading()"
+              [paginator]="solvedWarnings().length > pageSize"
+              [rows]="pageSize"
+              styleClass="cf-table"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="type">Type <p-sortIcon field="type" /></th>
+                  <th pSortableColumn="reviewedBy.email">Solved by <p-sortIcon field="reviewedBy.email" /></th>
+                  <th pSortableColumn="reviewedAt">Solved at <p-sortIcon field="reviewedAt" /></th>
+                  <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+                </tr>
+              </ng-template>
+
+              <ng-template pTemplate="body" let-w>
+                <tr class="clickable" (click)="openWarning(w)">
+                  <td><span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span></td>
+                  <td>{{ w.reviewedBy?.email ?? '-' }}</td>
+                  <td>{{ formatDate(w.reviewedAt) }}</td>
+                  <td>{{ formatDate(w.createdAt) }}</td>
+                </tr>
+              </ng-template>
+
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="4" class="empty">{{ warningsLoading() ? 'Loading alerts...' : 'No solved alerts.' }}</td></tr>
+              </ng-template>
+            </p-table>
+          }
+        </p-tabpanel>
+      </p-tabpanels>
+    </p-tabs>
+  </section>
+</div>
+
+<p-dialog
+  [(visible)]="detailVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '620px' }"
+  [header]="warningTitle(selected())"
+  (onHide)="selected.set(null)"
+>
+  @if (selected(); as w) {
+    <div class="detail-wrap">
+      <section class="detail-section">
+        <h3>Warning</h3>
+        <dl class="detail">
+          <div><dt>Client</dt><dd>{{ w.client.email }}</dd></div>
+          <div><dt>State</dt><dd><span [class]="warningBadge(w.state)">{{ prettyState(w.state) }}</span></dd></div>
+          <div><dt>Type</dt><dd>{{ prettyType(w.type) }}</dd></div>
+          <div><dt>Created</dt><dd>{{ formatDate(w.createdAt) }}</dd></div>
+          <div><dt>Solved at</dt><dd>{{ formatDate(w.reviewedAt) }}</dd></div>
+          <div><dt>Solved by</dt><dd>{{ w.reviewedBy?.email ?? '-' }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-section">
+        <h3>Amounts</h3>
+        <dl class="detail">
+          <div><dt>Trigger</dt><dd>{{ formatAmount(w.triggerAmountEur) }} EUR</dd></div>
+          <div><dt>Total</dt><dd>{{ formatAmount(w.totalAmountEur) }} EUR</dd></div>
+          <div><dt>Threshold</dt><dd>{{ formatAmount(w.thresholdAmountEur) }} EUR</dd></div>
+          <div><dt>Transactions</dt><dd>{{ w.transactionCount ?? '-' }}</dd></div>
+        </dl>
+      </section>
+
+      @if (w.transaction) {
+        <section class="detail-section">
+          <h3>Transaction</h3>
+          <dl class="detail">
+            <div><dt>Reference</dt><dd class="mono">{{ shortId(w.transaction.id) }}</dd></div>
+            <div><dt>Amount</dt><dd>{{ formatAmount(w.transaction.amountSent) }} {{ w.transaction.fiatSymbol ?? '' }}</dd></div>
+            <div><dt>EUR amount</dt><dd>{{ formatAmount(w.transaction.amountSentEur) }} EUR</dd></div>
+            <div><dt>Crypto</dt><dd>{{ w.transaction.cryptoSymbol ?? '-' }}</dd></div>
+            <div><dt>State</dt><dd>{{ prettyState(w.transaction.state) }}</dd></div>
+          </dl>
+        </section>
+      }
+
+      @if (w.wallet) {
+        <section class="detail-section">
+          <h3>Wallet</h3>
+          <dl class="detail">
+            <div><dt>Blockchain</dt><dd>{{ w.wallet.blockchain?.name ?? '-' }}</dd></div>
+            <div><dt>Address</dt><dd class="mono">{{ shortAddress(w.wallet.publicAddress) }}</dd></div>
+            <div><dt>State</dt><dd>{{ prettyState(w.wallet.state) }}</dd></div>
+            <div><dt>KYCAID risk</dt><dd><span [class]="riskBadge(w.wallet.kycaidRiskState)">{{ prettyState(w.wallet.kycaidRiskState) }}</span></dd></div>
+            <div><dt>Risk score</dt><dd>{{ w.wallet.kycaidRiskScore ?? '-' }}</dd></div>
+            <div><dt>Reason</dt><dd>{{ w.wallet.kycaidRiskReason ?? '-' }}</dd></div>
+          </dl>
+        </section>
+      }
+
+      @if (w.kycaidServiceRequestId || w.kycaidRiskScore || w.kycaidRiskReason) {
+        <section class="detail-section">
+          <h3>KYCAID</h3>
+          <dl class="detail">
+            <div><dt>Request</dt><dd class="mono">{{ w.kycaidServiceRequestId ?? '-' }}</dd></div>
+            <div><dt>Score</dt><dd>{{ w.kycaidRiskScore ?? '-' }}</dd></div>
+            <div><dt>Reason</dt><dd>{{ w.kycaidRiskReason ?? '-' }}</dd></div>
+          </dl>
+        </section>
+      }
+    </div>
+
+    @if (canManage() && w.state !== 'solved') {
+      <div class="dialog-actions">
+        <button type="button" class="ghost success" (click)="markSolved(w)" [disabled]="busy()">
+          <i class="pi pi-check-circle" aria-hidden="true"></i>
+          <span>{{ busy() ? 'Saving...' : 'Mark solved' }}</span>
+        </button>
+      </div>
+    }
+  }
+</p-dialog>

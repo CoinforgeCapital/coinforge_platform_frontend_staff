@@ -1,0 +1,109 @@
+@if (view() === 'detail') {
+  @if (selected(); as a) {
+    <section class="sar-panel">
+      <div class="sar-bar">
+        <button type="button" class="ghost sm" (click)="back()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i><span>Back</span>
+        </button>
+        <div class="sar-bar-main">
+          <h3>{{ a.subject || shortId(a) }}</h3>
+          <span [class]="statusBadgeClass(a.status)">{{ statusLabel(a.status) }}</span>
+          @if (a.target) {
+            <span class="cf-badge cf-badge--neutral">{{ targetLabel(a.target) }}</span>
+          }
+        </div>
+        @if (a.status !== 'closed') {
+          <button type="button" class="ghost sm danger" (click)="onClose(a.id)" [disabled]="closingId() === a.id">
+            <i class="pi pi-times-circle" aria-hidden="true"></i>
+            <span>{{ closingId() === a.id ? 'Closing…' : 'Close' }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="sar-thread">
+        @for (m of selectedMessages(); track m.id) {
+          <div class="sar-msg" [class.own]="isOwn(m)">
+            <div class="sar-msg-head">
+              <strong>{{ senderLabel(m) }}</strong>
+              <small>{{ formatDate(m.createdAt) }}</small>
+            </div>
+            <p class="sar-msg-body">{{ m.body }}</p>
+          </div>
+        } @empty {
+          <div class="sar-empty"><i class="pi pi-comments" aria-hidden="true"></i><span>No messages yet.</span></div>
+        }
+      </div>
+
+      @if (canReply()) {
+        <form class="sar-reply" [formGroup]="replyForm" (ngSubmit)="onSend()" novalidate>
+          <textarea formControlName="body" rows="3" maxlength="10000" placeholder="Write a reply…"></textarea>
+          <div class="sar-actions">
+            <button type="submit" class="primary" [disabled]="sendLoading() || replyForm.invalid">
+              <i class="pi pi-send" aria-hidden="true"></i>
+              <span>{{ sendLoading() ? 'Sending…' : 'Send' }}</span>
+            </button>
+          </div>
+        </form>
+      } @else {
+        <p class="sar-note"><i class="pi pi-lock" aria-hidden="true"></i> This action request is closed.</p>
+      }
+    </section>
+  }
+} @else {
+  <section class="sar-panel">
+    <div class="sar-bar">
+      <h3>
+        @if (mode() === 'created') { Created by {{ peerEmail() || 'this staff' }} }
+        @else { Assigned to {{ peerEmail() || 'this staff' }} }
+      </h3>
+      <div class="sar-bar-actions">
+        <button type="button" class="ghost sm" (click)="load()" [disabled]="loading()">
+          <i class="pi pi-refresh" aria-hidden="true"></i><span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="sar-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>
+    } @else {
+      @if (activeConversations().length) {
+        <div class="sar-group-label">Open</div>
+        <div class="sar-list">
+          @for (a of activeConversations(); track a.id) {
+            <button type="button" class="sar-item" (click)="openDetail(a)">
+              <div class="sar-item-top">
+                <strong>{{ a.subject || shortId(a) }}</strong>
+                <span [class]="statusBadgeClass(a.status)">{{ statusLabel(a.status) }}</span>
+              </div>
+              <p class="sar-item-last">{{ latestMessage(a) }}</p>
+              <small class="sar-item-date">{{ latestDate(a) }}</small>
+            </button>
+          }
+        </div>
+      }
+
+      @if (closedConversations().length) {
+        <div class="sar-group-label">Closed</div>
+        <div class="sar-list">
+          @for (a of closedConversations(); track a.id) {
+            <button type="button" class="sar-item" (click)="openDetail(a)">
+              <div class="sar-item-top">
+                <strong>{{ a.subject || shortId(a) }}</strong>
+                <span [class]="statusBadgeClass(a.status)">{{ statusLabel(a.status) }}</span>
+              </div>
+              <p class="sar-item-last">{{ latestMessage(a) }}</p>
+              <small class="sar-item-date">{{ latestDate(a) }}</small>
+            </button>
+          }
+        </div>
+      }
+
+      @if (!activeConversations().length && !closedConversations().length) {
+        <div class="sar-empty">
+          <i class="pi pi-send" aria-hidden="true"></i>
+          <span>No action requests between you and this staff member yet.</span>
+        </div>
+      }
+    }
+  </section>
+}

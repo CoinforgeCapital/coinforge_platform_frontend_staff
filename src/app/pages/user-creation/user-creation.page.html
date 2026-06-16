@@ -1,0 +1,184 @@
+@if (view() === 'list') {
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">User management</p>
+      <h1>Deleted users</h1>
+      <p>Accounts marked as deleted. They are kept for audit visibility and can no longer sign in.</p>
+    </div>
+  </section>
+
+  <div class="search">
+    <i class="pi pi-search" aria-hidden="true"></i>
+    <input
+      type="search"
+      placeholder="Filter by user email…"
+      [value]="search()"
+      (input)="onSearch($event)"
+    />
+    @if (search()) {
+      <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">
+        <i class="pi pi-times" aria-hidden="true"></i>
+      </button>
+    }
+  </div>
+
+  <p-table
+    [value]="deletedUsersView()"
+    [paginator]="true"
+    [rows]="pageSize"
+    [loading]="loading()"
+    styleClass="cf-table"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+        <th pSortableColumn="role">Role <p-sortIcon field="role" /></th>
+        <th pSortableColumn="type">Type <p-sortIcon field="type" /></th>
+        <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+        <th pSortableColumn="updatedAt">Deleted at <p-sortIcon field="updatedAt" /></th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-u>
+      <tr class="clickable" (click)="openDetail(u)">
+        <td>
+          <span class="email">{{ u.email }}</span>
+          @if (u.nickname && u.role !== 'CLIENT') {
+            <small class="muted">{{ u.nickname }}</small>
+          }
+        </td>
+        <td>{{ roleLabel(u.role) }}</td>
+        <td>{{ u.type ?? '-' }}</td>
+        <td><span [class]="stateBadgeClass(u.state)">{{ stateLabel(u.state) }}</span></td>
+        <td>{{ u.updatedAt ? (u.updatedAt | date:'short') : '-' }}</td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr><td colspan="5" class="empty">No deleted users found.</td></tr>
+    </ng-template>
+  </p-table>
+} @else if (selected(); as u) {
+  <section class="detail-head">
+    <div class="head-main">
+      <p class="eyebrow">Deleted user</p>
+      <h1>{{ u.email }}</h1>
+      <div class="badges">
+        <span [class]="stateBadgeClass(u.state)">{{ stateLabel(u.state) }}</span>
+        <span class="cf-badge cf-badge--neutral">{{ roleLabel(u.role) }}</span>
+        @if (u.type) {
+          <span class="cf-badge cf-badge--neutral">{{ u.type }}</span>
+        }
+      </div>
+    </div>
+
+    <dl class="meta">
+      @if (u.role !== 'CLIENT') {
+        <div><dt>Nickname</dt><dd>{{ u.nickname ?? '—' }}</dd></div>
+      }
+      <div><dt>User ID</dt><dd class="mono">{{ u.id }}</dd></div>
+      <div><dt>Created</dt><dd>{{ u.createdAt ? (u.createdAt | date:'short') : '—' }}</dd></div>
+      <div><dt>Deleted at</dt><dd>{{ u.updatedAt ? (u.updatedAt | date:'short') : '—' }}</dd></div>
+      <div><dt>Last login</dt><dd>{{ u.lastLoginAt ? (u.lastLoginAt | date:'short') : '—' }}</dd></div>
+    </dl>
+  </section>
+
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <button type="button" class="crumb" (click)="backToList()">
+      <i class="pi pi-trash" aria-hidden="true"></i>
+      <span>Deleted users</span>
+    </button>
+    @if (drillItem(); as item) {
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <button type="button" class="crumb" (click)="closeItem()">{{ u.email }}</button>
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <button type="button" class="crumb" (click)="closeItem()">{{ activeLabel() }}</button>
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <span class="crumb current">{{ itemTitle(item) }}</span>
+    } @else {
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <span class="crumb current">{{ u.email }}</span>
+    }
+  </nav>
+
+  @if (detailLoading()) {
+    <div class="empty-panel">
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <p>Loading full detail…</p>
+    </div>
+  } @else if (detail()) {
+    @if (!drillItem()) {
+      <div class="entity-buttons">
+        @for (g of entityGroups(); track g.key) {
+          <button
+            type="button"
+            class="entity-btn"
+            [class.active]="activeEntity() === g.key"
+            (click)="selectEntity(g.key)"
+          >
+            <i [class]="g.icon" aria-hidden="true"></i>
+            <span>{{ g.label }}</span>
+            @if (g.key !== profileKey) {
+              <span class="count">{{ entityCount(g.key) }}</span>
+            }
+          </button>
+        }
+      </div>
+    }
+
+    <div class="entity-panel">
+      @if (activeEntity() === profileKey) {
+        @if (hasProfileData()) {
+          <div class="profile-grid">
+            @if (personalDataFields().length) {
+              <section class="info-card">
+                <h3><i class="pi pi-user" aria-hidden="true"></i> Personal data</h3>
+                <dl>
+                  @for (f of personalDataFields(); track f.label) {
+                    <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+                  }
+                </dl>
+              </section>
+            }
+            @if (kycFields().length) {
+              <section class="info-card">
+                <h3><i class="pi pi-verified" aria-hidden="true"></i> KYC</h3>
+                <dl>
+                  @for (f of kycFields(); track f.label) {
+                    <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+                  }
+                </dl>
+              </section>
+            }
+            @if (riskFields().length) {
+              <section class="info-card">
+                <h3><i class="pi pi-shield" aria-hidden="true"></i> Risk profile</h3>
+                <dl>
+                  @for (f of riskFields(); track f.label) {
+                    <div><dt>{{ f.label }}</dt><dd>{{ f.value }}</dd></div>
+                  }
+                </dl>
+              </section>
+            }
+          </div>
+        } @else {
+          <div class="profile-empty">
+            <i class="pi pi-id-card" aria-hidden="true"></i>
+            <span>No profile, KYC or risk data for this user.</span>
+          </div>
+        }
+      } @else {
+        <app-entity-collection
+          [items]="entityItems()"
+          [columns]="currentColumns()"
+          [selectedItem]="drillItem()"
+          [emptyLabel]="'No records in ' + activeLabel().toLowerCase() + '.'"
+          (open)="drillItem.set($event)"
+        />
+      }
+    </div>
+  }
+
+  <p class="note">
+    <i class="pi pi-lock" aria-hidden="true"></i>
+    <span>This account is deleted and kept for audit visibility. This view is read-only.</span>
+  </p>
+}

@@ -1,0 +1,60 @@
+<section class="form-card">
+  <form [formGroup]="form" (ngSubmit)="onCreate()" novalidate>
+    @if (showRoleSelect()) {
+      <label class="field">
+        <span>Role</span>
+        <select formControlName="role" (change)="onRoleChange()">
+          @for (o of roleOptions(); track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+      </label>
+    } @else {
+      <div class="field">
+        <span>Role</span>
+        <p class="fixed-role">{{ forcedRoleLabel() }}</p>
+      </div>
+    }
+
+    <p class="hint"><i class="pi pi-info-circle" aria-hidden="true"></i> {{ roleHint }}</p>
+
+    <label class="field">
+      <span>Email</span>
+      <input type="email" formControlName="email" placeholder="user@example.com" autocomplete="off" />
+      @if (email.touched && email.invalid) {
+        <small class="err">Enter a valid email address.</small>
+      }
+    </label>
+
+    @if (isStaffTarget()) {
+      <label class="field">
+        <span>Nickname</span>
+        <input type="text" formControlName="nickname" maxlength="100" placeholder="Shown to clients instead of the email" />
+        @if (nickname.touched && nickname.invalid) {
+          <small class="err">A nickname is required for staff (max 100 characters).</small>
+        }
+      </label>
+    }
+
+    <p class="muted-note">
+      <i class="pi pi-envelope" aria-hidden="true"></i>
+      The user will receive an email with a secure code and link to set their own password.
+    </p>
+
+    <label class="field">
+      <span>Initial state</span>
+      <select formControlName="state">
+        @for (s of createStateOptions(); track s.value) {
+          <option [value]="s.value">{{ s.label }}</option>
+        }
+      </select>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="primary" [disabled]="creating() || form.invalid">
+        <i class="pi pi-check" aria-hidden="true"></i>
+        <span>{{ creating() ? 'Creating…' : 'Create user' }}</span>
+      </button>
+    </div>
+  </form>
+</section>

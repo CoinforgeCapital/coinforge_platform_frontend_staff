@@ -1,0 +1,214 @@
+.page-head {
+  margin-bottom: 18px;
+}
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--cf-teal-600);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.page-head h1 {
+  margin: 0 0 6px;
+  color: var(--cf-text);
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+}
+.page-head .sub {
+  margin: 0;
+  color: var(--cf-text-muted);
+}
+
+/* ---- Buscador por correo de cliente ---- */
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  max-width: 420px;
+}
+.search > i.pi-search {
+  position: absolute;
+  left: 12px;
+  color: var(--cf-text-muted);
+  pointer-events: none;
+}
+.search input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 38px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.search input:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.search .clear {
+  position: absolute;
+  right: 8px;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cf-text-muted);
+  cursor: pointer;
+}
+.search .clear:hover {
+  background: var(--cf-surface-2);
+  color: var(--cf-text);
+}
+
+/* ---- Pestañas ---- */
+.cf-tabs {
+  display: block;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  overflow: hidden;
+}
+
+/* Separación entre el icono y la etiqueta de cada pestaña. */
+.tab-label { margin-left: 8px; }
+
+/* ---- Tabla ---- */
+.cf-table {
+  font-size: 0.9rem;
+}
+.cf-table tr.clickable {
+  cursor: pointer;
+}
+.cf-table tr.clickable:hover td {
+  background: var(--cf-surface-2);
+}
+.cf-table td.empty {
+  text-align: center;
+  padding: 28px 16px;
+  color: var(--cf-text-muted);
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+/* ---- Diálogo ---- */
+.detail {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.detail > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+.detail dt {
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.detail dd {
+  margin: 0;
+  color: var(--cf-text);
+  word-break: break-word;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.dialog-actions.tx {
+  align-items: center;
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ghost:hover:not(:disabled) {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.ghost.danger { color: var(--cf-danger); }
+.ghost.danger:hover:not(:disabled) {
+  border-color: var(--cf-danger);
+  color: var(--cf-danger);
+}
+
+.cf-select {
+  flex: 1;
+  min-height: 38px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.cf-select:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+
+.muted-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+.muted-note i { margin-top: 2px; color: var(--cf-teal-600); }
+
+/* ---- Sin acceso ---- */
+.placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 56px 16px;
+  text-align: center;
+  color: var(--cf-text-muted);
+  border: 1px dashed var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+}
+.placeholder i {
+  font-size: 1.9rem;
+  color: var(--cf-teal-600);
+}
+.placeholder strong {
+  color: var(--cf-text);
+  font-size: 1.05rem;
+}

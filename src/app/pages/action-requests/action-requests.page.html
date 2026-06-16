@@ -1,0 +1,195 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Communications</p>
+    <h1>Action requests</h1>
+    <p>Internal tasks directed to a staff area. Claim the ones for your role, reply and close them.</p>
+  </div>
+
+  @if (view() !== 'detail') {
+    <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+      <i class="pi pi-refresh" aria-hidden="true"></i>
+      <span>{{ loading() ? 'Loading…' : 'Refresh' }}</span>
+    </button>
+  }
+</section>
+
+@if (view() === 'detail') {
+  @if (selected(); as a) {
+    <section class="detail">
+      <div class="detail-bar">
+        <button type="button" class="ghost" (click)="back()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          <span>Back</span>
+        </button>
+        <div class="detail-bar-actions">
+          @if (canClaim(a)) {
+            <button type="button" class="primary" (click)="onClaim(a.id)" [disabled]="claimingId() === a.id">
+              <i class="pi pi-user-plus" aria-hidden="true"></i>
+              <span>{{ claimingId() === a.id ? 'Claiming…' : 'Claim' }}</span>
+            </button>
+          }
+          @if (canClose(a)) {
+            <button type="button" class="danger-ghost" (click)="onClose(a.id)" [disabled]="closingId() === a.id">
+              <i class="pi pi-lock" aria-hidden="true"></i>
+              <span>{{ closingId() === a.id ? 'Closing…' : 'Close' }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <header class="detail-head">
+        <div>
+          <p class="eyebrow">Action request</p>
+          <h2>{{ a.subject }}</h2>
+          <p class="muted">{{ shortId(a) }}</p>
+        </div>
+        <div class="badges">
+          <span class="cf-badge cf-badge--info">{{ targetLabel(a.target) }}</span>
+          <span [class]="'cf-badge ' + (a.status === 'closed' ? 'cf-badge--neutral' : 'cf-badge--success')">
+            {{ statusLabel(a.status) }}
+          </span>
+        </div>
+      </header>
+
+      <dl class="meta">
+        <div><dt>Created by</dt><dd>{{ creatorLabel(a) }}</dd></div>
+        <div><dt>Assigned to</dt><dd>{{ assignedLabel(a) }}</dd></div>
+      </dl>
+
+      <div class="thread cf-scroll">
+        @for (m of selectedMessages(); track m.id) {
+          <div class="msg" [class.own]="isOwn(m)">
+            <div class="msg-head">
+              <strong>{{ senderLabel(m) }}</strong>
+              <small>{{ formatDate(m.createdAt) }}</small>
+            </div>
+            <p class="msg-body">{{ m.body }}</p>
+          </div>
+        } @empty {
+          <div class="thread-empty">
+            <i class="pi pi-comment" aria-hidden="true"></i>
+            <span>No messages in this action request yet.</span>
+          </div>
+        }
+      </div>
+
+      @if (a.status === 'closed') {
+        <div class="note"><i class="pi pi-lock" aria-hidden="true"></i> <span>This action request is closed.</span></div>
+      } @else if (canReply(a)) {
+        <form class="reply" [formGroup]="replyForm" (ngSubmit)="onSend()" novalidate>
+          <textarea formControlName="body" rows="3" maxlength="10000" placeholder="Write a reply…"></textarea>
+          <div class="reply-actions">
+            <button type="submit" class="primary" [disabled]="sendLoading() || replyForm.invalid">
+              <i class="pi pi-send" aria-hidden="true"></i>
+              <span>{{ sendLoading() ? 'Sending…' : 'Send' }}</span>
+            </button>
+          </div>
+        </form>
+      } @else if (canClaim(a)) {
+        <div class="note"><i class="pi pi-info-circle" aria-hidden="true"></i> <span>Claim this action request to reply.</span></div>
+      } @else {
+        <div class="note"><i class="pi pi-eye" aria-hidden="true"></i> <span>You can view this action request but you are not a participant.</span></div>
+      }
+    </section>
+  } @else {
+    <section class="empty-panel">
+      <i class="pi pi-send" aria-hidden="true"></i>
+      <p>Action request not found.</p>
+      <button type="button" class="ghost" (click)="showInbox()">Back to inbox</button>
+    </section>
+  }
+} @else {
+  <nav class="tabs" aria-label="Action request views">
+    <button type="button" class="tab" [class.active]="view() === 'inbox'" (click)="showInbox()">
+      <i class="pi pi-inbox" aria-hidden="true"></i>
+      <span>Inbox</span>
+    </button>
+    <button type="button" class="tab" [class.active]="view() === 'mine'" (click)="showMine()">
+      <i class="pi pi-user" aria-hidden="true"></i>
+      <span>Mine</span>
+    </button>
+    <button type="button" class="tab" [class.active]="view() === 'create'" (click)="showCreate()">
+      <i class="pi pi-plus" aria-hidden="true"></i>
+      <span>New request</span>
+    </button>
+  </nav>
+
+  @if (view() === 'create') {
+    <section class="form-card">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">New</p>
+          <h2>Create action request</h2>
+        </div>
+        <i class="pi pi-send" aria-hidden="true"></i>
+      </header>
+
+      <form [formGroup]="createForm" (ngSubmit)="onCreate()" novalidate>
+        <label class="field">
+          <span>Target area</span>
+          <select formControlName="target">
+            <option value="" disabled>Select the staff area…</option>
+            @for (opt of targetOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          @if (createTarget.touched && createTarget.invalid) {
+            <small class="err">Select a target area.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Subject</span>
+          <input type="text" formControlName="subject" maxlength="100" placeholder="Short subject" />
+          @if (createSubject.touched && createSubject.invalid) {
+            <small class="err">Enter a subject (max 100 characters).</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Message</span>
+          <textarea formControlName="body" rows="5" maxlength="10000" placeholder="Describe the task…"></textarea>
+          @if (createBody.touched && createBody.invalid) {
+            <small class="err">Enter a message.</small>
+          }
+        </label>
+
+        <div class="form-actions">
+          <button type="button" class="ghost" (click)="showInbox()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="createLoading() || createForm.invalid">
+            <i class="pi pi-send" aria-hidden="true"></i>
+            <span>{{ createLoading() ? 'Creating…' : 'Create request' }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  } @else {
+    <section class="list-panel">
+      @if (loading()) {
+        <div class="list-empty">
+          <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+          <span>Loading…</span>
+        </div>
+      } @else {
+        @let rows = view() === 'mine' ? mineList() : inboxList();
+        @for (a of rows; track a.id) {
+          <button type="button" class="ar" (click)="openDetail(a)">
+            <span class="ar-main">
+              <strong>{{ a.subject }}</strong>
+              <small>{{ shortId(a) }} · {{ targetLabel(a.target) }} · {{ assignedLabel(a) }} · {{ latestDate(a) }}</small>
+              <em>{{ latestMessage(a) }}</em>
+            </span>
+            <span [class]="'cf-badge ' + (a.status === 'closed' ? 'cf-badge--neutral' : 'cf-badge--success')">
+              {{ statusLabel(a.status) }}
+            </span>
+          </button>
+        } @empty {
+          <div class="list-empty">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            <span>{{ view() === 'mine' ? 'You have no action requests yet.' : 'No action requests for your area.' }}</span>
+          </div>
+        }
+      }
+    </section>
+  }
+}

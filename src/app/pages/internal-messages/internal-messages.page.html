@@ -1,0 +1,182 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Communications</p>
+    <h1>Internal messages</h1>
+    <p>Private conversations with your clients. Click a conversation to read and reply.</p>
+  </div>
+
+  @if (view() !== 'detail') {
+    <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+      <i class="pi pi-refresh" aria-hidden="true"></i>
+      <span>{{ loading() ? 'Loading…' : 'Refresh' }}</span>
+    </button>
+  }
+</section>
+
+@if (view() === 'detail') {
+  @if (selectedConversation(); as c) {
+    <section class="detail">
+      <div class="detail-bar">
+        <button type="button" class="ghost" (click)="back()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          <span>Back</span>
+        </button>
+        @if (c.status === 'open') {
+          <button type="button" class="danger-ghost" (click)="onClose(c.id)" [disabled]="closingId() === c.id">
+            <i class="pi pi-lock" aria-hidden="true"></i>
+            <span>{{ closingId() === c.id ? 'Closing…' : 'Close conversation' }}</span>
+          </button>
+        }
+      </div>
+
+      <header class="detail-head">
+        <div>
+          <p class="eyebrow">Conversation</p>
+          <h2>{{ c.subject }}</h2>
+          <p class="muted">{{ shortId(c) }} · {{ peerLabel(c) }}</p>
+        </div>
+        <span [class]="'cf-badge ' + (c.status === 'closed' ? 'cf-badge--neutral' : 'cf-badge--success')">
+          {{ statusLabel(c.status) }}
+        </span>
+      </header>
+
+      <div class="thread cf-scroll">
+        @for (m of selectedMessages(); track m.id) {
+          <div class="msg" [class.own]="isOwn(m)">
+            <div class="msg-head">
+              <strong>{{ senderLabel(m) }}</strong>
+              <small>{{ formatDate(m.createdAt) }}</small>
+            </div>
+            <p class="msg-body">{{ m.body }}</p>
+          </div>
+        } @empty {
+          <div class="thread-empty">
+            <i class="pi pi-comment" aria-hidden="true"></i>
+            <span>No messages in this conversation yet.</span>
+          </div>
+        }
+      </div>
+
+      @if (c.status === 'closed') {
+        <div class="closed-note">
+          <i class="pi pi-lock" aria-hidden="true"></i>
+          <span>This conversation is closed.</span>
+        </div>
+      } @else {
+        <form class="reply" [formGroup]="replyForm" (ngSubmit)="onSend()" novalidate>
+          <textarea
+            formControlName="body"
+            rows="3"
+            maxlength="10000"
+            placeholder="Write a reply…"
+          ></textarea>
+          <div class="reply-actions">
+            <button type="submit" class="primary" [disabled]="sendLoading() || replyForm.invalid">
+              <i class="pi pi-send" aria-hidden="true"></i>
+              <span>{{ sendLoading() ? 'Sending…' : 'Send' }}</span>
+            </button>
+          </div>
+        </form>
+      }
+    </section>
+  } @else {
+    <section class="empty-panel">
+      <i class="pi pi-comments" aria-hidden="true"></i>
+      <p>Conversation not found.</p>
+      <button type="button" class="ghost" (click)="showActive()">Back to list</button>
+    </section>
+  }
+} @else {
+  <nav class="tabs" aria-label="Conversation views">
+    <button type="button" class="tab" [class.active]="view() === 'active'" (click)="showActive()">
+      <i class="pi pi-inbox" aria-hidden="true"></i>
+      <span>Active</span>
+    </button>
+    <button type="button" class="tab" [class.active]="view() === 'closed'" (click)="showClosed()">
+      <i class="pi pi-check-circle" aria-hidden="true"></i>
+      <span>Closed</span>
+    </button>
+    <button type="button" class="tab" [class.active]="view() === 'create'" (click)="showCreate()">
+      <i class="pi pi-plus" aria-hidden="true"></i>
+      <span>New conversation</span>
+    </button>
+  </nav>
+
+  @if (view() === 'create') {
+    <section class="form-card">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">New</p>
+          <h2>Start a conversation</h2>
+        </div>
+        <i class="pi pi-comment" aria-hidden="true"></i>
+      </header>
+
+      <form [formGroup]="createForm" (ngSubmit)="onCreate()" novalidate>
+        <div class="field">
+          <span>Client</span>
+          <app-user-autocomplete
+            type="client"
+            placeholder="Search a client by email…"
+            (selected)="onClientPicked($event)"
+          />
+          @if (createCustomer.touched && createCustomer.invalid) {
+            <small class="err">Select a client.</small>
+          }
+        </div>
+
+        <label class="field">
+          <span>Subject</span>
+          <input type="text" formControlName="subject" maxlength="100" placeholder="Short subject" />
+          @if (createSubject.touched && createSubject.invalid) {
+            <small class="err">Enter a subject (max 100 characters).</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Message</span>
+          <textarea formControlName="body" rows="5" maxlength="10000" placeholder="Write the first message…"></textarea>
+          @if (createBody.touched && createBody.invalid) {
+            <small class="err">Enter a message.</small>
+          }
+        </label>
+
+        <div class="form-actions">
+          <button type="button" class="ghost" (click)="showActive()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="createLoading() || createForm.invalid">
+            <i class="pi pi-send" aria-hidden="true"></i>
+            <span>{{ createLoading() ? 'Creating…' : 'Create conversation' }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  } @else {
+    <section class="list-panel">
+      @if (loading()) {
+        <div class="list-empty">
+          <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+          <span>Loading conversations…</span>
+        </div>
+      } @else {
+        @let rows = view() === 'closed' ? closedConversations() : activeConversations();
+        @for (c of rows; track c.id) {
+          <button type="button" class="conv" (click)="openDetail(c)">
+            <span class="conv-main">
+              <strong>{{ c.subject }}</strong>
+              <small>{{ shortId(c) }} · {{ peerLabel(c) }} · {{ latestDate(c) }}</small>
+              <em>{{ latestMessage(c) }}</em>
+            </span>
+            <span [class]="'cf-badge ' + (c.status === 'closed' ? 'cf-badge--neutral' : 'cf-badge--success')">
+              {{ statusLabel(c.status) }}
+            </span>
+          </button>
+        } @empty {
+          <div class="list-empty">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            <span>{{ view() === 'closed' ? 'No closed conversations.' : 'No active conversations.' }}</span>
+          </div>
+        }
+      }
+    </section>
+  }
+}

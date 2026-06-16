@@ -1,0 +1,111 @@
+:host {
+  display: block;
+}
+
+.primary {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  background: var(--cf-teal-500);
+  color: #04221c;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.primary:hover:not(:disabled) {
+  background: var(--cf-teal-600);
+}
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.form-card {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  padding: 18px;
+  max-width: 620px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.field > span {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.field input,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.fixed-role {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface-2);
+  color: var(--cf-text);
+  font-weight: 700;
+}
+.err {
+  color: var(--cf-danger, #e14b4b);
+  font-size: 0.78rem;
+}
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--cf-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.hint i {
+  color: var(--cf-teal-600);
+  margin-top: 2px;
+}
+.muted-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--cf-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.muted-note i {
+  color: var(--cf-teal-600);
+  margin-top: 2px;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}

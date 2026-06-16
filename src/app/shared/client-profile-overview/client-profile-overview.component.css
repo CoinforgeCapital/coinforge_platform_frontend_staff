@@ -1,0 +1,112 @@
+:host {
+  display: block;
+}
+
+/* ---- Profile (datos únicos) ---- */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.info-card {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface-2);
+  padding: 14px 16px;
+}
+.info-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--cf-text);
+  font-size: 0.95rem;
+}
+.info-card h3 i {
+  color: var(--cf-teal-600);
+}
+.info-card dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.info-card dl > div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+.info-card dt {
+  color: var(--cf-text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.info-card dd {
+  margin: 0;
+  color: var(--cf-text);
+  word-break: break-word;
+}
+.profile-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  color: var(--cf-text-muted);
+}
+.profile-empty i {
+  font-size: 1.8rem;
+  color: var(--cf-teal-600);
+}
+
+/* ---- Risk notes (dentro de Profile) ---- */
+.notes-btn {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.notes-btn:hover {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+.notes-btn i {
+  color: var(--cf-teal-600);
+}
+.risk-notes {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.risk-notes li {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  padding: 10px 12px;
+}
+.risk-notes strong {
+  color: var(--cf-text);
+}
+.risk-notes p {
+  margin: 4px 0;
+  color: var(--cf-text);
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+.risk-notes small {
+  color: var(--cf-text-muted);
+  font-size: 0.76rem;
+}

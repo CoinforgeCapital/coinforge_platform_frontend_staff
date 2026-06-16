@@ -1,0 +1,217 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Compliance</p>
+    <h1>Compliance assignments</h1>
+    <p>Assign clients to compliance users and review who handles whom.</p>
+  </div>
+
+  <div class="header-actions">
+    <button type="button" class="ghost" (click)="refresh()" [disabled]="loading() || loadingClients()">
+      <i class="pi pi-refresh" aria-hidden="true"></i>
+      <span>Refresh</span>
+    </button>
+  </div>
+</section>
+
+<nav class="tabs" aria-label="Compliance assignments views">
+  <button type="button" class="tab" [class.active]="tab() === 'assignments'" (click)="setTab('assignments')">
+    <i class="pi pi-link" aria-hidden="true"></i>
+    <span>Assignments</span>
+  </button>
+  <button type="button" class="tab" [class.active]="tab() === 'unassigned'" (click)="setTab('unassigned')">
+    <i class="pi pi-user-plus" aria-hidden="true"></i>
+    <span>Unassigned clients</span>
+  </button>
+  @if (canViewByCompliance) {
+    <button type="button" class="tab" [class.active]="tab() === 'by-compliance'" (click)="setTab('by-compliance')">
+      <i class="pi pi-users" aria-hidden="true"></i>
+      <span>Assignments by compliance</span>
+    </button>
+  }
+</nav>
+
+<!-- ===================== ASSIGNMENTS ===================== -->
+@if (tab() === 'assignments') {
+  <section class="list-panel">
+    @if (loading()) {
+      <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading assignments…</span></div>
+    } @else if (assignments().length) {
+      <div class="assign-row assign-head">
+        <span>Client</span>
+        <span>Compliance</span>
+        <span>Assigned by</span>
+        <span>Date</span>
+        <span class="col-action"></span>
+      </div>
+      @for (a of assignments(); track a.id) {
+        <div
+          class="assign-row"
+          [class.is-clickable]="a.clientUser?.id"
+          (click)="openClientDetail(a)"
+          [title]="a.clientUser?.id ? 'Open client detail' : ''"
+        >
+          <span class="cell">
+            <strong>{{ clientLabel(a) }}</strong>
+            @if (a.clientUser?.id) {
+              <i class="pi pi-external-link open-hint" aria-hidden="true"></i>
+            }
+          </span>
+          <span class="cell">{{ complianceLabel(a) }}</span>
+          <span class="cell">{{ assignedByLabel(a) }}</span>
+          <span class="cell">{{ formatDate(a.createdAt) }}</span>
+          <span class="cell col-action">
+            @if (canDelete) {
+              <button type="button" class="ghost sm danger" (click)="$event.stopPropagation(); onDelete(a)" [disabled]="deletingId() === a.id">
+                <i class="pi pi-trash" aria-hidden="true"></i>
+                <span>Remove</span>
+              </button>
+            }
+          </span>
+        </div>
+      }
+    } @else {
+      <div class="list-empty">
+        <i class="pi pi-link" aria-hidden="true"></i>
+        <span>No compliance assignments yet.</span>
+      </div>
+    }
+  </section>
+}
+
+<!-- ===================== UNASSIGNED CLIENTS ===================== -->
+@else if (tab() === 'unassigned') {
+  @if (canCreate) {
+    @if (selectedClient(); as c) {
+      <section class="assign-panel">
+        <div class="selected-resource">
+          <span><i class="pi pi-check-circle" aria-hidden="true"></i> Client: {{ c.email }}</span>
+          <button type="button" class="link-btn" (click)="clearClient()">Change</button>
+        </div>
+
+        @if (isComplianceOfficer()) {
+          <div class="field">
+            <span>Assign to</span>
+            <div class="seg">
+              <button type="button" class="seg-btn" [class.active]="selfAssign()" (click)="setSelfAssign(true)">
+                Assign to me
+              </button>
+              <button type="button" class="seg-btn" [class.active]="!selfAssign()" (click)="setSelfAssign(false)">
+                Another compliance user
+              </button>
+            </div>
+
+            @if (!selfAssign()) {
+              @if (selectedCompliance(); as comp) {
+                <div class="selected-resource">
+                  <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ comp.email }}</span>
+                  <button type="button" class="link-btn" (click)="clearCompliance()">Change</button>
+                </div>
+              }
+              <app-user-autocomplete
+                type="staff"
+                placeholder="Search a compliance user by email…"
+                (selected)="onPickCompliance($event)"
+              />
+              <small class="muted-note">Only users with role COMPLIANCE can be assigned.</small>
+            }
+          </div>
+        } @else {
+          <p class="resource-note">
+            <i class="pi pi-info-circle" aria-hidden="true"></i>
+            This client will be assigned to you.
+          </p>
+        }
+
+        <div class="form-actions">
+          <button
+            type="button"
+            class="primary"
+            (click)="onCreate()"
+            [disabled]="creating() || (isComplianceOfficer() && !selfAssign() && !selectedCompliance())"
+          >
+            <i class="pi pi-link" aria-hidden="true"></i>
+            <span>{{ creating() ? 'Assigning…' : 'Create assignment' }}</span>
+          </button>
+        </div>
+      </section>
+    } @else {
+      <p class="hint-line"><i class="pi pi-info-circle" aria-hidden="true"></i> Select a client below to create an assignment.</p>
+    }
+  }
+
+  <section class="table-card">
+    @if (loadingClients()) {
+      <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading clients…</span></div>
+    } @else {
+      <p-table [value]="unassignedClients()" [paginator]="unassignedClients().length > 10" [rows]="10" styleClass="cf-pick-table">
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+            <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+            <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-row>
+          <tr
+            class="pick-row"
+            [class.picked]="selectedClient()?.id === row.id"
+            [class.readonly]="!canCreate"
+            (click)="onPickClient(row)"
+          >
+            <td>{{ row.email }}</td>
+            <td>{{ row.state }}</td>
+            <td>{{ formatDate(row.createdAt) }}</td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr><td colspan="3" class="pick-empty">No clients awaiting assignment.</td></tr>
+        </ng-template>
+      </p-table>
+    }
+  </section>
+}
+
+<!-- ===================== BY COMPLIANCE ===================== -->
+@else if (tab() === 'by-compliance') {
+  <section class="by-panel">
+    <label class="field">
+      <span>Compliance user</span>
+      <select class="by-select" [value]="byFilterId()" (change)="onFilterCompliance($event)">
+        <option value="">Select a compliance user…</option>
+        @for (u of complianceUsers(); track u.id) {
+          <option [value]="u.id">{{ u.email }} · {{ roleLabel(u.role) }}</option>
+        }
+      </select>
+    </label>
+  </section>
+
+  @if (byFilterId()) {
+    <section class="table-card">
+      @if (loadingBy()) {
+        <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading assignments…</span></div>
+      } @else {
+        <p-table [value]="byAssignments()" [paginator]="byAssignments().length > 10" [rows]="10" styleClass="cf-pick-table">
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="clientUser.email">Client <p-sortIcon field="clientUser.email" /></th>
+              <th pSortableColumn="assignedByUser.email">Assigned by <p-sortIcon field="assignedByUser.email" /></th>
+              <th pSortableColumn="createdAt">Date <p-sortIcon field="createdAt" /></th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-a>
+            <tr>
+              <td><strong>{{ clientLabel(a) }}</strong></td>
+              <td>{{ assignedByLabel(a) }}</td>
+              <td>{{ formatDate(a.createdAt) }}</td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="3" class="pick-empty">This compliance user has no assigned clients.</td></tr>
+          </ng-template>
+        </p-table>
+      }
+    </section>
+  } @else {
+    <p class="hint-line"><i class="pi pi-info-circle" aria-hidden="true"></i> Select a compliance user to see their assigned clients.</p>
+  }
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CoinForge · Staff Console</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1016">
+  <!--
+    Content-Security-Policy: defensa en profundidad frente a XSS (el token ya viaja en cookie HttpOnly).
+    Un ÚNICO index sirve para dev y prod. Las directivas que de verdad frenan el XSS
+    (script-src 'self', object-src 'none', base-uri/form-action 'self') no dependen del dominio,
+    y `connect-src` se deja a nivel de ESQUEMA (https:/wss: para cualquier API desplegada, más
+    localhost para desarrollo). Así NO hay que tocar el HTML al cambiar el dominio de la API:
+    la URL real vive en environment(.prod).ts, igual que en el frontend cliente.
+    Para endurecer en prod a un host concreto + frame-ancestors, lo ideal es servir la CSP como
+    cabecera HTTP desde el host del SPA (frame-ancestors NO aplica vía <meta>).
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https: wss: http://localhost:3000 ws://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

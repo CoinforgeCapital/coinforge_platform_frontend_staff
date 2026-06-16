@@ -1,0 +1,63 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">{{ config().kicker }}</p>
+    <h1>{{ config().title }}</h1>
+    <p>{{ config().description }}</p>
+  </div>
+
+  <button type="button" (click)="load()" [disabled]="loading()">
+    <i class="pi pi-refresh" aria-hidden="true"></i>
+    <span>{{ loading() ? 'Loading...' : 'Refresh' }}</span>
+  </button>
+</section>
+
+@if (infoMessage()) {
+  <p class="notice">{{ infoMessage() }}</p>
+}
+
+@if (errorMessage()) {
+  <p class="error" role="alert">{{ errorMessage() }}</p>
+}
+
+<section class="data-panel">
+  <p-table
+    [value]="rows()"
+    [columns]="config().columns"
+    [loading]="loading()"
+    [paginator]="rows().length > 0"
+    [rows]="10"
+    [rowsPerPageOptions]="[10, 25, 50]"
+    [showCurrentPageReport]="true"
+    currentPageReportTemplate="{first}–{last} of {totalRecords}"
+    [tableStyle]="{ 'min-width': '48rem' }"
+    styleClass="cf-table"
+  >
+    <ng-template pTemplate="header" let-columns>
+      <tr>
+        @for (column of columns; track column.field) {
+          <th [pSortableColumn]="column.field">
+            {{ column.label }}
+            <p-sortIcon [field]="column.field" />
+          </th>
+        }
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-row let-columns="columns">
+      <tr [class.is-clickable]="!!config().detailPath" (click)="openRow(row)">
+        @for (column of columns; track column.field) {
+          <td>{{ value(row, column.field) }}</td>
+        }
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage" let-columns>
+      <tr>
+        <td [attr.colspan]="columns.length" class="empty-cell">
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          <span>{{ loading() ? 'Loading records...' : config().emptyMessage }}</span>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</section>

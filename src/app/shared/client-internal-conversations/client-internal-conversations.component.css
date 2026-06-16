@@ -1,0 +1,272 @@
+:host {
+  display: block;
+}
+
+.cic-panel {
+  display: grid;
+  gap: 14px;
+}
+
+/* ---- Barra superior ---- */
+.cic-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cic-bar h3 {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 1rem;
+}
+.cic-bar-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.cic-bar-main h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cic-bar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Botones ---- */
+.ghost,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ghost.sm,
+.primary.sm {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+.ghost {
+  border: 1px solid var(--cf-border);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+.ghost:hover:not(:disabled) {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+.ghost i {
+  color: var(--cf-teal-600);
+}
+.ghost.danger {
+  color: var(--cf-danger, #e14b4b);
+}
+.ghost.danger:hover:not(:disabled) {
+  border-color: var(--cf-danger, #e14b4b);
+}
+.ghost.danger i {
+  color: var(--cf-danger, #e14b4b);
+}
+.primary {
+  border: 0;
+  background: var(--cf-teal-500);
+  color: #04221c;
+}
+.primary:hover:not(:disabled) {
+  background: var(--cf-teal-600);
+}
+.ghost:disabled,
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Listado de conversaciones ---- */
+.cic-group-label {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cic-list {
+  display: grid;
+  gap: 8px;
+}
+.cic-item {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  padding: 12px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.cic-item:hover {
+  border-color: var(--cf-teal-500);
+  background: var(--cf-surface-2);
+}
+.cic-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cic-item-top strong {
+  color: var(--cf-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cic-item-last {
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cic-item-date {
+  color: var(--cf-text-muted);
+  font-size: 0.74rem;
+}
+
+/* ---- Hilo de mensajes ---- */
+.cic-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface-2);
+}
+.cic-msg {
+  max-width: 78%;
+  justify-self: start;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  padding: 10px 12px;
+}
+.cic-msg.own {
+  justify-self: end;
+  border-color: rgba(0, 184, 150, 0.4);
+  background: rgba(0, 184, 150, 0.08);
+}
+.cic-msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.cic-msg-head strong {
+  color: var(--cf-text);
+  font-size: 0.84rem;
+}
+.cic-msg-head small {
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.cic-msg-body {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- Formularios (crear / responder) ---- */
+.cic-form {
+  display: grid;
+  gap: 14px;
+}
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field > span {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.field input,
+.field textarea,
+.cic-reply textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 10px 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  resize: vertical;
+}
+.field input {
+  resize: none;
+  min-height: 42px;
+}
+.field input:focus,
+.field textarea:focus,
+.cic-reply textarea:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.err {
+  color: var(--cf-danger, #e14b4b);
+  font-size: 0.78rem;
+}
+.cic-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.cic-reply {
+  display: grid;
+  gap: 8px;
+}
+
+/* ---- Estados ---- */
+.cic-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--cf-text-muted);
+}
+.cic-empty i {
+  font-size: 1.6rem;
+  color: var(--cf-teal-600);
+}
+.cic-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.86rem;
+}
+.cic-note i {
+  color: var(--cf-teal-600);
+}

@@ -1,0 +1,267 @@
+<section class="page-head">
+  <p class="eyebrow">Compliance</p>
+  <h1>Activity warnings</h1>
+  <p class="sub">Open and solved client alerts generated from transaction activity and wallet risk checks.</p>
+</section>
+
+<div class="toolbar">
+  <div class="search">
+    <i class="pi pi-search" aria-hidden="true"></i>
+    <input
+      type="search"
+      placeholder="Filter by client, type, wallet or transaction..."
+      [value]="search()"
+      (input)="onSearch($event)"
+    />
+    @if (search()) {
+      <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">
+        <i class="pi pi-times" aria-hidden="true"></i>
+      </button>
+    }
+  </div>
+
+  <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+    <i [class]="loading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
+    <span>{{ loading() ? 'Loading...' : 'Refresh' }}</span>
+  </button>
+</div>
+
+<p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)" styleClass="cf-tabs">
+  <p-tablist>
+    <p-tab value="active">
+      <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+      <span class="tab-label">Active</span>
+      <span class="tab-count">{{ activeWarnings().length }}</span>
+    </p-tab>
+    <p-tab value="solved">
+      <i class="pi pi-check-circle" aria-hidden="true"></i>
+      <span class="tab-label">Solved</span>
+      <span class="tab-count">{{ solvedWarnings().length }}</span>
+    </p-tab>
+  </p-tablist>
+
+  <p-tabpanels>
+    <p-tabpanel value="active">
+      @if (activeTab() === 'active') {
+        <p-table
+          [value]="activeWarnings()"
+          [loading]="loading()"
+          [paginator]="activeWarnings().length > pageSize"
+          [rows]="pageSize"
+          [rowsPerPageOptions]="[20, 50, 100]"
+          styleClass="cf-table"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="client.email">Client <p-sortIcon field="client.email" /></th>
+              <th pSortableColumn="type">Type <p-sortIcon field="type" /></th>
+              <th pSortableColumn="triggerAmountEur">Trigger <p-sortIcon field="triggerAmountEur" /></th>
+              <th>Summary</th>
+              <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-w>
+            <tr class="clickable" (click)="openWarning(w)">
+              <td>
+                <strong>{{ w.client.email }}</strong>
+                <small class="mono">{{ shortId(w.client.id) }}</small>
+              </td>
+              <td>
+                <span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span>
+              </td>
+              <td>
+                <strong>{{ formatAmount(w.triggerAmountEur ?? w.totalAmountEur) }} EUR</strong>
+                @if (w.thresholdAmountEur) {
+                  <small>Limit {{ formatAmount(w.thresholdAmountEur) }} EUR</small>
+                }
+              </td>
+              <td class="summary">{{ warningSummary(w) }}</td>
+              <td>{{ formatDate(w.createdAt) }}</td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="5" class="empty">
+                {{ loading() ? 'Loading warnings...' : (search() ? 'No active warnings match that search.' : 'No active warnings.') }}
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      }
+    </p-tabpanel>
+
+    <p-tabpanel value="solved">
+      @if (activeTab() === 'solved') {
+        <p-table
+          [value]="solvedWarnings()"
+          [loading]="loading()"
+          [paginator]="solvedWarnings().length > pageSize"
+          [rows]="pageSize"
+          [rowsPerPageOptions]="[20, 50, 100]"
+          styleClass="cf-table"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="client.email">Client <p-sortIcon field="client.email" /></th>
+              <th pSortableColumn="type">Type <p-sortIcon field="type" /></th>
+              <th pSortableColumn="reviewedBy.email">Solved by <p-sortIcon field="reviewedBy.email" /></th>
+              <th pSortableColumn="reviewedAt">Solved at <p-sortIcon field="reviewedAt" /></th>
+              <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-w>
+            <tr class="clickable" (click)="openWarning(w)">
+              <td>
+                <strong>{{ w.client.email }}</strong>
+                <small class="mono">{{ shortId(w.client.id) }}</small>
+              </td>
+              <td><span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span></td>
+              <td>{{ w.reviewedBy?.email ?? '-' }}</td>
+              <td>{{ formatDate(w.reviewedAt) }}</td>
+              <td>{{ formatDate(w.createdAt) }}</td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="5" class="empty">
+                {{ loading() ? 'Loading warnings...' : (search() ? 'No solved warnings match that search.' : 'No solved warnings.') }}
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      }
+    </p-tabpanel>
+  </p-tabpanels>
+</p-tabs>
+
+<p-dialog
+  [(visible)]="detailVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '620px' }"
+  [header]="warningTitle(selected())"
+  (onHide)="closeDetail()"
+>
+  @if (selected(); as w) {
+    <div class="detail-wrap">
+      <section class="detail-section">
+        <h3>Warning</h3>
+        <dl class="detail">
+          <div><dt>Client</dt><dd>{{ w.client.email }}</dd></div>
+          <div><dt>State</dt><dd><span [class]="warningBadge(w.state)">{{ prettyState(w.state) }}</span></dd></div>
+          <div><dt>Type</dt><dd>{{ prettyType(w.type) }}</dd></div>
+          <div><dt>Created</dt><dd>{{ formatDate(w.createdAt) }}</dd></div>
+          <div><dt>Solved at</dt><dd>{{ formatDate(w.reviewedAt) }}</dd></div>
+          <div><dt>Solved by</dt><dd>{{ w.reviewedBy?.email ?? '-' }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-section">
+        <h3>Amounts</h3>
+        <dl class="detail">
+          <div><dt>Trigger</dt><dd>{{ formatAmount(w.triggerAmountEur) }} EUR</dd></div>
+          <div><dt>Total</dt><dd>{{ formatAmount(w.totalAmountEur) }} EUR</dd></div>
+          <div><dt>Threshold</dt><dd>{{ formatAmount(w.thresholdAmountEur) }} EUR</dd></div>
+          <div><dt>Transactions</dt><dd>{{ w.transactionCount ?? '-' }}</dd></div>
+        </dl>
+      </section>
+
+      @if (w.transaction) {
+        <section class="detail-section">
+          <h3>Transaction</h3>
+          <dl class="detail">
+            <div><dt>Reference</dt><dd class="mono">{{ shortId(w.transaction.id) }}</dd></div>
+            <div><dt>Amount</dt><dd>{{ formatAmount(w.transaction.amountSent) }} {{ w.transaction.fiatSymbol ?? '' }}</dd></div>
+            <div><dt>EUR amount</dt><dd>{{ formatAmount(w.transaction.amountSentEur) }} EUR</dd></div>
+            <div><dt>Crypto</dt><dd>{{ w.transaction.cryptoSymbol ?? '-' }}</dd></div>
+            <div><dt>State</dt><dd>{{ prettyState(w.transaction.state) }}</dd></div>
+          </dl>
+        </section>
+      }
+
+      @if (w.wallet) {
+        <section class="detail-section">
+          <h3>Wallet</h3>
+          <dl class="detail">
+            <div><dt>Blockchain</dt><dd>{{ w.wallet.blockchain?.name ?? '-' }}</dd></div>
+            <div><dt>Address</dt><dd class="mono">{{ shortAddress(w.wallet.publicAddress) }}</dd></div>
+            <div><dt>State</dt><dd>{{ prettyState(w.wallet.state) }}</dd></div>
+            <div><dt>KYCAID risk</dt><dd><span [class]="riskBadge(w.wallet.kycaidRiskState)">{{ prettyState(w.wallet.kycaidRiskState) }}</span></dd></div>
+            <div><dt>Risk score</dt><dd>{{ w.wallet.kycaidRiskScore ?? '-' }}</dd></div>
+            <div><dt>Reason</dt><dd>{{ w.wallet.kycaidRiskReason ?? '-' }}</dd></div>
+          </dl>
+        </section>
+      }
+
+      @if (w.kycaidServiceRequestId || w.kycaidRiskScore || w.kycaidRiskReason) {
+        <section class="detail-section">
+          <h3>KYCAID</h3>
+          <dl class="detail">
+            <div><dt>Request</dt><dd class="mono">{{ w.kycaidServiceRequestId ?? '-' }}</dd></div>
+            <div><dt>Score</dt><dd>{{ w.kycaidRiskScore ?? '-' }}</dd></div>
+            <div><dt>Reason</dt><dd>{{ w.kycaidRiskReason ?? '-' }}</dd></div>
+          </dl>
+        </section>
+      }
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="ghost" (click)="openClient(w)">
+        <i class="pi pi-user" aria-hidden="true"></i>
+        <span>Open client</span>
+      </button>
+      @if (canEscalate) {
+        <button type="button" class="ghost warning" (click)="openEscalation(w)" [disabled]="escalationLoading()">
+          <i class="pi pi-send" aria-hidden="true"></i>
+          <span>Escalate case</span>
+        </button>
+      }
+      @if (canManage && w.state !== 'solved') {
+        <button type="button" class="ghost success" (click)="markSolved(w)" [disabled]="busy()">
+          <i class="pi pi-check-circle" aria-hidden="true"></i>
+          <span>{{ busy() ? 'Saving...' : 'Mark solved' }}</span>
+        </button>
+      }
+    </div>
+
+    @if (canEscalate && escalationOpen()) {
+      <form class="escalation-panel" [formGroup]="escalationForm" (ngSubmit)="createEscalation(w)" novalidate>
+        <div class="escalation-head">
+          <div>
+            <p class="eyebrow">Action request</p>
+            <h3>Escalate case</h3>
+          </div>
+          <span class="cf-badge cf-badge--info">Compliance officer</span>
+        </div>
+
+        <label class="field">
+          <span>Message</span>
+          <textarea
+            formControlName="body"
+            rows="5"
+            maxlength="8000"
+            placeholder="Describe what needs review..."
+          ></textarea>
+          @if (escalationBody.touched && escalationBody.invalid) {
+            <small class="err">Enter a message up to 8000 characters.</small>
+          }
+        </label>
+
+        <div class="form-actions">
+          <button type="button" class="ghost" (click)="cancelEscalation()" [disabled]="escalationLoading()">
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="primary" [disabled]="escalationLoading() || escalationForm.invalid">
+            <i [class]="escalationLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-send'" aria-hidden="true"></i>
+            <span>{{ escalationLoading() ? 'Creating...' : 'Create action request' }}</span>
+          </button>
+        </div>
+      </form>
+    }
+  }
+</p-dialog>

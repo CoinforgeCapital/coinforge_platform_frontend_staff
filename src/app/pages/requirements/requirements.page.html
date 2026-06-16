@@ -1,0 +1,350 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Compliance</p>
+    <h1>Requirements</h1>
+    <p>Documentation requested from clients. Create, review uploads, approve or ask for changes.</p>
+  </div>
+
+  @if (view() === 'list') {
+    <div class="header-actions">
+      <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+        <i class="pi pi-refresh" aria-hidden="true"></i>
+        <span>{{ loading() ? 'Loading…' : 'Refresh' }}</span>
+      </button>
+      @if (canWrite) {
+        <button type="button" class="primary" (click)="showCreate()">
+          <i class="pi pi-plus" aria-hidden="true"></i>
+          <span>New requirement</span>
+        </button>
+      }
+    </div>
+  }
+</section>
+
+<!-- ===== CREATE ===== -->
+@if (view() === 'create') {
+  <section class="form-card">
+    <header class="card-head">
+      <div>
+        <p class="eyebrow">New</p>
+        <h2>Create requirement</h2>
+      </div>
+      <button type="button" class="ghost" (click)="showList()">
+        <i class="pi pi-arrow-left" aria-hidden="true"></i>
+        <span>Back</span>
+      </button>
+    </header>
+
+    <form [formGroup]="createForm" (ngSubmit)="onCreate()" novalidate>
+      <div class="field">
+        <span>Client</span>
+        <app-user-autocomplete
+          type="client"
+          placeholder="Search a client by email…"
+          (selected)="onClientPicked($event)"
+        />
+        @if (createCustomer.touched && createCustomer.invalid) {
+          <small class="err">Select a client.</small>
+        }
+      </div>
+
+      <label class="field">
+        <span>Document type</span>
+        <select formControlName="documentType" (change)="onDocTypeChange($event)">
+          <option value="" disabled>Select a type…</option>
+          @for (o of docTypeOptions; track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+        @if (createDocTypeCtrl.touched && createDocTypeCtrl.invalid) {
+          <small class="err">Select a document type.</small>
+        }
+      </label>
+
+      @if (requiresBank() || requiresTx()) {
+        <div class="field">
+          <span>{{ requiresBank() ? 'Bank account to link' : 'Transaction to link' }}</span>
+
+          @if (!createClient()) {
+            <p class="resource-note"><i class="pi pi-info-circle" aria-hidden="true"></i> Select a client first.</p>
+          } @else if (loadingResources()) {
+            <p class="resource-note"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Loading…</p>
+          } @else if (requiresBank()) {
+            @if (selectedBank(); as b) {
+              <div class="selected-resource">
+                <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ b.accountHolder }} · <span class="mono">{{ b.iban }}</span></span>
+                <button type="button" class="link-btn" (click)="clearBankSelection()">Change</button>
+              </div>
+            }
+            <p-table [value]="bankAccounts()" [paginator]="bankAccounts().length > 10" [rows]="10" styleClass="cf-pick-table">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="accountHolder">Holder <p-sortIcon field="accountHolder" /></th>
+                  <th pSortableColumn="iban">IBAN <p-sortIcon field="iban" /></th>
+                  <th pSortableColumn="bankInstitution">Bank <p-sortIcon field="bankInstitution" /></th>
+                  <th pSortableColumn="country">Country <p-sortIcon field="country" /></th>
+                  <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-row>
+                <tr class="pick-row" [class.picked]="selectedBank()?.id === row.id" (click)="onPickBank(row)">
+                  <td>{{ row.accountHolder }}</td>
+                  <td class="mono">{{ row.iban }}</td>
+                  <td>{{ row.bankInstitution }}</td>
+                  <td>{{ row.country }}</td>
+                  <td>{{ prettyState(row.state) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="5" class="pick-empty">This client has no bank accounts.</td></tr>
+              </ng-template>
+            </p-table>
+          } @else {
+            @if (selectedTx(); as t) {
+              <div class="selected-resource">
+                <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ txShort(t) }} · {{ formatAmount(t.amountSent) }} {{ t.fiatSymbol }} → {{ formatAmount(t.amountReceive) }} {{ t.cryptoSymbol }}</span>
+                <button type="button" class="link-btn" (click)="clearTxSelection()">Change</button>
+              </div>
+            }
+            <p-table [value]="transactions()" [paginator]="transactions().length > 10" [rows]="10" styleClass="cf-pick-table">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="id">Ref <p-sortIcon field="id" /></th>
+                  <th pSortableColumn="amountSent">Sent <p-sortIcon field="amountSent" /></th>
+                  <th pSortableColumn="amountReceive">Receive <p-sortIcon field="amountReceive" /></th>
+                  <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+                  <th pSortableColumn="createdAt">Date <p-sortIcon field="createdAt" /></th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-row>
+                <tr class="pick-row" [class.picked]="selectedTx()?.id === row.id" (click)="onPickTransaction(row)">
+                  <td class="mono">{{ txShort(row) }}</td>
+                  <td>{{ formatAmount(row.amountSent) }} {{ row.fiatSymbol }}</td>
+                  <td>{{ formatAmount(row.amountReceive) }} {{ row.cryptoSymbol }}</td>
+                  <td>{{ prettyState(row.state) }}</td>
+                  <td>{{ formatDate(row.createdAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="5" class="pick-empty">This client has no transactions.</td></tr>
+              </ng-template>
+            </p-table>
+          }
+        </div>
+      }
+
+      <label class="field">
+        <span>Name</span>
+        <input type="text" formControlName="name" maxlength="350" placeholder="e.g. Proof of address" />
+        @if (createName.touched && createName.invalid) {
+          <small class="err">A name is required (max 350 characters).</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Description</span>
+        <textarea formControlName="description" rows="4" maxlength="10000" placeholder="What the client must provide…"></textarea>
+        @if (createDescription.touched && createDescription.invalid) {
+          <small class="err">A description is required.</small>
+        }
+      </label>
+
+      <label class="file-picker">
+        <input type="file" (change)="onCreateFile($event)" />
+        <i class="pi pi-paperclip" aria-hidden="true"></i>
+        <span>{{ createFile()?.name || 'Attach a template file (optional)' }}</span>
+      </label>
+
+      <div class="form-actions">
+        <button type="button" class="ghost" (click)="showList()">Cancel</button>
+        <button
+          type="submit"
+          class="primary"
+          [disabled]="createLoading() || createForm.invalid || (requiresBank() && !selectedBank()) || (requiresTx() && !selectedTx())"
+        >
+          <i class="pi pi-check" aria-hidden="true"></i>
+          <span>{{ createLoading() ? 'Creating…' : 'Create requirement' }}</span>
+        </button>
+      </div>
+    </form>
+  </section>
+}
+
+<!-- ===== DETAIL ===== -->
+@else if (view() === 'detail') {
+  @if (selected(); as r) {
+    <section class="detail">
+      <div class="detail-bar">
+        <button type="button" class="ghost" (click)="back()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          <span>Back</span>
+        </button>
+        @if (!editing()) {
+          <div class="detail-bar-actions">
+            @if (canEdit(r)) {
+              <button type="button" class="ghost" (click)="startEdit()">
+                <i class="pi pi-pencil" aria-hidden="true"></i>
+                <span>Edit</span>
+              </button>
+            }
+            @if (canReview(r)) {
+              <button type="button" class="ghost danger" (click)="onReject(r)" [disabled]="actionBusyId() === r.id">
+                <i class="pi pi-times" aria-hidden="true"></i>
+                <span>Reject</span>
+              </button>
+              <button type="button" class="primary" (click)="onApprove(r)" [disabled]="actionBusyId() === r.id">
+                <i class="pi pi-check" aria-hidden="true"></i>
+                <span>Approve</span>
+              </button>
+            }
+            @if (canCancel(r)) {
+              <button type="button" class="ghost danger" (click)="onCancel(r)" [disabled]="actionBusyId() === r.id">
+                <i class="pi pi-ban" aria-hidden="true"></i>
+                <span>Cancel</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <header class="detail-head">
+        <div>
+          <p class="eyebrow">Requirement</p>
+          <h2>{{ r.name }}</h2>
+          <p class="muted">{{ shortId(r) }} · {{ docTypeLabel(r.documentType) }}</p>
+        </div>
+        <span [class]="stateBadgeClass(r.state)">{{ stateLabel(r.state) }}</span>
+      </header>
+
+      @if (editing()) {
+        <form class="edit-form" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" novalidate>
+          <label class="field">
+            <span>Name</span>
+            <input type="text" formControlName="name" maxlength="350" />
+            @if (editName.touched && editName.invalid) {
+              <small class="err">A name is required.</small>
+            }
+          </label>
+          <label class="field">
+            <span>Description</span>
+            <textarea formControlName="description" rows="4" maxlength="10000"></textarea>
+            @if (editDescription.touched && editDescription.invalid) {
+              <small class="err">A description is required.</small>
+            }
+          </label>
+          <label class="file-picker">
+            <input type="file" (change)="onEditFile($event)" />
+            <i class="pi pi-paperclip" aria-hidden="true"></i>
+            <span>{{ editFile()?.name || 'Replace template file (optional)' }}</span>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="ghost" (click)="cancelEdit()">Cancel</button>
+            <button type="submit" class="primary" [disabled]="savingEdit() || editForm.invalid">
+              {{ savingEdit() ? 'Saving…' : 'Save changes' }}
+            </button>
+          </div>
+        </form>
+      } @else {
+        <dl class="meta">
+          <div><dt>Client</dt><dd>{{ clientLabel(r) }}</dd></div>
+          <div><dt>Created by</dt><dd>{{ staffLabel(r) }}</dd></div>
+          <div><dt>Created</dt><dd>{{ formatDate(r.createdAt) }}</dd></div>
+          @if (r.state === 'approved') {
+            <div><dt>Approved by</dt><dd>{{ closedByLabel(r) }}</dd></div>
+            <div><dt>Approved on</dt><dd>{{ formatDate(r.closedDate) }}</dd></div>
+          }
+          @if (r.state === 'cancelled') {
+            <div><dt>Cancelled on</dt><dd>{{ formatDate(r.closedDate) }}</dd></div>
+          }
+          @if (r.transactionOrderId) {
+            <div><dt>Transaction</dt><dd class="mono">#{{ r.transactionOrderId.slice(0, 8) }}</dd></div>
+          }
+          @if (r.clientBankAccountId) {
+            <div><dt>Bank account</dt><dd class="mono">#{{ r.clientBankAccountId.slice(0, 8) }}</dd></div>
+          }
+        </dl>
+
+        <div class="block">
+          <h3>Description</h3>
+          <p class="description">{{ r.description }}</p>
+        </div>
+
+        <div class="block">
+          <h3>Files</h3>
+          <div class="files">
+            <div class="file-row">
+              <span class="file-info"><i class="pi pi-file" aria-hidden="true"></i> Template (provided by staff)</span>
+              @if (canDownloadTemplate(r)) {
+                <button type="button" class="ghost sm" (click)="download('empty')" [disabled]="downloading() === 'empty'">
+                  <i class="pi pi-download" aria-hidden="true"></i>
+                  {{ downloading() === 'empty' ? 'Downloading…' : 'Download' }}
+                </button>
+              } @else {
+                <span class="file-none">{{ r.hasTemplateFile ? 'Archived' : 'None' }}</span>
+              }
+            </div>
+            <div class="file-row">
+              <span class="file-info"><i class="pi pi-file-check" aria-hidden="true"></i> Client upload</span>
+              @if (canDownloadClientFile(r)) {
+                <button type="button" class="ghost sm" (click)="download('filled')" [disabled]="downloading() === 'filled'">
+                  <i class="pi pi-download" aria-hidden="true"></i>
+                  {{ downloading() === 'filled' ? 'Downloading…' : 'Download' }}
+                </button>
+              } @else {
+                <span class="file-none">{{ r.hasClientFile ? 'Archived' : 'Not uploaded yet' }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        @if (r.state === 'pending') {
+          <div class="note"><i class="pi pi-clock" aria-hidden="true"></i> <span>Waiting for the client to upload the requested file.</span></div>
+        } @else if (r.state === 'approved') {
+          <div class="note"><i class="pi pi-lock" aria-hidden="true"></i> <span>This requirement is approved and closed. Files have been archived.</span></div>
+        } @else if (r.state === 'cancelled') {
+          <div class="note"><i class="pi pi-ban" aria-hidden="true"></i> <span>This requirement was cancelled. It is read-only.</span></div>
+        }
+      }
+    </section>
+  } @else {
+    <section class="empty-panel">
+      <i class="pi pi-verified" aria-hidden="true"></i>
+      <p>Requirement not found.</p>
+      <button type="button" class="ghost" (click)="showList()">Back to list</button>
+    </section>
+  }
+}
+
+<!-- ===== LIST ===== -->
+@else {
+  <nav class="tabs" aria-label="Requirement types">
+    @for (t of tabs; track t.key) {
+      <button type="button" class="tab" [class.active]="activeTab() === t.key" (click)="setTab(t.key)">
+        <i [class]="t.icon" aria-hidden="true"></i>
+        <span>{{ t.label }}</span>
+        <span class="tab-count">{{ tabCount(t.key) }}</span>
+      </button>
+    }
+  </nav>
+
+  <section class="list-panel">
+    @if (loading()) {
+      <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading requirements…</span></div>
+    } @else {
+      @for (r of filteredList(); track r.id) {
+        <button type="button" class="req" (click)="openDetail(r)">
+          <span class="req-main">
+            <strong>{{ r.name }}</strong>
+            <small>{{ docTypeLabel(r.documentType) }} · {{ clientLabel(r) }} · {{ formatDate(r.createdAt) }}</small>
+          </span>
+          <span [class]="stateBadgeClass(r.state)">{{ stateLabel(r.state) }}</span>
+        </button>
+      } @empty {
+        <div class="list-empty">
+          <i class="pi pi-verified" aria-hidden="true"></i>
+          <span>No requirements in this tab.</span>
+        </div>
+      }
+    }
+  </section>
+}

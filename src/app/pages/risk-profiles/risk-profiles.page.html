@@ -1,0 +1,215 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Compliance</p>
+    <h1>Risk profiles</h1>
+    <p>Clients you can manage. Click a client to review or manage their risk profile.</p>
+  </div>
+</section>
+
+@if (canWrite) {
+  <nav class="tabs" aria-label="Risk profiles views">
+    <button type="button" class="tab" [class.active]="mode() === 'manage'" (click)="setMode('manage')">
+      <i class="pi pi-shield" aria-hidden="true"></i>
+      <span>Risk profiles</span>
+    </button>
+    <button type="button" class="tab" [class.active]="mode() === 'create'" (click)="setMode('create')">
+      <i class="pi pi-plus" aria-hidden="true"></i>
+      <span>Create profile</span>
+    </button>
+  </nav>
+}
+
+<!-- ===================== MANAGE ===================== -->
+@if (mode() === 'manage') {
+  @if (view() === 'list') {
+    <div class="toolbar">
+      <div class="search">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input type="search" placeholder="Search by email…" [value]="search()" (input)="onSearch($event)" />
+        @if (search()) {
+          <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">
+            <i class="pi pi-times" aria-hidden="true"></i>
+          </button>
+        }
+      </div>
+      <button type="button" class="ghost" (click)="loadClients()" [disabled]="loadingClients()">
+        <i class="pi pi-refresh" aria-hidden="true"></i>
+        <span>{{ loadingClients() ? 'Loading…' : 'Refresh' }}</span>
+      </button>
+    </div>
+
+    <section class="data-panel">
+      <p-table
+        [value]="filtered()"
+        [loading]="loadingClients()"
+        [paginator]="filtered().length > 0"
+        [rows]="pageSize"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [tableStyle]="{ 'min-width': '44rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+            <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+            <th pSortableColumn="riskProfile.level">Risk level <p-sortIcon field="riskProfile.level" /></th>
+            <th pSortableColumn="riskProfile.flag">Flag <p-sortIcon field="riskProfile.flag" /></th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-c>
+          <tr class="is-clickable" (click)="openClient(c)">
+            <td>{{ c.email }}</td>
+            <td><span class="cf-badge cf-badge--neutral">{{ stateLabel(c.state) }}</span></td>
+            <td>
+              @if (clientRiskLevel(c); as lvl) {
+                <span [class]="levelBadgeClass(lvl)">{{ levelLabel(lvl) }}</span>
+              } @else {
+                <span class="cf-badge cf-badge--neutral">None</span>
+              }
+            </td>
+            <td>
+              @if (clientRiskFlag(c); as flag) {
+                <span [class]="flagBadgeClass(flag)">{{ flagLabel(flag) }}</span>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="4" class="empty-cell">
+              <i class="pi pi-inbox" aria-hidden="true"></i>
+              <span>{{ loadingClients() ? 'Loading…' : (search() ? 'No clients match that search.' : 'No clients found.') }}</span>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </section>
+  } @else if (selectedClient(); as c) {
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <button type="button" class="crumb" (click)="backToList()">
+        <i class="pi pi-shield" aria-hidden="true"></i>
+        <span>Risk profiles</span>
+      </button>
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <span class="crumb current">{{ c.email }}</span>
+    </nav>
+
+    <app-risk-profile-detail [client]="c" (profileSynced)="onProfileChanged(c.id, $event)" />
+  }
+}
+
+<!-- ===================== CREATE ===================== -->
+@else {
+  @if (!creatingFor()) {
+    <p class="hint-line">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      Select a user to create a risk profile.
+    </p>
+
+    <div class="toolbar">
+      <div class="search">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input type="search" placeholder="Search by email…" [value]="search()" (input)="onSearch($event)" />
+        @if (search()) {
+          <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">
+            <i class="pi pi-times" aria-hidden="true"></i>
+          </button>
+        }
+      </div>
+      <button type="button" class="ghost" (click)="loadClients()" [disabled]="loadingClients()">
+        <i class="pi pi-refresh" aria-hidden="true"></i>
+        <span>{{ loadingClients() ? 'Loading…' : 'Refresh' }}</span>
+      </button>
+    </div>
+
+    <section class="data-panel">
+      <p-table
+        [value]="clientsNoProfile()"
+        [loading]="loadingClients()"
+        [paginator]="clientsNoProfile().length > 0"
+        [rows]="pageSize"
+        [rowsPerPageOptions]="[10, 25, 50]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [tableStyle]="{ 'min-width': '40rem' }"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+            <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+            <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-c>
+          <tr class="is-clickable" (click)="pickForCreate(c)">
+            <td>{{ c.email }}</td>
+            <td><span class="cf-badge cf-badge--neutral">{{ stateLabel(c.state) }}</span></td>
+            <td>{{ formatDate(c.createdAt) }}</td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="3" class="empty-cell">
+              <i class="pi pi-verified" aria-hidden="true"></i>
+              <span>{{ loadingClients() ? 'Loading…' : (search() ? 'No clients match that search.' : 'All your clients already have a risk profile.') }}</span>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </section>
+  } @else {
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <button type="button" class="crumb" (click)="cancelCreate()">
+        <i class="pi pi-plus" aria-hidden="true"></i>
+        <span>Create profile</span>
+      </button>
+      <i class="pi pi-angle-right sep" aria-hidden="true"></i>
+      <span class="crumb current">{{ creatingFor()?.email }}</span>
+    </nav>
+
+    <section class="detail">
+      <header class="detail-head">
+        <div>
+          <p class="eyebrow">New risk profile</p>
+          <h2>{{ creatingFor()?.email }}</h2>
+          <p class="muted">Set the initial risk level and flag for this client.</p>
+        </div>
+      </header>
+
+      <form class="risk-form" [formGroup]="profileForm" (ngSubmit)="onCreateProfile()" novalidate>
+        <div class="grid-2">
+          <label class="field">
+            <span>Level</span>
+            <select formControlName="level">
+              @for (o of levelOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>Flag</span>
+            <select formControlName="flag">
+              @for (o of flagOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="ghost" (click)="cancelCreate()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="savingProfile() || profileForm.invalid">
+            <i class="pi pi-shield" aria-hidden="true"></i>
+            <span>{{ savingProfile() ? 'Creating…' : 'Create risk profile' }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+}

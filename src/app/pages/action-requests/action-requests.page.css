@@ -1,0 +1,427 @@
+/* ---- Cabecera ---- */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--cf-teal-600);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+}
+.page-header > div p {
+  margin: 10px 0 0;
+  color: var(--cf-text-muted);
+  max-width: 70ch;
+}
+
+/* ---- Botones ---- */
+.ghost,
+.primary,
+.danger-ghost {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ghost {
+  border: 1px solid var(--cf-border);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+.ghost:hover:not(:disabled) {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+.primary {
+  border: 0;
+  background: var(--cf-teal-500);
+  color: #04221c;
+}
+.primary:hover:not(:disabled) {
+  background: var(--cf-teal-600);
+}
+.danger-ghost {
+  border: 1px solid rgba(225, 75, 75, 0.4);
+  background: rgba(225, 75, 75, 0.06);
+  color: var(--cf-danger);
+}
+.danger-ghost:hover:not(:disabled) {
+  background: rgba(225, 75, 75, 0.12);
+}
+.ghost:disabled,
+.primary:disabled,
+.danger-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Pestañas ---- */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--cf-border);
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tab:hover {
+  color: var(--cf-teal-600);
+}
+.tab.active {
+  color: var(--cf-teal-600);
+  border-bottom-color: var(--cf-teal-500);
+}
+.tab i {
+  font-size: 0.95rem;
+}
+
+/* ---- Listado ---- */
+.list-panel {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  overflow: hidden;
+}
+.ar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--cf-border);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.ar:last-child {
+  border-bottom: 0;
+}
+.ar:hover {
+  background: var(--cf-surface-2);
+}
+.ar-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.ar-main strong {
+  color: var(--cf-text);
+  font-size: 0.95rem;
+}
+.ar-main small {
+  color: var(--cf-text-muted);
+  font-size: 0.78rem;
+}
+.ar-main em {
+  color: var(--cf-text-muted);
+  font-style: normal;
+  font-size: 0.84rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60ch;
+}
+
+.list-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--cf-text-muted);
+}
+.list-empty i {
+  font-size: 1.7rem;
+  color: var(--cf-teal-600);
+}
+.list-empty span {
+  font-weight: 600;
+}
+
+/* ---- Detalle ---- */
+.detail {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  padding: 18px;
+}
+.detail-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.detail-bar-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--cf-border);
+}
+.detail-head h2 {
+  margin: 4px 0 6px;
+  color: var(--cf-text);
+  font-size: 1.2rem;
+  word-break: break-word;
+}
+.muted {
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.85rem;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 32px;
+  margin: 14px 0 0;
+}
+.meta dt {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.meta dd {
+  margin: 3px 0 0;
+  color: var(--cf-text);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+/* ---- Hilo ---- */
+.thread {
+  display: grid;
+  gap: 10px;
+  max-height: 48vh;
+  overflow-y: auto;
+  padding: 16px 4px;
+}
+.msg {
+  max-width: 76%;
+  justify-self: start;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface-2);
+  padding: 10px 12px;
+}
+.msg.own {
+  justify-self: end;
+  border-color: rgba(0, 184, 150, 0.35);
+  background: rgba(0, 212, 170, 0.1);
+}
+.msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.msg-head strong {
+  color: var(--cf-text);
+  font-size: 0.84rem;
+}
+.msg-head small {
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.msg-body {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.thread-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  color: var(--cf-text-muted);
+}
+.thread-empty i {
+  font-size: 1.6rem;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface-2);
+  color: var(--cf-text-muted);
+  font-weight: 600;
+}
+
+/* ---- Responder ---- */
+.reply {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+.reply textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 10px 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  resize: vertical;
+}
+.reply textarea:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.reply-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---- Crear ---- */
+.form-card {
+  max-width: 720px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  padding: 22px;
+}
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--cf-border);
+}
+.card-head h2 {
+  margin: 2px 0 0;
+  color: var(--cf-text);
+  font-size: 1.15rem;
+}
+.card-head > i {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--cf-teal-600);
+  font-size: 1.1rem;
+}
+.form-card form {
+  display: grid;
+  gap: 16px;
+}
+.field {
+  display: grid;
+  gap: 7px;
+}
+.field > span {
+  color: var(--cf-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 10px 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.field textarea {
+  resize: vertical;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.err {
+  color: var(--cf-danger);
+  font-size: 0.78rem;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---- Vacío ---- */
+.empty-panel {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 48px 16px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  color: var(--cf-text-muted);
+}
+.empty-panel i {
+  font-size: 1.9rem;
+  color: var(--cf-teal-600);
+}

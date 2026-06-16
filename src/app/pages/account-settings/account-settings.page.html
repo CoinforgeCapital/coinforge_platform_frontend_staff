@@ -1,0 +1,163 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Account</p>
+    <h1>Account settings</h1>
+    <p>Change your password and email. A confirmation code is sent to the email currently linked to your account.</p>
+  </div>
+</section>
+
+<section class="settings-grid">
+  <!-- ============ Password ============ -->
+  <article class="settings-panel">
+    <header class="panel-head">
+      <div>
+        <p class="eyebrow">Password</p>
+        <h2>Change password</h2>
+        <p>Choose a new password first. You will receive a code to confirm the change.</p>
+      </div>
+      <i class="pi pi-lock" aria-hidden="true"></i>
+    </header>
+
+    <form [formGroup]="passwordStartForm" (ngSubmit)="onStartPasswordChange()" novalidate>
+      <label class="field">
+        <span>New password</span>
+        <div class="control">
+          <input
+            [type]="showNewPassword() ? 'text' : 'password'"
+            autocomplete="new-password"
+            formControlName="newPassword"
+            placeholder="At least 8 characters"
+          />
+          <button type="button" class="toggle" (click)="toggleNewPassword()">
+            {{ showNewPassword() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        @if (newPassword.touched && newPassword.invalid) {
+          <small class="err">Password must be between 8 and 128 characters.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Confirm password</span>
+        <input
+          type="password"
+          autocomplete="new-password"
+          formControlName="confirmPassword"
+          placeholder="Repeat the new password"
+        />
+        @if (confirmPassword.touched && confirmPassword.invalid) {
+          <small class="err">Confirm the same password.</small>
+        }
+      </label>
+
+      @if (passwordStartMessage()) {
+        <p class="alert success" role="status">{{ passwordStartMessage() }}</p>
+      }
+
+      <button class="primary" type="submit" [disabled]="passwordStartLoading() || passwordStartForm.invalid">
+        <i class="pi pi-send" aria-hidden="true"></i>
+        {{ passwordStartLoading() ? 'Sending code…' : 'Send password code' }}
+      </button>
+    </form>
+
+    <div class="verify">
+      <h3>Confirm password change</h3>
+      <p>Enter the verification code we sent to your email.</p>
+
+      <form [formGroup]="passwordConfirmForm" (ngSubmit)="onConfirmPasswordChange()" novalidate>
+        <label class="field">
+          <span>Verification code</span>
+          <input
+            type="text"
+            autocomplete="one-time-code"
+            formControlName="token"
+            placeholder="Enter the code"
+          />
+          @if (passwordToken.touched && passwordToken.invalid) {
+            <small class="err">Enter the verification code from your email.</small>
+          }
+        </label>
+
+        @if (passwordConfirmMessage()) {
+          <p class="alert success" role="status">{{ passwordConfirmMessage() }}</p>
+        }
+        @if (passwordErrorMessage()) {
+          <p class="alert error" role="alert">{{ passwordErrorMessage() }}</p>
+        }
+
+        <button class="ghost" type="submit" [disabled]="passwordConfirmLoading() || passwordConfirmForm.invalid">
+          <i class="pi pi-check" aria-hidden="true"></i>
+          {{ passwordConfirmLoading() ? 'Confirming…' : 'Confirm password change' }}
+        </button>
+      </form>
+    </div>
+  </article>
+
+  <!-- ============ Email ============ -->
+  <article class="settings-panel">
+    <header class="panel-head">
+      <div>
+        <p class="eyebrow">Email</p>
+        <h2>Change email</h2>
+        <p>Enter the new email address. The confirmation code is sent to your current email.</p>
+      </div>
+      <i class="pi pi-envelope" aria-hidden="true"></i>
+    </header>
+
+    <form [formGroup]="emailStartForm" (ngSubmit)="onStartEmailChange()" novalidate>
+      <label class="field">
+        <span>New email</span>
+        <input
+          type="email"
+          autocomplete="email"
+          formControlName="newEmail"
+          placeholder="name@coinforge.com"
+        />
+        @if (newEmail.touched && newEmail.invalid) {
+          <small class="err">Enter a valid email address.</small>
+        }
+      </label>
+
+      @if (emailStartMessage()) {
+        <p class="alert success" role="status">{{ emailStartMessage() }}</p>
+      }
+
+      <button class="primary" type="submit" [disabled]="emailStartLoading() || emailStartForm.invalid">
+        <i class="pi pi-send" aria-hidden="true"></i>
+        {{ emailStartLoading() ? 'Sending code…' : 'Send email code' }}
+      </button>
+    </form>
+
+    <div class="verify">
+      <h3>Confirm email change</h3>
+      <p>Enter the verification code we sent to your current email.</p>
+
+      <form [formGroup]="emailConfirmForm" (ngSubmit)="onConfirmEmailChange()" novalidate>
+        <label class="field">
+          <span>Verification code</span>
+          <input
+            type="text"
+            autocomplete="one-time-code"
+            formControlName="token"
+            placeholder="Enter the code"
+          />
+          @if (emailToken.touched && emailToken.invalid) {
+            <small class="err">Enter the verification code from your email.</small>
+          }
+        </label>
+
+        @if (emailConfirmMessage()) {
+          <p class="alert success" role="status">{{ emailConfirmMessage() }}</p>
+        }
+        @if (emailErrorMessage()) {
+          <p class="alert error" role="alert">{{ emailErrorMessage() }}</p>
+        }
+
+        <button class="ghost" type="submit" [disabled]="emailConfirmLoading() || emailConfirmForm.invalid">
+          <i class="pi pi-check" aria-hidden="true"></i>
+          {{ emailConfirmLoading() ? 'Confirming…' : 'Confirm email change' }}
+        </button>
+      </form>
+    </div>
+  </article>
+</section>

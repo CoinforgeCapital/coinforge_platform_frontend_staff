@@ -1,0 +1,165 @@
+@if (loading()) {
+  <section class="empty-panel">
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+    <p>Loading risk profile…</p>
+  </section>
+} @else if (errorMsg()) {
+  <section class="empty-panel error">
+    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+    <p>{{ errorMsg() }}</p>
+  </section>
+} @else if (profile(); as p) {
+  <section class="detail">
+    <header class="detail-head">
+      <div>
+        <p class="eyebrow">Risk profile</p>
+        <h2>{{ client()?.email }}</h2>
+        <p class="muted">Updated {{ formatDate(p.updatedAt ?? p.createdAt) }}</p>
+      </div>
+      <dl class="risk-meta">
+        <div>
+          <dt>Risk level</dt>
+          <dd><span [class]="levelBadgeClass(p.level)">{{ levelLabel(p.level) }}</span></dd>
+        </div>
+        <div>
+          <dt>Flag</dt>
+          <dd><span [class]="flagBadgeClass(p.flag)">{{ flagLabel(p.flag) }}</span></dd>
+        </div>
+      </dl>
+    </header>
+
+    @if (canWrite && editing()) {
+      <form class="risk-form" [formGroup]="profileForm" (ngSubmit)="onSaveProfile()" novalidate>
+        <div class="grid-2">
+          <label class="field">
+            <span>Level</span>
+            <select formControlName="level">
+              @for (o of levelOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>Flag</span>
+            <select formControlName="flag">
+              @for (o of flagOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="ghost" (click)="cancelEdit()">Cancel</button>
+          <button type="submit" class="primary" [disabled]="savingProfile() || profileForm.invalid">
+            {{ savingProfile() ? 'Saving…' : 'Save changes' }}
+          </button>
+        </div>
+      </form>
+    } @else if (canWrite && !addingNote()) {
+      <div class="actions-row">
+        <button type="button" class="ghost" (click)="startEdit()">
+          <i class="pi pi-pencil" aria-hidden="true"></i>
+          <span>Edit risk</span>
+        </button>
+        <button type="button" class="ghost" (click)="startAddNote()">
+          <i class="pi pi-plus" aria-hidden="true"></i>
+          <span>Add note</span>
+        </button>
+      </div>
+    }
+
+    <div class="notes-block">
+      @if (addingNote()) {
+        <div class="notes-head"><h3>New note</h3></div>
+        <form class="note-form" [formGroup]="noteForm" (ngSubmit)="onAddNote()" novalidate>
+          <label class="field">
+            <span>Title</span>
+            <input type="text" formControlName="title" maxlength="250" placeholder="Short title" />
+            @if (noteTitle.touched && noteTitle.invalid) {
+              <small class="err">A title is required (max 250 characters).</small>
+            }
+          </label>
+          <label class="field">
+            <span>Description</span>
+            <textarea formControlName="description" rows="4" maxlength="10000" placeholder="Write a note…"></textarea>
+            @if (noteDescription.touched && noteDescription.invalid) {
+              <small class="err">A description is required.</small>
+            }
+          </label>
+          <div class="form-actions">
+            <button type="button" class="ghost" (click)="cancelAddNote()">Cancel</button>
+            <button type="submit" class="primary" [disabled]="savingNote() || noteForm.invalid">
+              <i class="pi pi-check" aria-hidden="true"></i>
+              <span>{{ savingNote() ? 'Adding…' : 'Add note' }}</span>
+            </button>
+          </div>
+        </form>
+      } @else {
+        <div class="notes-head">
+          <h3>Notes</h3>
+          <span class="count">{{ notes().length }}</span>
+        </div>
+        <div class="notes">
+          @for (n of notes(); track n.id) {
+            <article class="note">
+              <div class="note-head">
+                <strong>{{ n.title }}</strong>
+                <small>{{ formatDate(n.createdAt) }}</small>
+              </div>
+              <p class="note-body">{{ n.description }}</p>
+            </article>
+          } @empty {
+            <div class="note-empty">
+              <i class="pi pi-file" aria-hidden="true"></i>
+              <span>No notes yet.</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </section>
+} @else if (notFound()) {
+  @if (canWrite) {
+    <section class="detail">
+      <header class="detail-head">
+        <div>
+          <p class="eyebrow">Risk profile</p>
+          <h2>{{ client()?.email }}</h2>
+          <p class="muted">No risk profile yet. Create one below.</p>
+        </div>
+      </header>
+
+      <form class="risk-form" [formGroup]="profileForm" (ngSubmit)="onSaveProfile()" novalidate>
+        <div class="grid-2">
+          <label class="field">
+            <span>Level</span>
+            <select formControlName="level">
+              @for (o of levelOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>Flag</span>
+            <select formControlName="flag">
+              @for (o of flagOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="primary" [disabled]="savingProfile() || profileForm.invalid">
+            <i class="pi pi-shield" aria-hidden="true"></i>
+            <span>{{ savingProfile() ? 'Creating…' : 'Create risk profile' }}</span>
+          </button>
+        </div>
+      </form>
+    </section>
+  } @else {
+    <section class="empty-panel">
+      <i class="pi pi-shield" aria-hidden="true"></i>
+      <p>This client has no risk profile yet.</p>
+    </section>
+  }
+}

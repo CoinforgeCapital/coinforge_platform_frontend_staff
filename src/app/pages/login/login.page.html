@@ -1,0 +1,53 @@
+<section class="auth-card" aria-labelledby="login-title">
+  <div class="auth-card-header">
+    <img
+      class="auth-card-logo"
+      src="/favicon.png"
+      width="64"
+      height="64"
+      alt="CoinForge"
+      decoding="async"
+    />
+    <div>
+      <p class="auth-eyebrow">Staff Console</p>
+      <h2 id="login-title" class="auth-card-title">Sign in</h2>
+      <p class="auth-card-subtitle">Use the email and password linked to your staff account.</p>
+    </div>
+  </div>
+
+  <form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <label class="auth-field">
+      <span>Email</span>
+      <input
+        type="email"
+        autocomplete="email"
+        formControlName="email"
+        placeholder="staff@coinforge.com"
+      />
+    </label>
+    @if (email.touched && email.invalid) {
+      <p class="auth-field-error">Please enter a valid email address.</p>
+    }
+
+    <label class="auth-field">
+      <span>Password</span>
+      <input
+        type="password"
+        autocomplete="current-password"
+        formControlName="password"
+        placeholder="Your password"
+      />
+    </label>
+    @if (password.touched && password.invalid) {
+      <p class="auth-field-error">Password must be between 8 and 128 characters.</p>
+    }
+
+    @if (errorMessage()) {
+      <p class="auth-alert error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <button class="auth-submit" type="submit" [disabled]="loading() || form.invalid">
+      {{ loading() ? 'Signing in...' : 'Sign in' }}
+    </button>
+  </form>
+</section>

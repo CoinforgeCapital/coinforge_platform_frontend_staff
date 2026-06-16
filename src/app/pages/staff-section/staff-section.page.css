@@ -1,0 +1,111 @@
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--cf-teal-600);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  color: var(--cf-text);
+  font-size: clamp(1.7rem, 2.6vw, 2.45rem);
+}
+
+.page-header p {
+  margin: 10px 0 0;
+  color: var(--cf-text-muted);
+}
+
+button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--cf-teal-500);
+  color: var(--cf-teal-600);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.notice,
+.error {
+  border-radius: var(--cf-radius-sm);
+  padding: 13px 14px;
+  margin: 0 0 16px;
+}
+
+.notice {
+  border: 1px solid #b8e8dc;
+  background: #effbf8;
+  color: #176b58;
+}
+
+.error {
+  border: 1px solid #ffc7c0;
+  background: #fff3f1;
+  color: #8d2c24;
+}
+
+.data-panel {
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius);
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  overflow: hidden;
+}
+
+/* Filas clicables (p. ej. clientes -> ficha) */
+.is-clickable {
+  cursor: pointer;
+}
+
+/* Estado vacío dentro de la tabla */
+.empty-cell {
+  padding: 44px 16px;
+  text-align: center;
+  color: var(--cf-text-muted);
+}
+
+.empty-cell i {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--cf-teal-600);
+  font-size: 1.7rem;
+}
+
+.empty-cell span {
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

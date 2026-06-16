@@ -1,0 +1,228 @@
+@if (tabs.length === 0) {
+  <div class="placeholder">
+    <i class="pi pi-lock" aria-hidden="true"></i>
+    <strong>No access</strong>
+    <span>Your role has no pending-approval queues.</span>
+  </div>
+} @else {
+  <p class="cpa-sub">
+    <i class="pi pi-info-circle" aria-hidden="true"></i>
+    <span>Items awaiting a decision for this client. Click a row to change its state.</span>
+  </p>
+
+  <p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)" styleClass="cf-tabs">
+    <p-tablist>
+      @for (t of tabs; track t.key) {
+        <p-tab [value]="t.key">
+          <i [class]="t.icon" aria-hidden="true"></i>
+          <span class="tab-label">{{ t.label }}</span>
+        </p-tab>
+      }
+    </p-tablist>
+
+    <p-tabpanels>
+      <!-- ===== Wallets ===== -->
+      <p-tabpanel value="wallets">
+        @if (activeTab() === 'wallets') {
+          <p-table [value]="walletRows()" [paginator]="walletRows().length > 10" [rows]="10" [loading]="walletLoading()" styleClass="cf-table">
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="blockchain.name">Blockchain <p-sortIcon field="blockchain.name" /></th>
+                <th pSortableColumn="publicAddress">Address <p-sortIcon field="publicAddress" /></th>
+                <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+                <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-w>
+              <tr class="clickable" (click)="openWallet(w)">
+                <td>{{ blockchainName(w) }}</td>
+                <td class="mono">{{ shortAddr(w.publicAddress) }}</td>
+                <td><span [class]="resourceStateBadge(w.state)">{{ prettyState(w.state) }}</span></td>
+                <td>{{ formatDate(w.createdAt) }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4" class="empty">No pending wallets.</td></tr>
+            </ng-template>
+          </p-table>
+        }
+      </p-tabpanel>
+
+      <!-- ===== Bank accounts ===== -->
+      <p-tabpanel value="bank-accounts">
+        @if (activeTab() === 'bank-accounts') {
+          <p-table [value]="bankRows()" [paginator]="bankRows().length > 10" [rows]="10" [loading]="bankLoading()" styleClass="cf-table">
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="accountHolder">Holder <p-sortIcon field="accountHolder" /></th>
+                <th pSortableColumn="iban">IBAN <p-sortIcon field="iban" /></th>
+                <th pSortableColumn="bankInstitution">Bank <p-sortIcon field="bankInstitution" /></th>
+                <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+                <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-b>
+              <tr class="clickable" (click)="openBank(b)">
+                <td>{{ b.accountHolder }}</td>
+                <td class="mono">{{ b.iban }}</td>
+                <td>{{ b.bankInstitution }} · {{ b.country }}</td>
+                <td><span [class]="resourceStateBadge(b.state)">{{ prettyState(b.state) }}</span></td>
+                <td>{{ formatDate(b.createdAt) }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="5" class="empty">No pending bank accounts.</td></tr>
+            </ng-template>
+          </p-table>
+        }
+      </p-tabpanel>
+
+      <!-- ===== Transactions ===== -->
+      <p-tabpanel value="transactions">
+        @if (activeTab() === 'transactions') {
+          <p-table [value]="txRows()" [paginator]="txRows().length > 10" [rows]="10" [loading]="txLoading()" styleClass="cf-table">
+            <ng-template pTemplate="header">
+              <tr>
+                <th pSortableColumn="id">Ref <p-sortIcon field="id" /></th>
+                <th pSortableColumn="amountSent">Amount <p-sortIcon field="amountSent" /></th>
+                <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+                <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-t>
+              <tr class="clickable" (click)="openTransaction(t)">
+                <td class="mono">{{ shortId(t.id) }}</td>
+                <td>{{ formatAmount(t.amountSent) }} {{ t.fiatSymbol }} → {{ formatAmount(t.amountReceive) }} {{ t.cryptoSymbol }}</td>
+                <td><span [class]="resourceStateBadge(t.state)">{{ prettyState(t.state) }}</span></td>
+                <td>{{ formatDate(t.createdAt) }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4" class="empty">No pending transactions.</td></tr>
+            </ng-template>
+          </p-table>
+        }
+      </p-tabpanel>
+
+      <!-- ===== KYC ===== -->
+      @if (canKyc) {
+        <p-tabpanel value="kyc">
+          @if (activeTab() === 'kyc') {
+            <p-table [value]="kycRows()" [paginator]="kycRows().length > 10" [rows]="10" [loading]="kycLoading()" styleClass="cf-table">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
+                  <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-k>
+                <tr class="clickable" (click)="openKyc(k)">
+                  <td><span [class]="resourceStateBadge(k.state)">{{ prettyState(k.state) }}</span></td>
+                  <td>{{ formatDate(k.createdAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="2" class="empty">No pending KYC.</td></tr>
+              </ng-template>
+            </p-table>
+          }
+        </p-tabpanel>
+      }
+    </p-tabpanels>
+  </p-tabs>
+}
+
+<!-- ===== Diálogo de cambio de estado ===== -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '460px' }"
+  [header]="dialogTitle()"
+  (onHide)="dialog.set(null)"
+>
+  @if (dialog(); as d) {
+    @switch (d.type) {
+      @case ('wallet') {
+        <dl class="detail">
+          <div><dt>Client</dt><dd>{{ d.data.client.email }}</dd></div>
+          <div><dt>Blockchain</dt><dd>{{ blockchainName(d.data) }}</dd></div>
+          <div><dt>Address</dt><dd class="mono">{{ d.data.publicAddress }}</dd></div>
+          <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
+        </dl>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="verifyWallet(d.data)" [disabled]="busy()">
+            <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
+          </button>
+          <button type="button" class="ghost danger" (click)="blockWallet(d.data)" [disabled]="busy()">
+            <i class="pi pi-ban" aria-hidden="true"></i><span>Block</span>
+          </button>
+        </div>
+      }
+      @case ('bank') {
+        <dl class="detail">
+          <div><dt>Client</dt><dd>{{ d.data.client.email }}</dd></div>
+          <div><dt>Holder</dt><dd>{{ d.data.accountHolder }}</dd></div>
+          <div><dt>IBAN</dt><dd class="mono">{{ d.data.iban }}</dd></div>
+          <div><dt>Bank</dt><dd>{{ d.data.bankInstitution }} · {{ d.data.country }}</dd></div>
+          <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
+        </dl>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="verifyBank(d.data)" [disabled]="busy()">
+            <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
+          </button>
+          <button type="button" class="ghost danger" (click)="blockBank(d.data)" [disabled]="busy()">
+            <i class="pi pi-ban" aria-hidden="true"></i><span>Block</span>
+          </button>
+        </div>
+      }
+      @case ('transaction') {
+        <dl class="detail">
+          <div><dt>Client</dt><dd>{{ d.data.client.email }}</dd></div>
+          <div><dt>Reference</dt><dd class="mono">{{ shortId(d.data.id) }}</dd></div>
+          <div><dt>Amount</dt><dd>{{ formatAmount(d.data.amountSent) }} {{ d.data.fiatSymbol }} → {{ formatAmount(d.data.amountReceive) }} {{ d.data.cryptoSymbol }}</dd></div>
+          <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
+        </dl>
+        @if (canChangeTxState) {
+          <div class="dialog-actions tx">
+            <select class="cf-select" [(ngModel)]="txTarget">
+              <option value="" disabled>Set state…</option>
+              @for (o of txStateOptions; track o.value) {
+                <option [value]="o.value">{{ o.label }}</option>
+              }
+            </select>
+            <button type="button" class="ghost" (click)="setTxState(d.data)" [disabled]="busy() || !txTarget">
+              <i class="pi pi-save" aria-hidden="true"></i><span>Apply</span>
+            </button>
+          </div>
+        } @else {
+          <p class="muted-note">
+            <i class="pi pi-info-circle" aria-hidden="true"></i>
+            Only operations/admin can change transaction states.
+          </p>
+        }
+      }
+      @case ('kyc') {
+        <dl class="detail">
+          <div><dt>Client</dt><dd>{{ d.data.client.email }}</dd></div>
+          <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
+        </dl>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="verifyKyc(d.data)" [disabled]="busy()">
+            <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
+          </button>
+          <button type="button" class="ghost" (click)="syncKyc(d.data)" [disabled]="busy()">
+            <i class="pi pi-refresh" aria-hidden="true"></i><span>Sync KYCAID</span>
+          </button>
+          <button type="button" class="ghost" (click)="restrictKyc(d.data)" [disabled]="busy()">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true"></i><span>Restrict</span>
+          </button>
+          <button type="button" class="ghost danger" (click)="resetKyc(d.data)" [disabled]="busy()">
+            <i class="pi pi-undo" aria-hidden="true"></i><span>Reset</span>
+          </button>
+        </div>
+      }
+    }
+  }
+</p-dialog>

@@ -1,0 +1,220 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Support</p>
+    <h1>Support tickets</h1>
+    <p>Handle client support tickets: claim, reply, change status and download attachments.</p>
+  </div>
+
+  @if (view() !== 'detail') {
+    <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+      <i class="pi pi-refresh" aria-hidden="true"></i>
+      <span>{{ loading() ? 'Loading…' : 'Refresh' }}</span>
+    </button>
+  }
+</section>
+
+@if (view() === 'detail') {
+  @if (detailLoading()) {
+    <section class="empty-panel">
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <p>Loading ticket…</p>
+    </section>
+  } @else if (selectedTicket(); as t) {
+    <section class="detail">
+      <div class="detail-bar">
+        <button type="button" class="ghost" (click)="back()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          <span>Back</span>
+        </button>
+        <div class="detail-bar-actions">
+          @if (canClaim(t)) {
+            <button type="button" class="primary" (click)="onClaim(t.id)" [disabled]="claimingId() === t.id">
+              <i class="pi pi-user-plus" aria-hidden="true"></i>
+              <span>{{ claimingId() === t.id ? 'Claiming…' : 'Claim' }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <header class="detail-head">
+        <div>
+          <p class="eyebrow">Support ticket</p>
+          <h2>{{ t.subject }}</h2>
+          <p class="muted">{{ shortId(t) }}</p>
+        </div>
+        <div class="badges">
+          <span [class]="statusBadgeClass(t.status)">{{ statusLabel(t.status) }}</span>
+          <span [class]="priorityBadgeClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+        </div>
+      </header>
+
+      <dl class="meta">
+        <div><dt>Customer</dt><dd>{{ customerLabel(t) }}</dd></div>
+        <div><dt>Assigned support</dt><dd>{{ assignedLabel(t) }}</dd></div>
+      </dl>
+
+      @if (canUpdateStatus(t) || (isSupportOfficer && t.status !== 'closed')) {
+        <div class="controls">
+          @if (canUpdateStatus(t)) {
+            <div class="control-group">
+              <span>Status</span>
+              <div class="status-row">
+                <select [value]="statusValue()" (change)="onStatusChange($event)">
+                  @for (s of statusOptions; track s.value) {
+                    <option [value]="s.value">{{ s.label }}</option>
+                  }
+                </select>
+                <button type="button" class="ghost" (click)="onUpdateStatus()" [disabled]="statusBusy()">
+                  {{ statusBusy() ? 'Updating…' : 'Update' }}
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (isSupportOfficer && t.status !== 'closed') {
+            <div class="control-group">
+              <span>{{ t.supportUser ? 'Reassign to' : 'Assign to' }}</span>
+              <app-user-autocomplete
+                type="staff"
+                placeholder="Search a support agent…"
+                (selected)="onAssignPick($event)"
+              />
+            </div>
+          }
+        </div>
+      }
+
+      <div class="thread cf-scroll">
+        @for (m of selectedMessages(); track m.id) {
+          <div class="msg" [class.own]="isOwn(m)">
+            <div class="msg-head">
+              <strong>{{ senderLabel(m) }}</strong>
+              <small>{{ formatDate(m.createdAt) }}</small>
+            </div>
+            <p class="msg-body">{{ m.body }}</p>
+            @if (m.documents?.length) {
+              <div class="docs">
+                @for (d of m.documents; track d.id) {
+                  <button type="button" class="doc" (click)="downloadDocument(d)" [disabled]="downloadingDocId() === d.id">
+                    <i class="pi pi-paperclip" aria-hidden="true"></i>
+                    {{ downloadingDocId() === d.id ? 'Downloading…' : (d.name || 'file') }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        } @empty {
+          <div class="thread-empty">
+            <i class="pi pi-comment" aria-hidden="true"></i>
+            <span>No messages in this ticket yet.</span>
+          </div>
+        }
+      </div>
+
+      @if (t.status === 'closed') {
+        <div class="note"><i class="pi pi-lock" aria-hidden="true"></i> <span>This ticket is closed.</span></div>
+      } @else if (canReply(t)) {
+        <form class="reply" [formGroup]="replyForm" (ngSubmit)="onReply()" novalidate>
+          <textarea formControlName="body" rows="3" maxlength="10000" placeholder="Write a reply…"></textarea>
+
+          <label class="file-picker">
+            <input type="file" multiple (change)="onReplyFilesSelected($event)" />
+            <i class="pi pi-paperclip" aria-hidden="true"></i>
+            <span>{{ replyFileNames() || 'Attach files' }}</span>
+          </label>
+
+          @if (replyFiles().length) {
+            <div class="file-list">
+              @for (f of replyFiles(); track f.name; let i = $index) {
+                <span>
+                  {{ f.name }}
+                  <button type="button" (click)="removeReplyFile(i)" aria-label="Remove file">
+                    <i class="pi pi-times" aria-hidden="true"></i>
+                  </button>
+                </span>
+              }
+            </div>
+          }
+
+          <div class="reply-actions">
+            <button type="submit" class="primary" [disabled]="replyLoading() || replyForm.invalid">
+              <i class="pi pi-send" aria-hidden="true"></i>
+              <span>{{ replyLoading() ? 'Sending…' : 'Send reply' }}</span>
+            </button>
+          </div>
+        </form>
+      } @else {
+        <div class="note">
+          <i class="pi pi-eye" aria-hidden="true"></i>
+          <span>You can view this ticket but it is not assigned to you.</span>
+        </div>
+      }
+    </section>
+  } @else {
+    <section class="empty-panel">
+      <i class="pi pi-ticket" aria-hidden="true"></i>
+      <p>Ticket not found.</p>
+      <button type="button" class="ghost" (click)="showMine()">Back to tickets</button>
+    </section>
+  }
+} @else {
+  <nav class="tabs" aria-label="Support ticket views">
+    <button type="button" class="tab" [class.active]="view() === 'mine'" (click)="showMine()">
+      <i class="pi pi-inbox" aria-hidden="true"></i>
+      <span>{{ isSupportOfficer ? 'All tickets' : 'My tickets' }}</span>
+    </button>
+    <button type="button" class="tab" [class.active]="view() === 'unassigned'" (click)="showUnassigned()">
+      <i class="pi pi-flag" aria-hidden="true"></i>
+      <span>Unassigned</span>
+    </button>
+  </nav>
+
+  @if (view() === 'unassigned') {
+    <section class="list-panel">
+      @if (loading()) {
+        <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>
+      } @else {
+        @for (t of unassignedList(); track t.id) {
+          <div class="ticket static">
+            <span class="ticket-main">
+              <strong>{{ t.subject }}</strong>
+              <small>{{ shortId(t) }} · {{ customerLabel(t) }} · {{ formatDate(t.createdAt) }}</small>
+            </span>
+            <span class="ticket-side">
+              <span [class]="priorityBadgeClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+              <button type="button" class="primary sm" (click)="onClaim(t.id)" [disabled]="claimingId() === t.id">
+                {{ claimingId() === t.id ? 'Claiming…' : 'Claim' }}
+              </button>
+            </span>
+          </div>
+        } @empty {
+          <div class="list-empty"><i class="pi pi-check-circle" aria-hidden="true"></i><span>No unassigned tickets.</span></div>
+        }
+      }
+    </section>
+  } @else {
+    <section class="list-panel">
+      @if (loading()) {
+        <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>
+      } @else {
+        @for (t of mineList(); track t.id) {
+          <button type="button" class="ticket" (click)="selectTicket(t)">
+            <span class="ticket-main">
+              <strong>{{ t.subject }}</strong>
+              <small>{{ shortId(t) }} · {{ customerLabel(t) }} · {{ assignedLabel(t) }} · {{ formatDate(t.updatedAt ?? t.createdAt) }}</small>
+            </span>
+            <span class="ticket-side">
+              <span [class]="priorityBadgeClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+              <span [class]="statusBadgeClass(t.status)">{{ statusLabel(t.status) }}</span>
+            </span>
+          </button>
+        } @empty {
+          <div class="list-empty">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            <span>{{ isSupportOfficer ? 'No tickets yet.' : 'No tickets assigned to you.' }}</span>
+          </div>
+        }
+      }
+    </section>
+  }
+}
