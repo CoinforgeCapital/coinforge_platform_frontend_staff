@@ -15,6 +15,7 @@ export class LoginPage {
 
   readonly loading = signal(false);
   readonly errorMessage = signal('');
+  readonly showPassword = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -45,6 +46,10 @@ export class LoginPage {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  togglePasswordVisibility(): void {
+    this.showPassword.update((visible) => !visible);
   }
 
   private toErrorMessage(err: unknown): string {

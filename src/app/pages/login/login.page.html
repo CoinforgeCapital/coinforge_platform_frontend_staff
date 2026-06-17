@@ -31,12 +31,28 @@
 
     <label class="auth-field">
       <span>Password</span>
-      <input
-        type="password"
-        autocomplete="current-password"
-        formControlName="password"
-        placeholder="Your password"
-      />
+      <div class="auth-control">
+        <input
+          [type]="showPassword() ? 'text' : 'password'"
+          autocomplete="current-password"
+          formControlName="password"
+          placeholder="Your password"
+        />
+        <button
+          class="auth-password-toggle"
+          type="button"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+          [attr.aria-pressed]="showPassword()"
+          (click)="togglePasswordVisibility()"
+        >
+          <i
+            class="pi"
+            [class.pi-eye]="!showPassword()"
+            [class.pi-eye-slash]="showPassword()"
+            aria-hidden="true"
+          ></i>
+        </button>
+      </div>
     </label>
     @if (password.touched && password.invalid) {
       <p class="auth-field-error">Password must be between 8 and 128 characters.</p>

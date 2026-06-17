@@ -123,6 +123,43 @@
   background: rgba(1, 8, 10, 0.95);
 }
 
+/* Campo de contraseña con botón de ojo (mostrar/ocultar) superpuesto a la derecha. */
+.auth-control {
+  position: relative;
+}
+
+.auth-control input {
+  padding-right: 52px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 212, 170, 0.08);
+  color: var(--cf-teal-400);
+  font-size: 1rem;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.auth-password-toggle:hover {
+  background: rgba(0, 212, 170, 0.16);
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid rgba(0, 212, 170, 0.76);
+  outline-offset: 2px;
+}
+
 .auth-field-error {
   margin: 0;
   color: #fecaca;
