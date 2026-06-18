@@ -249,6 +249,8 @@ export class ClientsPage implements OnInit {
   readonly canFinancials = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientFinancials);
   readonly canChangeTxState = this.auth.hasAnyRole(STAFF_PERMISSIONS.transactionStateChange);
   readonly canCreateRequirement = this.auth.hasAnyRole(STAFF_PERMISSIONS.requirementsWrite);
+  /** Ver/descargar documentos de requirements (GET + file download) — sin operator. */
+  readonly canReadRequirements = this.auth.hasAnyRole(STAFF_PERMISSIONS.requirementsRead);
   /** Cambiar el estado de un cliente (el support officer queda excluido: solo gestiona soporte). */
   readonly canChangeState = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientStateChange);
   /** PATCH /api/kyc/:id/{verify,sync-kycaid,restricted,reset} — gestionar el KYC del cliente. */
@@ -394,6 +396,13 @@ export class ClientsPage implements OnInit {
   readonly activeDocTab = signal<string>(DOCUMENT_TABS[0].key);
   readonly downloadingDocId = signal<string | null>(null);
   readonly viewingDocId = signal<string | null>(null);
+
+  // ---- PDF de transacciones (historial completo / individual) ----
+  readonly downloadingAllTxPdf = signal(false);
+  readonly downloadingTxPdfId = signal<string | null>(null);
+
+  // ---- Descarga de documentos de un requirement (plantilla / archivo del cliente) ----
+  readonly downloadingReqFile = signal<string | null>(null);
 
   // ---- Acciones (estado) ----
   readonly actionBusy = signal(false);
@@ -862,6 +871,88 @@ export class ClientsPage implements OnInit {
     } finally {
       this.downloadingDocId.set(null);
     }
+  }
+
+  // ---- PDF de transacciones (staff) ----
+
+  /** Imprime en PDF el historial completo de transacciones del cliente. */
+  async downloadAllTransactionsPdf(): Promise<void> {
+    const clientId = this.selected()?.['id'] as string | undefined;
+    if (!clientId) return;
+    this.downloadingAllTxPdf.set(true);
+    try {
+      const blob = await this.api.downloadClientTransactionsListPdf(clientId);
+      this.saveBlob(blob, `coinforge-transactions-${clientId}.pdf`);
+    } catch (err: unknown) {
+      this.toast('error', 'Could not generate PDF', this.downloadErrorMessage(err));
+    } finally {
+      this.downloadingAllTxPdf.set(false);
+    }
+  }
+
+  /** Imprime en PDF el detalle de una transacción concreta del cliente. */
+  async downloadTransactionPdf(item: Record<string, unknown>): Promise<void> {
+    const clientId = this.selected()?.['id'] as string | undefined;
+    const txId = item['id'] as string | undefined;
+    if (!clientId || !txId) return;
+    this.downloadingTxPdfId.set(txId);
+    try {
+      const blob = await this.api.downloadClientTransactionPdf(clientId, txId);
+      this.saveBlob(blob, `coinforge-transaction-${txId}.pdf`);
+    } catch (err: unknown) {
+      this.toast('error', 'Could not generate PDF', this.downloadErrorMessage(err));
+    } finally {
+      this.downloadingTxPdfId.set(null);
+    }
+  }
+
+  isDownloadingTxPdf(item: Record<string, unknown>): boolean {
+    return this.downloadingTxPdfId() === item['id'];
+  }
+
+  // ---- Descarga de documentos de un requirement (igual que la página Requirements) ----
+
+  private reqState(req: Record<string, unknown>): string {
+    return String(req['state'] ?? '');
+  }
+
+  /** Hay plantilla descargable (se oculta en approved/cancelled, igual que en Requirements). */
+  canDownloadReqTemplate(req: Record<string, unknown>): boolean {
+    return (
+      this.canReadRequirements &&
+      !!req['emptyFilePath'] &&
+      this.reqState(req) !== 'approved' &&
+      this.reqState(req) !== 'cancelled'
+    );
+  }
+
+  /** Hay archivo subido por el cliente descargable. */
+  canDownloadReqClientFile(req: Record<string, unknown>): boolean {
+    return (
+      this.canReadRequirements &&
+      !!req['filledFilePath'] &&
+      this.reqState(req) !== 'approved' &&
+      this.reqState(req) !== 'cancelled'
+    );
+  }
+
+  async downloadRequirementFile(req: Record<string, unknown>, type: 'empty' | 'filled'): Promise<void> {
+    const id = req['id'] as string | undefined;
+    if (!id) return;
+    this.downloadingReqFile.set(`${id}:${type}`);
+    try {
+      const blob = await this.api.downloadRequirementFile(id, type);
+      const name = String(req['name'] ?? 'requirement');
+      this.saveBlob(blob, `${name}-${type === 'empty' ? 'template' : 'client-file'}`);
+    } catch (err: unknown) {
+      this.toast('error', 'Could not download', this.downloadErrorMessage(err));
+    } finally {
+      this.downloadingReqFile.set(null);
+    }
+  }
+
+  isDownloadingReqFile(req: Record<string, unknown>, type: 'empty' | 'filled'): boolean {
+    return this.downloadingReqFile() === `${req['id'] as string}:${type}`;
   }
 
   async viewDoc(doc: Record<string, unknown>, type: RequirementDocumentType): Promise<void> {

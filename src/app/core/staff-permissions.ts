@@ -91,6 +91,8 @@ export const STAFF_PERMISSIONS = {
   ],
   // PATCH /api/kyc/:id/{verify,sync-kycaid,reset,restricted}
   kycReview: [STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
+  // GET /api/requirement + /api/requirement/file/download/:id/file/:type — ver/descargar requirements (sin operator)
+  requirementsRead: [STAFF_ROLES.admin, STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
   // POST/PATCH requirement, /staff/close, /staff/reject
   requirementsWrite: [STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
   // POST /api/risk-profile, PATCH /:id, POST /:id/notes

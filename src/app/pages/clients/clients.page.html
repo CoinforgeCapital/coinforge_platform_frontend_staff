@@ -399,6 +399,14 @@
           </section>
         }
       }
+      @if (activeEntity() === 'transactions' && canFinancials && !drillItem()) {
+        <div class="req-toolbar">
+          <button type="button" class="ghost create-btn" (click)="downloadAllTransactionsPdf()" [disabled]="downloadingAllTxPdf()">
+            <i [class]="downloadingAllTxPdf() ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" aria-hidden="true"></i>
+            <span>{{ downloadingAllTxPdf() ? 'Generating…' : 'Print all (PDF)' }}</span>
+          </button>
+        </div>
+      }
       <app-entity-collection
         [items]="entityItems()"
         [columns]="currentColumns()"
@@ -419,6 +427,12 @@
                   </select>
                   <button type="button" class="ghost" (click)="applyTxState(item)" [disabled]="actionBusy() || !txTarget">
                     <i class="pi pi-save" aria-hidden="true"></i><span>Apply</span>
+                  </button>
+                }
+                @if (canFinancials) {
+                  <button type="button" class="ghost" (click)="downloadTransactionPdf(item)" [disabled]="isDownloadingTxPdf(item)">
+                    <i [class]="isDownloadingTxPdf(item) ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" aria-hidden="true"></i>
+                    <span>Print (PDF)</span>
                   </button>
                 }
               } @else {
@@ -449,6 +463,20 @@
                 <button type="button" class="ghost" (click)="toggleItemDocs()">
                   <i class="pi pi-folder" aria-hidden="true"></i>
                   <span>{{ showItemDocs() ? 'Hide' : 'View' }} documents ({{ itemDocs().length }})</span>
+                </button>
+              }
+            }
+            @if (activeEntity() === 'requirementsCustomer') {
+              @if (canDownloadReqTemplate(item)) {
+                <button type="button" class="ghost" (click)="downloadRequirementFile(item, 'empty')" [disabled]="isDownloadingReqFile(item, 'empty')">
+                  <i [class]="isDownloadingReqFile(item, 'empty') ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                  <span>Download template</span>
+                </button>
+              }
+              @if (canDownloadReqClientFile(item)) {
+                <button type="button" class="ghost" (click)="downloadRequirementFile(item, 'filled')" [disabled]="isDownloadingReqFile(item, 'filled')">
+                  <i [class]="isDownloadingReqFile(item, 'filled') ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                  <span>Download client file</span>
                 </button>
               }
             }

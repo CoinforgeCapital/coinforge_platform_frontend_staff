@@ -715,6 +715,18 @@ export class ApiService {
     return this.clientDocumentBlob(documentType, documentId, 'download');
   }
 
+  /** PDF con el historial completo de transacciones de un cliente (staff). */
+  downloadClientTransactionsListPdf(clientId: string): Promise<Blob> {
+    return this.request.download(`/api/transaction-order/staff/client/${clientId}/pdf`);
+  }
+
+  /** PDF con el detalle de una transacción concreta de un cliente (staff). */
+  downloadClientTransactionPdf(clientId: string, transactionId: string): Promise<Blob> {
+    return this.request.download(
+      `/api/transaction-order/staff/client/${clientId}/transaction/${transactionId}/pdf`,
+    );
+  }
+
   /** Obtiene un documento de cliente para previsualizarlo en el navegador (inline). */
   viewClientDocument(documentType: RequirementDocumentType, documentId: string): Promise<Blob> {
     return this.clientDocumentBlob(documentType, documentId, 'inline');
