@@ -190,6 +190,14 @@ export interface KycaidWalletAuditResponse {
   audit: KycaidWalletAudit | null;
 }
 
+export interface KycaidWalletAuditListResponse {
+  ok: boolean;
+  audits: KycaidWalletAudit[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export type TransactionState = 'pending' | 'payment_received' | 'in_progress' | 'completed';
 /** Estados a los que el staff puede mover una transacción (no se vuelve a 'pending'). */
 export type SettableTransactionState = 'payment_received' | 'in_progress' | 'completed';
@@ -769,6 +777,11 @@ export class ApiService {
   }
   getLatestKycaidWalletAudit(id: string): Promise<KycaidWalletAuditResponse> {
     return this.request.get<KycaidWalletAuditResponse>(`/api/wallet/staff/${id}/kycaid-audit/latest`);
+  }
+  listKycaidWalletAudits(id: string, page = 1, pageSize = 10): Promise<KycaidWalletAuditListResponse> {
+    return this.request.get<KycaidWalletAuditListResponse>(`/api/wallet/staff/${id}/kycaid-audit`, {
+      params: { page, pageSize },
+    });
   }
   requestKycaidWalletAudit(id: string): Promise<KycaidWalletAuditResponse> {
     return this.request.post<KycaidWalletAuditResponse, Record<string, never>>(

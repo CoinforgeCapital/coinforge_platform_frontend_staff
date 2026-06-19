@@ -408,6 +408,71 @@
           </button>
         </div>
       }
+      @if (walletAuditHistoryWallet(); as wallet) {
+        <section class="wallet-audit-history">
+          <header class="wallet-audit-history-head">
+            <div>
+              <p class="eyebrow">KYCAID wallet audits</p>
+              <h3>Audit history</h3>
+              <span class="mono">{{ value(wallet, 'publicAddress') }}</span>
+            </div>
+            <button type="button" class="ghost" (click)="backToWalletDetail()">
+              <i class="pi pi-arrow-left" aria-hidden="true"></i>
+              <span>Back to wallet detail</span>
+            </button>
+          </header>
+
+          @if (walletAuditsError()) {
+            <div class="dialog-placeholder is-error">
+              <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              <span>{{ walletAuditsError() }}</span>
+            </div>
+          } @else {
+            <p-table
+              [value]="walletAudits()"
+              [loading]="walletAuditsLoading()"
+              [lazy]="true"
+              (onLazyLoad)="onWalletAuditsPage($event)"
+              [paginator]="walletAuditsTotal() > walletAuditsPageSize()"
+              [rows]="walletAuditsPageSize()"
+              [first]="(walletAuditsPage() - 1) * walletAuditsPageSize()"
+              [totalRecords]="walletAuditsTotal()"
+              [rowsPerPageOptions]="[10, 25, 50]"
+              [showCurrentPageReport]="walletAuditsTotal() > 0"
+              currentPageReportTemplate="{first}–{last} of {totalRecords}"
+              [tableStyle]="{ 'min-width': '48rem' }"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Requested</th>
+                  <th>State</th>
+                  <th>Asset</th>
+                  <th>Risk score</th>
+                  <th>Service request</th>
+                  <th>Updated</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-audit>
+                <tr class="audit-history-row" [class.active]="isSelectedWalletAudit(audit)" (click)="openWalletAuditDetail(audit)">
+                  <td>{{ format(audit.requestedAt ?? audit.createdAt) }}</td>
+                  <td><span [class]="walletAuditBadge(audit.riskState)">{{ prettyAuditState(audit.riskState) }}</span></td>
+                  <td>{{ format(audit.asset) }}</td>
+                  <td>{{ format(audit.riskScore) }}</td>
+                  <td class="mono">{{ format(audit.serviceRequestId) }}</td>
+                  <td>{{ format(audit.updatedAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="6" class="doc-empty">
+                    {{ walletAuditsLoading() ? 'Loading audits...' : 'No KYCAID audits have been recorded for this wallet yet.' }}
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+        </section>
+      } @else {
       <app-entity-collection
         [items]="entityItems()"
         [columns]="currentColumns()"
@@ -450,7 +515,11 @@
                 @if (activeEntity() === walletKey && canViewWalletKycaidAudit) {
                   <button type="button" class="ghost" (click)="viewWalletAudit(item)" [disabled]="walletAuditLoading()">
                     <i [class]="walletAuditLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-shield'" aria-hidden="true"></i>
-                    <span>View KYCAID audit</span>
+                    <span>View last KYCAID audit</span>
+                  </button>
+                  <button type="button" class="ghost" (click)="viewWalletAuditHistory(item)" [disabled]="walletAuditsLoading()">
+                    <i [class]="walletAuditsLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-list'" aria-hidden="true"></i>
+                    <span>View all audits</span>
                   </button>
                 }
                 @if (activeEntity() === walletKey && canRequestWalletAudit(item)) {
@@ -527,6 +596,7 @@
           </p-table>
         </div>
       }
+      }
     }
   </div>
 
@@ -537,8 +607,8 @@
     [draggable]="false"
     [resizable]="false"
     [dismissableMask]="true"
-    [style]="{ width: '760px' }"
-    header="KYCAID wallet audit"
+    [style]="{ width: '960px', maxWidth: '94vw' }"
+    [header]="walletAuditDialogTitle()"
   >
     @if (walletAuditWallet(); as wallet) {
       <section class="audit-summary">
@@ -570,7 +640,7 @@
     } @else if (walletAudit(); as audit) {
       <section class="audit-section">
         <div class="audit-section-head">
-          <h3>Latest audit</h3>
+          <h3>{{ walletAuditDialogMode() === 'detail' ? 'Audit detail' : 'Latest audit' }}</h3>
           <span [class]="walletAuditBadge(audit.riskState)">{{ prettyAuditState(audit.riskState) }}</span>
         </div>
         <dl class="audit-grid">

@@ -603,6 +603,18 @@ textarea.cf-input {
   text-decoration: none;
 }
 
+.wallet-audit-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.audit-history-row {
+  cursor: pointer;
+}
+
 .audit-json {
   margin-top: 12px;
 }

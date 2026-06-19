@@ -45,6 +45,8 @@ interface InfoField {
   mono: boolean;
 }
 
+type WalletAuditDialogMode = 'latest' | 'detail';
+
 interface DocumentTab {
   key: string;
   label: string;
@@ -464,6 +466,16 @@ export class ClientsPage implements OnInit {
   readonly walletAuditError = signal('');
   readonly walletAudit = signal<KycaidWalletAudit | null>(null);
   readonly walletAuditWallet = signal<Record<string, unknown> | null>(null);
+  readonly walletAuditDialogMode = signal<WalletAuditDialogMode>('latest');
+  readonly walletAuditHistoryVisible = signal(false);
+  readonly walletAudits = signal<KycaidWalletAudit[]>([]);
+  readonly walletAuditsTotal = signal(0);
+  readonly walletAuditsPage = signal(1);
+  readonly walletAuditsPageSize = signal(10);
+  readonly walletAuditsLoading = signal(false);
+  readonly walletAuditsError = signal('');
+  private walletAuditRequestSeq = 0;
+  private walletAuditsRequestSeq = 0;
 
   readonly filtered = computed(() => {
     const query = this.search().trim().toLowerCase();
@@ -492,6 +504,12 @@ export class ClientsPage implements OnInit {
     [WALLET_KEY, BANK_KEY, TX_KEY].includes(this.activeEntity()),
   );
 
+  readonly walletAuditDialogTitle = computed(() =>
+    this.walletAuditDialogMode() === 'detail' ? 'KYCAID wallet audit detail' : 'KYCAID wallet audit',
+  );
+  readonly walletAuditHistoryWallet = computed<Record<string, unknown> | null>(() =>
+    this.activeEntity() === WALLET_KEY && this.walletAuditHistoryVisible() ? this.drillItem() : null,
+  );
 
   // ---- Documents ----
   readonly docItems = computed<Record<string, unknown>[]>(() => {
@@ -570,11 +588,13 @@ export class ClientsPage implements OnInit {
     this.activeEntity.set(PROFILE_KEY);
     this.drillItem.set(null);
     this.showItemDocs.set(false);
+    this.walletAuditHistoryVisible.set(false);
     this.view.set('detail');
   }
 
   onDrill(item: Record<string, unknown>): void {
     this.showItemDocs.set(false);
+    this.walletAuditHistoryVisible.set(false);
     this.drillItem.set(item);
   }
 
@@ -586,6 +606,7 @@ export class ClientsPage implements OnInit {
     this.view.set('list');
     this.selected.set(null);
     this.drillItem.set(null);
+    this.walletAuditHistoryVisible.set(false);
   }
 
   selectEntity(key: string): void {
@@ -594,6 +615,7 @@ export class ClientsPage implements OnInit {
     this.txTarget = '';
     this.showItemDocs.set(false);
     this.reqFormOpen.set(false);
+    this.walletAuditHistoryVisible.set(false);
     if (key === DOCUMENTS_KEY) this.activeDocTab.set(DOCUMENT_TABS[0].key);
     if (key === STATE_KEY) {
       this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
@@ -605,6 +627,7 @@ export class ClientsPage implements OnInit {
     this.drillItem.set(null);
     this.txTarget = '';
     this.showItemDocs.set(false);
+    this.walletAuditHistoryVisible.set(false);
   }
 
   // ---- Categoría: risk profile (detalle embebido reutilizable) ----
@@ -1021,21 +1044,86 @@ export class ClientsPage implements OnInit {
     const id = item['id'] as string | undefined;
     if (!id) return;
 
+    const requestSeq = ++this.walletAuditRequestSeq;
+    this.walletAuditsRequestSeq++;
     this.walletAuditWallet.set(item);
     this.walletAudit.set(null);
     this.walletAuditError.set('');
+    this.walletAuditDialogMode.set('latest');
+    this.walletAudits.set([]);
+    this.walletAuditsError.set('');
     this.walletAuditDialogVisible.set(true);
     this.walletAuditLoading.set(true);
 
     try {
       const res = await this.api.getLatestKycaidWalletAudit(id);
+      if (requestSeq !== this.walletAuditRequestSeq) return;
+      if (res.audit?.walletId && res.audit.walletId !== id) {
+        this.walletAudit.set(null);
+        this.walletAuditError.set('The returned audit does not belong to the selected wallet.');
+        return;
+      }
       this.walletAudit.set(res.audit);
       if (res.audit) this.applyLocalWalletAudit(id, res.audit);
     } catch (err) {
+      if (requestSeq !== this.walletAuditRequestSeq) return;
       this.walletAuditError.set(this.errorOf(err));
     } finally {
-      this.walletAuditLoading.set(false);
+      if (requestSeq === this.walletAuditRequestSeq) this.walletAuditLoading.set(false);
     }
+  }
+
+  async viewWalletAuditHistory(item: Record<string, unknown>): Promise<void> {
+    const id = item['id'] as string | undefined;
+    if (!id) return;
+
+    this.walletAuditRequestSeq++;
+    this.walletAuditWallet.set(item);
+    this.walletAudit.set(null);
+    this.walletAuditError.set('');
+    this.walletAudits.set([]);
+    this.walletAuditsTotal.set(0);
+    this.walletAuditsPage.set(1);
+    this.walletAuditsError.set('');
+    this.walletAuditHistoryVisible.set(true);
+    this.walletAuditDialogVisible.set(false);
+    this.showItemDocs.set(false);
+    await this.loadWalletAuditHistory(id, 1, this.walletAuditsPageSize());
+  }
+
+  backToWalletDetail(): void {
+    this.walletAuditHistoryVisible.set(false);
+    this.walletAuditsError.set('');
+  }
+
+  onWalletAuditsPage(event: { first?: number | null; rows?: number | null }): void {
+    const wallet = this.walletAuditWallet();
+    const id = wallet?.['id'] as string | undefined;
+    if (!id) return;
+
+    const pageSize = Number(event.rows ?? this.walletAuditsPageSize());
+    const first = Number(event.first ?? 0);
+    const page = Math.floor(first / pageSize) + 1;
+    void this.loadWalletAuditHistory(id, page, pageSize);
+  }
+
+  openWalletAuditDetail(audit: KycaidWalletAudit): void {
+    const walletId = this.walletAuditWallet()?.['id'] as string | undefined;
+    if (walletId && audit.walletId && audit.walletId !== walletId) {
+      this.walletAudit.set(null);
+      this.walletAuditsError.set('The selected audit does not belong to this wallet.');
+      return;
+    }
+
+    this.walletAuditsError.set('');
+    this.walletAudit.set(audit);
+    this.walletAuditError.set('');
+    this.walletAuditDialogMode.set('detail');
+    this.walletAuditDialogVisible.set(true);
+  }
+
+  isSelectedWalletAudit(audit: KycaidWalletAudit): boolean {
+    return this.walletAudit()?.id === audit.id;
   }
 
   requestWalletAudit(item: Record<string, unknown>): void {
@@ -1050,13 +1138,22 @@ export class ClientsPage implements OnInit {
       rejectLabel: 'Cancel',
       rejectButtonStyleClass: 'p-button-text',
       accept: () => {
+        this.walletAuditsRequestSeq++;
         this.walletAuditBusy.set(true);
         this.api
           .requestKycaidWalletAudit(id)
           .then((res) => {
+            if (res.audit?.walletId && res.audit.walletId !== id) {
+              this.toast('error', 'Unexpected KYCAID audit', 'The returned audit does not belong to this wallet.');
+              return;
+            }
             this.walletAuditWallet.set(item);
             this.walletAudit.set(res.audit);
             this.walletAuditError.set('');
+            this.walletAuditDialogMode.set('latest');
+            this.walletAuditHistoryVisible.set(false);
+            this.walletAudits.set([]);
+            this.walletAuditsError.set('');
             this.walletAuditDialogVisible.set(true);
             if (res.audit) this.applyLocalWalletAudit(id, res.audit);
             this.toast('success', 'KYCAID audit requested', res.message ?? 'Audit request created.');
@@ -1065,6 +1162,37 @@ export class ClientsPage implements OnInit {
           .finally(() => this.walletAuditBusy.set(false));
       },
     });
+  }
+
+  private async loadWalletAuditHistory(walletId: string, page: number, pageSize: number): Promise<void> {
+    const requestSeq = ++this.walletAuditsRequestSeq;
+    this.walletAuditsLoading.set(true);
+    this.walletAuditsError.set('');
+
+    try {
+      const res = await this.api.listKycaidWalletAudits(walletId, page, pageSize);
+      if (requestSeq !== this.walletAuditsRequestSeq) return;
+
+      if ((res.audits ?? []).some((audit) => audit.walletId && audit.walletId !== walletId)) {
+        this.walletAudits.set([]);
+        this.walletAudit.set(null);
+        this.walletAuditsError.set('The returned audits do not belong to the selected wallet.');
+        return;
+      }
+
+      this.walletAudits.set(res.audits ?? []);
+      this.walletAuditsTotal.set(res.total ?? 0);
+      this.walletAuditsPage.set(res.page ?? page);
+      this.walletAuditsPageSize.set(res.pageSize ?? pageSize);
+      this.walletAudit.set(null);
+    } catch (err) {
+      if (requestSeq !== this.walletAuditsRequestSeq) return;
+      this.walletAudits.set([]);
+      this.walletAudit.set(null);
+      this.walletAuditsError.set(this.errorOf(err));
+    } finally {
+      if (requestSeq === this.walletAuditsRequestSeq) this.walletAuditsLoading.set(false);
+    }
   }
 
   walletAuditFields(audit: KycaidWalletAudit): InfoField[] {
@@ -1319,7 +1447,7 @@ export class ClientsPage implements OnInit {
     return 'This document file is not accessible. It may be missing on the server.';
   }
 
-  private format(value: unknown): string {
+  format(value: unknown): string {
     if (value === null || value === undefined || value === '') return '-';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString();
