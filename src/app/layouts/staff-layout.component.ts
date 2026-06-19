@@ -5,7 +5,7 @@ import { groupStaffNavItems, STAFF_NAV_ITEMS } from '../core/staff-permissions';
 import { AuthService } from '../services/auth.service';
 import { NotificationCenterService } from '../services/notification-center.service';
 import { NotificationsBellComponent } from '../shared/notifications-bell/notifications-bell.component';
-import { RealtimeService } from '../services/realtime.service';
+import { RealtimeService, UserStateChangedEvent } from '../services/realtime.service';
 
 @Component({
   selector: 'app-staff-layout',
@@ -255,7 +255,7 @@ export class StaffLayoutComponent implements OnInit, OnDestroy {
   private readonly notificationCenter = inject(NotificationCenterService);
   private readonly realtime = inject(RealtimeService);
   private readonly router = inject(Router);
-  private sessionSub?: Subscription;
+  private userStateSub?: Subscription;
 
   readonly collapsed = signal(false);
 
@@ -267,21 +267,29 @@ export class StaffLayoutComponent implements OnInit, OnDestroy {
     // El shell solo se monta con sesión de staff: arrancamos realtime + notificaciones.
     this.notificationCenter.start();
 
-    // El backend avisa cuando cambia el estado/rol de este staff: revalidamos en vivo.
-    this.sessionSub = this.realtime.sessionChanged$.subscribe(() => void this.onSessionChanged());
+    // El backend avisa cuando cambia el estado de este staff: revalidamos en vivo.
+    this.userStateSub = this.realtime.userStateChanged$.subscribe((event) => {
+      void this.onUserStateChanged(event);
+    });
   }
 
   ngOnDestroy(): void {
-    this.sessionSub?.unsubscribe();
+    this.userStateSub?.unsubscribe();
     this.notificationCenter.stop();
   }
 
-  /** Revalida la sesión tras un cambio de estado/rol notificado por el servidor. */
-  private async onSessionChanged(): Promise<void> {
+  /** Revalida la sesión tras un cambio de estado notificado por el servidor. */
+  private async onUserStateChanged(event: UserStateChangedEvent): Promise<void> {
+    if (event.state === 'blocked' || event.state === 'deleted') {
+      this.notificationCenter.stop();
+      await this.auth.logout();
+      return;
+    }
+
     const previousRole = this.auth.currentRole();
     await this.auth.loadSession();
 
-    // Bloqueado o sesión inválida => fuera.
+    // Sesión inválida => fuera. El bloqueo se trata arriba para cortar el socket al instante.
     if (!this.auth.isAuthenticatedStaff()) {
       this.notificationCenter.stop();
       await this.auth.logout();

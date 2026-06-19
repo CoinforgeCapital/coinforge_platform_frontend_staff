@@ -50,7 +50,7 @@ export class AuthService {
       const context = new HttpContext().set(SILENT_AUTH_ERROR, true);
       const me = await this.api.getCurrentUserState({ context });
       this.session.set(
-        SessionService.isStaffRole(me.role) && me.state !== 'deleted'
+        SessionService.isStaffRole(me.role) && me.state !== 'deleted' && me.state !== 'blocked'
           ? { id: me.id, role: me.role, state: me.state, email: me.email }
           : null,
       );

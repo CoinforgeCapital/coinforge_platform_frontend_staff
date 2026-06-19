@@ -9,6 +9,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import {
   ApiService,
   KycaidWalletAudit,
+  ManualClientState,
   ManageableUserState,
   RequirementDocumentType,
   RiskProfile,
@@ -63,8 +64,8 @@ const ADMIN_KEY = 'adminActionsCategory';
 const PENDING_KEY = 'pendingApprovalsCategory';
 const ACTIVITY_ALERTS_KEY = 'activityAlertsCategory';
 
-/** Estados de cliente seleccionables (espejo de CLIENT_STATES del backend; sin `deleted`). */
-const CLIENT_STATE_OPTIONS: readonly { label: string; value: ManageableUserState }[] = [
+/** Etiquetas de estados de cliente conocidos, incluidos los automaticos de KYC. */
+const CLIENT_STATE_LABELS: readonly { label: string; value: ManageableUserState }[] = [
   { label: 'New', value: 'new' },
   { label: 'KYC pending', value: 'kyc_pending' },
   { label: 'KYC sent', value: 'kyc_send' },
@@ -73,6 +74,16 @@ const CLIENT_STATE_OPTIONS: readonly { label: string; value: ManageableUserState
   { label: 'Restricted', value: 'restricted' },
   { label: 'Blocked', value: 'blocked' },
 ];
+
+/** Estados que staff puede aplicar manualmente sin tocar el registro KYC. */
+const MANUAL_CLIENT_STATE_OPTIONS: readonly { label: string; value: ManualClientState }[] = [
+  { label: 'Under review', value: 'under_review' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Restricted', value: 'restricted' },
+  { label: 'Blocked', value: 'blocked' },
+];
+
+const MANUAL_CLIENT_STATE_VALUES = MANUAL_CLIENT_STATE_OPTIONS.map((option) => option.value);
 
 /** Acciones sobre el KYC (PATCH /api/kyc/:userId/{verify,sync-kycaid,restricted,reset}). */
 type KycAction = 'verify' | 'sync' | 'restricted' | 'reset';
@@ -242,7 +253,7 @@ export class ClientsPage implements OnInit {
   readonly documentTabs = DOCUMENT_TABS;
   readonly txStateOptions = TX_STATE_OPTIONS;
   readonly reqDocTypeOptions = REQUIREMENT_DOC_TYPES;
-  readonly clientStateOptions = CLIENT_STATE_OPTIONS;
+  readonly clientStateOptions = MANUAL_CLIENT_STATE_OPTIONS;
   readonly kycActions = KYC_ACTIONS;
 
   // ---- Permisos (espejo del backend) ----
@@ -428,7 +439,7 @@ export class ClientsPage implements OnInit {
   });
 
   // ---- Cambiar estado de la cuenta del cliente (categoría "Account state") ----
-  stateTarget: ManageableUserState | '' = '';
+  stateTarget: ManualClientState | '' = '';
   readonly stateSaving = signal(false);
   // ---- Acción sobre el KYC (misma categoría) ----
   kycTarget: KycAction | '' = '';
@@ -585,7 +596,7 @@ export class ClientsPage implements OnInit {
     this.reqFormOpen.set(false);
     if (key === DOCUMENTS_KEY) this.activeDocTab.set(DOCUMENT_TABS[0].key);
     if (key === STATE_KEY) {
-      this.stateTarget = (this.selected()?.['state'] as ManageableUserState) ?? '';
+      this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
       this.kycTarget = '';
     }
   }
@@ -614,7 +625,7 @@ export class ClientsPage implements OnInit {
   /** Etiqueta legible para un estado de cliente (p. ej. "kyc_pending" -> "KYC pending"). */
   stateLabel(raw: unknown): string {
     const value = String(raw ?? '');
-    return CLIENT_STATE_OPTIONS.find((o) => o.value === value)?.label ?? this.humanize(value);
+    return CLIENT_STATE_LABELS.find((o) => o.value === value)?.label ?? this.humanize(value);
   }
 
   /** Etiqueta legible para el tipo de cuenta (p. ej. "personal" -> "Personal"). */
@@ -624,7 +635,7 @@ export class ClientsPage implements OnInit {
   }
 
   onStateTargetChange(value: string): void {
-    this.stateTarget = value as ManageableUserState | '';
+    this.stateTarget = this.manualClientStateOrEmpty(value);
   }
 
   applyClientState(): void {
@@ -666,6 +677,11 @@ export class ClientsPage implements OnInit {
     this.all.update((list) => list.map(apply));
   }
 
+  private manualClientStateOrEmpty(raw: unknown): ManualClientState | '' {
+    const value = String(raw ?? '') as ManualClientState;
+    return MANUAL_CLIENT_STATE_VALUES.includes(value) ? value : '';
+  }
+
   onKycTargetChange(value: string): void {
     this.kycTarget = value as KycAction | '';
   }
@@ -700,7 +716,7 @@ export class ClientsPage implements OnInit {
             return this.reloadSelectedClient();
           })
           .then(() => {
-            this.stateTarget = (this.selected()?.['state'] as ManageableUserState) ?? '';
+            this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
           })
           .catch((err) => this.toast('error', 'Could not update KYC', this.errorOf(err)))
           .finally(() => this.kycSaving.set(false));

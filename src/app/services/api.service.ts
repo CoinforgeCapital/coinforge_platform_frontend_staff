@@ -37,6 +37,7 @@ export type UserState =
   | 'blocked'
   | 'deleted';
 export type ManageableUserState = Exclude<UserState, 'deleted'>;
+export type ManualClientState = 'under_review' | 'approved' | 'restricted' | 'blocked';
 export type StaffState = 'approved' | 'blocked';
 
 export interface StaffUser {
@@ -479,7 +480,10 @@ export interface CreateUserRequest {
   roleAdmin?: Exclude<StaffRole, 'ADMIN'> | 'CLIENT';
   roleOperator?: Exclude<StaffRole, 'ADMIN' | 'OPERATOR'> | 'CLIENT';
 }
-export interface ChangeUserStateRequest { clientState?: ManageableUserState; staffState?: StaffState; }
+export interface UpdateUserRequest extends Partial<Omit<CreateUserRequest, 'state'>> {
+  state?: ManualClientState | StaffState;
+}
+export interface ChangeUserStateRequest { clientState?: ManualClientState; staffState?: StaffState; }
 export interface CreateInternalConversationRequest {
   customerUserId: string;
   supportUserId: string;
@@ -619,8 +623,8 @@ export class ApiService {
     return this.request.post<StandardMessageResponse, CreateUserRequest>('/api/user', body);
   }
 
-  updateUser(id: string, body: Partial<CreateUserRequest>): Promise<StandardDataResponse<StaffUser>> {
-    return this.request.patch<StandardDataResponse<StaffUser>, Partial<CreateUserRequest>>(`/api/user/${id}`, body);
+  updateUser(id: string, body: UpdateUserRequest): Promise<StandardDataResponse<StaffUser>> {
+    return this.request.patch<StandardDataResponse<StaffUser>, UpdateUserRequest>(`/api/user/${id}`, body);
   }
 
   deleteUser(id: string): Promise<void> {

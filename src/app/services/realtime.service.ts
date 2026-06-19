@@ -5,6 +5,7 @@ import { io, type Socket } from 'socket.io-client';
 
 import { environment } from '../../environments/environment';
 import { AppNotification } from './notifications.service';
+import { UserState } from './api.service';
 
 /** Evento emitido por el backend al crear un mensaje interno (compliance conversation). */
 export interface InternalMessageCreatedEvent {
@@ -46,6 +47,12 @@ export interface ActionRequestMessageCreatedEvent {
   };
 }
 
+/** Evento privado emitido cuando cambia el estado del usuario autenticado. */
+export interface UserStateChangedEvent {
+  previousState: UserState;
+  state: UserState;
+}
+
 /**
  * Conexión Socket.IO de la consola staff. La autenticación viaja en la cookie HttpOnly
  * de sesión (withCredentials) y el backend asocia el socket a la room `user:{id}` según
@@ -70,9 +77,9 @@ export class RealtimeService {
   private readonly notificationCreatedSubject = new Subject<AppNotification>();
   readonly notificationCreated$ = this.notificationCreatedSubject.asObservable();
 
-  // Señal transitoria: el estado/rol de este usuario de staff ha cambiado (revalidar sesión).
-  private readonly sessionChangedSubject = new Subject<{ reason?: string }>();
-  readonly sessionChanged$ = this.sessionChangedSubject.asObservable();
+  // Señal transitoria: el estado de este usuario de staff ha cambiado (revalidar sesión).
+  private readonly userStateChangedSubject = new Subject<UserStateChangedEvent>();
+  readonly userStateChanged$ = this.userStateChangedSubject.asObservable();
 
   connect(): void {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -97,8 +104,8 @@ export class RealtimeService {
       this.zone.run(() => this.notificationCreatedSubject.next(payload));
     });
 
-    this.socket.on('session:changed', (payload: { reason?: string }) => {
-      this.zone.run(() => this.sessionChangedSubject.next(payload ?? {}));
+    this.socket.on('user:state-changed', (payload: UserStateChangedEvent) => {
+      this.zone.run(() => this.userStateChangedSubject.next(payload));
     });
 
     this.socket.on('connect_error', (error: Error) => {

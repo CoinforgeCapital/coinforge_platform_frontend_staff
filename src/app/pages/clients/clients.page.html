@@ -174,6 +174,7 @@
             <label class="field state-field">
               <span>New state</span>
               <select class="cf-select" [ngModel]="stateTarget" (ngModelChange)="onStateTargetChange($event)">
+                <option value="" disabled>Select manual state...</option>
                 @for (o of clientStateOptions; track o.value) {
                   <option [value]="o.value">{{ o.label }}</option>
                 }

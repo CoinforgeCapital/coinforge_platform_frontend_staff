@@ -37,17 +37,18 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       const isNetworkError = error.status === 0;
       const detail = extractErrorMessage(error, isNetworkError);
       const accountDeleted = isAccountDeletedError(error);
+      const accountBlocked = isAccountBlockedError(error);
       // Peticiones marcadas como "silenciosas" (p. ej. el probe de sesión) no muestran UI.
       const silent = req.context.get(SILENT_AUTH_ERROR);
 
-      if (error.status === 401 || accountDeleted) {
-        // Cookie ausente/expirada o cuenta eliminada: limpiamos la sesión en memoria.
+      if (error.status === 401 || accountDeleted || accountBlocked) {
+        // Cookie ausente/expirada o cuenta no operativa: limpiamos la sesión en memoria.
         session.clear();
         if (!silent) {
           messages.add({
             severity: 'warn',
-            summary: accountDeleted ? 'Account unavailable' : 'Session expired',
-            detail: accountDeleted ? detail : 'Your session has expired. Please sign in again.',
+            summary: accountDeleted || accountBlocked ? 'Account unavailable' : 'Session expired',
+            detail: accountDeleted || accountBlocked ? detail : 'Your session has expired. Please sign in again.',
             life: 7000,
           });
           router.navigateByUrl('/auth/login');
@@ -85,4 +86,8 @@ function extractErrorMessage(error: HttpErrorResponse, isNetworkError: boolean):
 
 function isAccountDeletedError(error: HttpErrorResponse): boolean {
   return error.status === 403 && error.error?.code === 'account_deleted';
+}
+
+function isAccountBlockedError(error: HttpErrorResponse): boolean {
+  return error.status === 403 && error.error?.code === 'account_blocked';
 }
