@@ -11,7 +11,9 @@ import {
   KycaidWalletAudit,
   ManualClientState,
   ManageableUserState,
+  Requirement,
   RequirementDocumentType,
+  RequirementFile,
   RiskProfile,
   SettableTransactionState,
 } from '../../services/api.service';
@@ -31,6 +33,7 @@ import { ClientInternalConversationsComponent } from '../../shared/client-intern
 import { ClientPendingApprovalsComponent } from '../../shared/client-pending-approvals/client-pending-approvals.component';
 import { ClientActivityAlertsComponent } from '../../shared/client-activity-alerts/client-activity-alerts.component';
 import { ClientProfileOverviewComponent } from '../../shared/client-profile-overview/client-profile-overview.component';
+import { ClientRequirementsComponent } from '../../shared/client-requirements/client-requirements.component';
 
 interface EntityGroup {
   key: string;
@@ -232,6 +235,7 @@ const TX_STATE_OPTIONS: readonly { label: string; value: SettableTransactionStat
     ClientPendingApprovalsComponent,
     ClientActivityAlertsComponent,
     ClientProfileOverviewComponent,
+    ClientRequirementsComponent,
   ],
   templateUrl: './clients.page.html',
   styleUrl: './clients.page.css',
@@ -427,7 +431,7 @@ export class ClientsPage implements OnInit {
   reqName = '';
   reqDescription = '';
   reqLinkId = '';
-  readonly reqFile = signal<File | null>(null);
+  readonly reqFiles = signal<File[]>([]);
   readonly reqCreating = signal(false);
   readonly reqRequiresBank = computed(() => this.reqDocType() === 'client_bank');
   readonly reqRequiresTx = computed(() => this.reqDocType() === 'additional_evidence_transaction');
@@ -439,6 +443,36 @@ export class ClientsPage implements OnInit {
     const arr = this.selected()?.['transactions'];
     return Array.isArray(arr) ? (arr as Record<string, unknown>[]) : [];
   });
+
+  /** Requirements embebidos del cliente (colección `requirementsCustomer`) para la vista por pestañas. */
+  readonly customerRequirements = computed<Requirement[]>(() => {
+    const arr = this.selected()?.['requirementsCustomer'];
+    return Array.isArray(arr) ? (arr as Requirement[]) : [];
+  });
+
+  onRequirementChanged(requirement: Requirement): void {
+    const clientId = this.selected()?.['id'];
+    if (!clientId) return;
+
+    const apply = (client: Record<string, unknown>): Record<string, unknown> => {
+      if (client['id'] !== clientId) return client;
+      const current = Array.isArray(client['requirementsCustomer'])
+        ? (client['requirementsCustomer'] as Requirement[])
+        : [];
+      const next = current.some((item) => item.id === requirement.id)
+        ? current.map((item) => item.id === requirement.id ? requirement : item)
+        : [requirement, ...current];
+
+      return {
+        ...client,
+        requirementsCustomer: next,
+      };
+    };
+
+    const current = this.selected();
+    if (current) this.selected.set(apply(current));
+    this.all.update((clients) => clients.map(apply));
+  }
 
   // ---- Cambiar estado de la cuenta del cliente (categoría "Account state") ----
   stateTarget: ManualClientState | '' = '';
@@ -777,7 +811,7 @@ export class ClientsPage implements OnInit {
 
   onReqFile(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.reqFile.set(input.files?.[0] ?? null);
+    this.reqFiles.set(Array.from(input.files ?? []));
   }
 
   async submitRequirement(): Promise<void> {
@@ -810,7 +844,7 @@ export class ClientsPage implements OnInit {
         documentType,
         clientBankId: this.reqRequiresBank() ? this.reqLinkId : undefined,
         transactionOrderId: this.reqRequiresTx() ? this.reqLinkId : undefined,
-        file: this.reqFile(),
+        files: this.reqFiles(),
       });
       this.toast('success', 'Requirement created', res.message ?? 'The requirement was created.');
       this.resetRequirementForm();
@@ -828,7 +862,7 @@ export class ClientsPage implements OnInit {
     this.reqName = '';
     this.reqDescription = '';
     this.reqLinkId = '';
-    this.reqFile.set(null);
+    this.reqFiles.set([]);
   }
 
   /** Recarga el listado y vuelve a seleccionar el mismo cliente (para refrescar sus colecciones). */
@@ -955,34 +989,40 @@ export class ClientsPage implements OnInit {
     return String(req['state'] ?? '');
   }
 
-  /** Hay plantilla descargable (se oculta en approved/cancelled, igual que en Requirements). */
-  canDownloadReqTemplate(req: Record<string, unknown>): boolean {
+  requirementTemplateFiles(req: Record<string, unknown>): RequirementFile[] {
+    const files = req['templateFiles'];
+    if (Array.isArray(files)) return files as RequirementFile[];
+    return this.requirementFilesBySide(req, 'staff');
+  }
+
+  requirementClientFiles(req: Record<string, unknown>): RequirementFile[] {
+    const files = req['clientFiles'];
+    if (Array.isArray(files)) return files as RequirementFile[];
+    return this.requirementFilesBySide(req, 'client');
+  }
+
+  private requirementFilesBySide(req: Record<string, unknown>, side: 'staff' | 'client'): RequirementFile[] {
+    const files = req['files'];
+    return Array.isArray(files)
+      ? (files as RequirementFile[]).filter((file) => file.side === side)
+      : [];
+  }
+
+  canDownloadReqFile(req: Record<string, unknown>, file: RequirementFile): boolean {
     return (
       this.canReadRequirements &&
-      !!req['emptyFilePath'] &&
+      !!file.id &&
       this.reqState(req) !== 'approved' &&
       this.reqState(req) !== 'cancelled'
     );
   }
 
-  /** Hay archivo subido por el cliente descargable. */
-  canDownloadReqClientFile(req: Record<string, unknown>): boolean {
-    return (
-      this.canReadRequirements &&
-      !!req['filledFilePath'] &&
-      this.reqState(req) !== 'approved' &&
-      this.reqState(req) !== 'cancelled'
-    );
-  }
-
-  async downloadRequirementFile(req: Record<string, unknown>, type: 'empty' | 'filled'): Promise<void> {
-    const id = req['id'] as string | undefined;
-    if (!id) return;
-    this.downloadingReqFile.set(`${id}:${type}`);
+  async downloadRequirementFile(req: Record<string, unknown>, file: RequirementFile): Promise<void> {
+    if (!file.id) return;
+    this.downloadingReqFile.set(file.id);
     try {
-      const blob = await this.api.downloadRequirementFile(id, type);
-      const name = String(req['name'] ?? 'requirement');
-      this.saveBlob(blob, `${name}-${type === 'empty' ? 'template' : 'client-file'}`);
+      const blob = await this.api.downloadRequirementFile(file.id);
+      this.saveBlob(blob, file.name || String(req['name'] ?? 'requirement-file'));
     } catch (err: unknown) {
       this.toast('error', 'Could not download', this.downloadErrorMessage(err));
     } finally {
@@ -990,8 +1030,14 @@ export class ClientsPage implements OnInit {
     }
   }
 
-  isDownloadingReqFile(req: Record<string, unknown>, type: 'empty' | 'filled'): boolean {
-    return this.downloadingReqFile() === `${req['id'] as string}:${type}`;
+  isDownloadingReqFile(file: RequirementFile): boolean {
+    return this.downloadingReqFile() === file.id;
+  }
+
+  reqFileNames(files: File[]): string {
+    if (files.length === 0) return 'No files selected';
+    if (files.length === 1) return files[0].name;
+    return `${files.length} files selected`;
   }
 
   async viewDoc(doc: Record<string, unknown>, type: RequirementDocumentType): Promise<void> {

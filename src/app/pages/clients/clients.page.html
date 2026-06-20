@@ -324,8 +324,8 @@
           [canWrite]="canWriteInternal()"
         />
       }
-    } @else {
-      @if (activeEntity() === 'requirementsCustomer' && canCreateRequirement && !drillItem()) {
+    } @else if (activeEntity() === 'requirementsCustomer') {
+      @if (canCreateRequirement) {
         <div class="req-toolbar">
           <button type="button" class="ghost create-btn" (click)="toggleReqForm()">
             <i [class]="reqFormOpen() ? 'pi pi-chevron-up' : 'pi pi-plus'" aria-hidden="true"></i>
@@ -387,7 +387,8 @@
 
               <label class="field">
                 <span>Attachment (optional)</span>
-                <input type="file" class="cf-file" (change)="onReqFile($event)" />
+                <input type="file" class="cf-file" multiple (change)="onReqFile($event)" />
+                <small class="muted-note">{{ reqFileNames(reqFiles()) }}</small>
               </label>
             </div>
 
@@ -400,6 +401,10 @@
           </section>
         }
       }
+      <app-client-requirements
+        [requirements]="customerRequirements()"
+        (requirementChanged)="onRequirementChanged($event)"
+      />
       @if (activeEntity() === 'transactions' && canFinancials && !drillItem()) {
         <div class="req-toolbar">
           <button type="button" class="ghost create-btn" (click)="downloadAllTransactionsPdf()" [disabled]="downloadingAllTxPdf()">
@@ -472,7 +477,7 @@
             </p-table>
           }
         </section>
-      } @else {
+      } @else if (activeEntity() !== 'requirementsCustomer') {
       <app-entity-collection
         [items]="entityItems()"
         [columns]="currentColumns()"
@@ -537,17 +542,21 @@
               }
             }
             @if (activeEntity() === 'requirementsCustomer') {
-              @if (canDownloadReqTemplate(item)) {
-                <button type="button" class="ghost" (click)="downloadRequirementFile(item, 'empty')" [disabled]="isDownloadingReqFile(item, 'empty')">
-                  <i [class]="isDownloadingReqFile(item, 'empty') ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
-                  <span>Download template</span>
-                </button>
+              @for (file of requirementTemplateFiles(item); track file.id) {
+                @if (canDownloadReqFile(item, file)) {
+                  <button type="button" class="ghost" (click)="downloadRequirementFile(item, file)" [disabled]="isDownloadingReqFile(file)">
+                    <i [class]="isDownloadingReqFile(file) ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                    <span>Template: {{ file.name }}</span>
+                  </button>
+                }
               }
-              @if (canDownloadReqClientFile(item)) {
-                <button type="button" class="ghost" (click)="downloadRequirementFile(item, 'filled')" [disabled]="isDownloadingReqFile(item, 'filled')">
-                  <i [class]="isDownloadingReqFile(item, 'filled') ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
-                  <span>Download client file</span>
-                </button>
+              @for (file of requirementClientFiles(item); track file.id) {
+                @if (canDownloadReqFile(item, file)) {
+                  <button type="button" class="ghost" (click)="downloadRequirementFile(item, file)" [disabled]="isDownloadingReqFile(file)">
+                    <i [class]="isDownloadingReqFile(file) ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                    <span>Client: {{ file.name }}</span>
+                  </button>
+                }
               }
             }
           }

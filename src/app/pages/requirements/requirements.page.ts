@@ -8,7 +8,9 @@ import {
   ClientBankAccount,
   ClientTransaction,
   Requirement,
+  RequirementArchivedDocument,
   RequirementDocumentType,
+  RequirementFile,
   RequirementState,
   StaffUser,
 } from '../../services/api.service';
@@ -87,10 +89,16 @@ export class RequirementsPage implements OnInit {
   readonly createLoading = signal(false);
   readonly savingEdit = signal(false);
   readonly actionBusyId = signal<string | null>(null);
-  readonly downloading = signal<'empty' | 'filled' | null>(null);
+  readonly downloading = signal<string | null>(null);
+  readonly viewing = signal<string | null>(null);
+  readonly archivedDocuments = signal<RequirementArchivedDocument[]>([]);
+  readonly archivedLoading = signal(false);
+  readonly archivedError = signal('');
+  readonly archivedRequirementId = signal<string | null>(null);
 
-  readonly createFile = signal<File | null>(null);
-  readonly editFile = signal<File | null>(null);
+  readonly createFiles = signal<File[]>([]);
+  readonly editFiles = signal<File[]>([]);
+  readonly editDeleteFileIds = signal<string[]>([]);
 
   // ---- Estado de la creación con recurso vinculado (cuenta bancaria / transacción) ----
   readonly createClient = signal<StaffUser | null>(null);
@@ -182,7 +190,7 @@ export class RequirementsPage implements OnInit {
 
   showCreate(): void {
     this.createForm.reset({ customerUserId: '', name: '', description: '', documentType: '' });
-    this.createFile.set(null);
+    this.createFiles.set([]);
     this.createClient.set(null);
     this.createDocType.set('');
     this.clearResources();
@@ -193,12 +201,14 @@ export class RequirementsPage implements OnInit {
     this.selectedId.set(requirement.id);
     this.editing.set(false);
     this.view.set('detail');
+    this.prepareArchivedDocuments(requirement);
   }
 
   back(): void {
     this.selectedId.set(null);
     this.editing.set(false);
     this.view.set('list');
+    this.clearArchivedDocuments();
   }
 
   // ---- Creación ----
@@ -287,11 +297,11 @@ export class RequirementsPage implements OnInit {
   }
 
   onCreateFile(event: Event): void {
-    this.createFile.set((event.target as HTMLInputElement).files?.[0] ?? null);
+    this.createFiles.set(Array.from((event.target as HTMLInputElement).files ?? []));
   }
 
   onEditFile(event: Event): void {
-    this.editFile.set((event.target as HTMLInputElement).files?.[0] ?? null);
+    this.editFiles.set(Array.from((event.target as HTMLInputElement).files ?? []));
   }
 
   async onCreate(): Promise<void> {
@@ -321,7 +331,7 @@ export class RequirementsPage implements OnInit {
         clientBankId: documentType === 'client_bank' ? this.selectedBank()?.id : undefined,
         transactionOrderId:
           documentType === 'additional_evidence_transaction' ? this.selectedTx()?.id : undefined,
-        file: this.createFile(),
+        files: this.createFiles(),
       });
       await this.load(false);
       this.view.set('list');
@@ -339,12 +349,28 @@ export class RequirementsPage implements OnInit {
     const requirement = this.selected();
     if (!requirement) return;
     this.editForm.reset({ name: requirement.name, description: requirement.description ?? '' });
-    this.editFile.set(null);
+    this.editFiles.set([]);
+    this.editDeleteFileIds.set([]);
     this.editing.set(true);
   }
 
   cancelEdit(): void {
+    this.editDeleteFileIds.set([]);
+    this.editFiles.set([]);
     this.editing.set(false);
+  }
+
+  toggleEditFileRemoval(file: RequirementFile): void {
+    const current = this.editDeleteFileIds();
+    this.editDeleteFileIds.set(
+      current.includes(file.id)
+        ? current.filter((id) => id !== file.id)
+        : [...current, file.id],
+    );
+  }
+
+  isEditFileMarkedForRemoval(file: RequirementFile): boolean {
+    return this.editDeleteFileIds().includes(file.id);
   }
 
   async onSaveEdit(): Promise<void> {
@@ -359,9 +385,12 @@ export class RequirementsPage implements OnInit {
       const res = await this.api.updateRequirement(requirement.id, {
         name: value.name.trim(),
         description: value.description.trim(),
-        file: this.editFile(),
+        files: this.editFiles(),
+        deleteFileIds: this.editDeleteFileIds(),
       });
       this.editing.set(false);
+      this.editDeleteFileIds.set([]);
+      this.editFiles.set([]);
       await this.load(false);
       this.toast('success', 'Requirement updated', res.message);
     } catch (err: unknown) {
@@ -374,7 +403,7 @@ export class RequirementsPage implements OnInit {
   onApprove(requirement: Requirement): void {
     this.confirm.confirm({
       header: 'Approve requirement',
-      message: `Approve "${requirement.name}"? The client's file will be archived and the requirement closed.`,
+      message: `Approve "${requirement.name}"? The client's submitted files will be archived and the requirement closed.`,
       icon: 'pi pi-check-circle',
       acceptLabel: 'Approve',
       rejectLabel: 'Cancel',
@@ -385,14 +414,14 @@ export class RequirementsPage implements OnInit {
 
   onReject(requirement: Requirement): void {
     this.confirm.confirm({
-      header: 'Reject file',
-      message: `Reject the file for "${requirement.name}"? The client's upload will be removed and they'll be asked to upload again.`,
+      header: 'Reject files',
+      message: `Reject the files for "${requirement.name}"? The client's uploads will be removed and they'll be asked to upload again.`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Reject',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
       rejectButtonStyleClass: 'p-button-text',
-      accept: () => void this.runAction(requirement.id, () => this.api.rejectRequirement(requirement.id), 'File rejected'),
+      accept: () => void this.runAction(requirement.id, () => this.api.rejectRequirement(requirement.id), 'Files rejected'),
     });
   }
 
@@ -418,6 +447,10 @@ export class RequirementsPage implements OnInit {
     try {
       const res = await action();
       await this.load(false);
+      const current = this.selected();
+      if (this.view() === 'detail' && current?.id === id) {
+        this.prepareArchivedDocuments(current);
+      }
       this.toast('success', successSummary, res.message);
     } catch (err: unknown) {
       this.toast('error', 'Action failed', this.errorOf(err));
@@ -426,18 +459,88 @@ export class RequirementsPage implements OnInit {
     }
   }
 
-  async download(type: 'empty' | 'filled'): Promise<void> {
-    const requirement = this.selected();
-    if (!requirement) return;
-    this.downloading.set(type);
+  async viewFile(file: RequirementFile): Promise<void> {
+    this.viewing.set(file.id);
     try {
-      const blob = await this.api.downloadRequirementFile(requirement.id, type);
-      this.saveBlob(blob, `${requirement.name}-${type === 'empty' ? 'template' : 'client-file'}`);
+      const blob = await this.api.downloadRequirementFile(file.id);
+      this.openBlob(blob, file.name || 'requirement-file');
+    } catch (err: unknown) {
+      this.toast('error', 'Could not open', this.errorOf(err));
+    } finally {
+      this.viewing.set(null);
+    }
+  }
+
+  async download(file: RequirementFile): Promise<void> {
+    this.downloading.set(file.id);
+    try {
+      const blob = await this.api.downloadRequirementFile(file.id);
+      this.saveBlob(blob, file.name || 'requirement-file');
     } catch (err: unknown) {
       this.toast('error', 'Could not download', this.errorOf(err));
     } finally {
       this.downloading.set(null);
     }
+  }
+
+  async viewArchivedDocument(document: RequirementArchivedDocument): Promise<void> {
+    this.viewing.set(document.id);
+    try {
+      const blob = await this.api.viewClientDocument(document.documentType, document.id);
+      this.openBlob(blob, document.name || 'requirement-document');
+    } catch (err: unknown) {
+      this.toast('error', 'Could not open document', this.errorOf(err));
+    } finally {
+      this.viewing.set(null);
+    }
+  }
+
+  async downloadArchivedDocument(document: RequirementArchivedDocument): Promise<void> {
+    this.downloading.set(document.id);
+    try {
+      const blob = await this.api.downloadClientDocument(document.documentType, document.id);
+      this.saveBlob(blob, document.name || 'requirement-document');
+    } catch (err: unknown) {
+      this.toast('error', 'Could not download document', this.errorOf(err));
+    } finally {
+      this.downloading.set(null);
+    }
+  }
+
+  private prepareArchivedDocuments(requirement: Requirement): void {
+    if (requirement.state !== 'approved') {
+      this.clearArchivedDocuments();
+      return;
+    }
+    void this.loadArchivedDocuments(requirement.id);
+  }
+
+  private async loadArchivedDocuments(requirementId: string): Promise<void> {
+    this.archivedRequirementId.set(requirementId);
+    this.archivedLoading.set(true);
+    this.archivedError.set('');
+    try {
+      const res = await this.api.getRequirementDocuments(requirementId);
+      if (this.archivedRequirementId() === requirementId) {
+        this.archivedDocuments.set(res.documents ?? []);
+      }
+    } catch (err: unknown) {
+      if (this.archivedRequirementId() === requirementId) {
+        this.archivedDocuments.set([]);
+        this.archivedError.set(this.errorOf(err));
+      }
+    } finally {
+      if (this.archivedRequirementId() === requirementId) {
+        this.archivedLoading.set(false);
+      }
+    }
+  }
+
+  private clearArchivedDocuments(): void {
+    this.archivedRequirementId.set(null);
+    this.archivedDocuments.set([]);
+    this.archivedError.set('');
+    this.archivedLoading.set(false);
   }
 
   // ---- reglas / helpers ----
@@ -452,10 +555,29 @@ export class RequirementsPage implements OnInit {
     return this.canWrite && (r.state === 'pending' || r.state === 'under_review');
   }
   canDownloadTemplate(r: Requirement): boolean {
-    return !!r.hasTemplateFile && r.state !== 'approved' && r.state !== 'cancelled';
+    return this.templateFiles(r).length > 0 && r.state !== 'approved' && r.state !== 'cancelled';
   }
   canDownloadClientFile(r: Requirement): boolean {
-    return !!r.hasClientFile && r.state !== 'approved' && r.state !== 'cancelled';
+    return this.clientFiles(r).length > 0 && r.state !== 'approved' && r.state !== 'cancelled';
+  }
+  canUseStagingFiles(r: Requirement): boolean {
+    return r.state !== 'approved' && r.state !== 'cancelled';
+  }
+  templateFiles(r: Requirement): RequirementFile[] {
+    return r.templateFiles ?? [];
+  }
+  clientFiles(r: Requirement): RequirementFile[] {
+    return r.clientFiles ?? [];
+  }
+  fileNames(files: File[]): string {
+    if (files.length === 0) return 'Attach template files (optional)';
+    if (files.length === 1) return files[0].name;
+    return `${files.length} files selected`;
+  }
+  editFileNames(files: File[]): string {
+    if (files.length === 0) return 'Add template files (optional)';
+    if (files.length === 1) return files[0].name;
+    return `${files.length} files selected`;
   }
 
   clientLabel(r: Requirement): string {
@@ -531,6 +653,17 @@ export class RequirementsPage implements OnInit {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  private openBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, '_blank', 'noopener');
+    if (!opened) {
+      URL.revokeObjectURL(url);
+      this.saveBlob(blob, filename);
+      return;
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   private toast(severity: 'success' | 'error', summary: string, detail: string): void {

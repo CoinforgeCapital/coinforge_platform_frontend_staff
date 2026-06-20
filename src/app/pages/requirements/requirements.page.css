@@ -387,6 +387,11 @@ h1 {
   display: grid;
   gap: 4px;
 }
+.edit-files {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
 
 /* ---- Meta / bloques ---- */
 .meta {
@@ -434,6 +439,14 @@ h1 {
   display: grid;
   gap: 10px;
 }
+.file-section-title {
+  margin: 4px 0 0;
+  color: var(--cf-text-muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .file-row {
   display: flex;
   align-items: center;
@@ -444,16 +457,38 @@ h1 {
   border-radius: var(--cf-radius-sm);
   background: var(--cf-surface-2);
 }
+.file-row.marked-remove {
+  border-color: rgba(225, 75, 75, 0.5);
+  background: rgba(225, 75, 75, 0.08);
+}
+.file-row.marked-remove .file-info {
+  text-decoration: line-through;
+  color: var(--cf-text-muted);
+}
 .file-info {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   color: var(--cf-text);
   font-weight: 600;
   font-size: 0.9rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .file-info i {
   color: var(--cf-teal-600);
+}
+.file-info small {
+  color: var(--cf-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.file-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .file-none {
   color: var(--cf-text-muted);

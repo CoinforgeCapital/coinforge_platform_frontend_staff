@@ -150,9 +150,9 @@
       </label>
 
       <label class="file-picker">
-        <input type="file" (change)="onCreateFile($event)" />
+        <input type="file" multiple (change)="onCreateFile($event)" />
         <i class="pi pi-paperclip" aria-hidden="true"></i>
-        <span>{{ createFile()?.name || 'Attach a template file (optional)' }}</span>
+        <span>{{ fileNames(createFiles()) }}</span>
       </label>
 
       <div class="form-actions">
@@ -232,10 +232,66 @@
               <small class="err">A description is required.</small>
             }
           </label>
+          <div class="edit-files">
+            <p class="file-section-title">Current staff documents</p>
+            @if (templateFiles(r).length) {
+              @for (file of templateFiles(r); track file.id) {
+                <div class="file-row" [class.marked-remove]="isEditFileMarkedForRemoval(file)">
+                  <span class="file-info"><i class="pi pi-file" aria-hidden="true"></i> {{ file.name }}</span>
+                  <span class="file-actions">
+                    <button type="button" class="ghost sm" (click)="viewFile(file)" [disabled]="viewing() === file.id">
+                      <i [class]="viewing() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                      {{ viewing() === file.id ? 'Opening…' : 'View' }}
+                    </button>
+                    <button type="button" class="ghost sm" (click)="download(file)" [disabled]="downloading() === file.id">
+                      <i [class]="downloading() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                      {{ downloading() === file.id ? 'Downloading…' : 'Download' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ghost sm danger"
+                      (click)="toggleEditFileRemoval(file)"
+                    >
+                      <i [class]="isEditFileMarkedForRemoval(file) ? 'pi pi-undo' : 'pi pi-trash'" aria-hidden="true"></i>
+                      {{ isEditFileMarkedForRemoval(file) ? 'Keep' : 'Remove' }}
+                    </button>
+                  </span>
+                </div>
+              }
+            } @else {
+              <div class="file-row">
+                <span class="file-info"><i class="pi pi-file" aria-hidden="true"></i> Staff documents</span>
+                <span class="file-none">None</span>
+              </div>
+            }
+
+            @if (clientFiles(r).length) {
+              <p class="file-section-title">Client uploads</p>
+              @for (file of clientFiles(r); track file.id) {
+                <div class="file-row">
+                  <span class="file-info"><i class="pi pi-file-check" aria-hidden="true"></i> {{ file.name }}</span>
+                  <span class="file-actions">
+                    <button type="button" class="ghost sm" (click)="viewFile(file)" [disabled]="viewing() === file.id">
+                      <i [class]="viewing() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                      {{ viewing() === file.id ? 'Opening…' : 'View' }}
+                    </button>
+                    <button type="button" class="ghost sm" (click)="download(file)" [disabled]="downloading() === file.id">
+                      <i [class]="downloading() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                      {{ downloading() === file.id ? 'Downloading…' : 'Download' }}
+                    </button>
+                  </span>
+                </div>
+              }
+              <p class="hint">
+                <i class="pi pi-info-circle" aria-hidden="true"></i>
+                <span>Client uploads are managed through review actions; editing only removes staff documents.</span>
+              </p>
+            }
+          </div>
           <label class="file-picker">
-            <input type="file" (change)="onEditFile($event)" />
+            <input type="file" multiple (change)="onEditFile($event)" />
             <i class="pi pi-paperclip" aria-hidden="true"></i>
-            <span>{{ editFile()?.name || 'Replace template file (optional)' }}</span>
+            <span>{{ editFileNames(editFiles()) }}</span>
           </label>
           <div class="form-actions">
             <button type="button" class="ghost" (click)="cancelEdit()">Cancel</button>
@@ -271,30 +327,106 @@
 
         <div class="block">
           <h3>Files</h3>
-          <div class="files">
-            <div class="file-row">
-              <span class="file-info"><i class="pi pi-file" aria-hidden="true"></i> Template (provided by staff)</span>
-              @if (canDownloadTemplate(r)) {
-                <button type="button" class="ghost sm" (click)="download('empty')" [disabled]="downloading() === 'empty'">
-                  <i class="pi pi-download" aria-hidden="true"></i>
-                  {{ downloading() === 'empty' ? 'Downloading…' : 'Download' }}
-                </button>
+          @if (r.state === 'approved') {
+            <div class="files">
+              <p class="file-section-title">Stored client documents</p>
+              @if (archivedLoading()) {
+                <div class="file-row">
+                  <span class="file-info"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Loading archived documents</span>
+                </div>
+              } @else if (archivedError()) {
+                <div class="file-row">
+                  <span class="file-info"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> {{ archivedError() }}</span>
+                </div>
+              } @else if (archivedDocuments().length) {
+                @for (document of archivedDocuments(); track document.id) {
+                  <div class="file-row">
+                    <span class="file-info">
+                      <i class="pi pi-file-check" aria-hidden="true"></i>
+                      {{ document.name }}
+                      <small>{{ docTypeLabel(document.documentType) }} · {{ formatDate(document.createdAt) }}</small>
+                    </span>
+                    <span class="file-actions">
+                      <button type="button" class="ghost sm" (click)="viewArchivedDocument(document)" [disabled]="viewing() === document.id">
+                        <i [class]="viewing() === document.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                        {{ viewing() === document.id ? 'Opening…' : 'View' }}
+                      </button>
+                      <button type="button" class="ghost sm" (click)="downloadArchivedDocument(document)" [disabled]="downloading() === document.id">
+                        <i [class]="downloading() === document.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                        {{ downloading() === document.id ? 'Downloading…' : 'Download' }}
+                      </button>
+                    </span>
+                  </div>
+                }
               } @else {
-                <span class="file-none">{{ r.hasTemplateFile ? 'Archived' : 'None' }}</span>
+                <div class="file-row">
+                  <span class="file-info"><i class="pi pi-file-check" aria-hidden="true"></i> Stored client documents</span>
+                  <span class="file-none">None</span>
+                </div>
               }
             </div>
-            <div class="file-row">
-              <span class="file-info"><i class="pi pi-file-check" aria-hidden="true"></i> Client upload</span>
-              @if (canDownloadClientFile(r)) {
-                <button type="button" class="ghost sm" (click)="download('filled')" [disabled]="downloading() === 'filled'">
-                  <i class="pi pi-download" aria-hidden="true"></i>
-                  {{ downloading() === 'filled' ? 'Downloading…' : 'Download' }}
-                </button>
+          } @else if (r.state === 'cancelled') {
+            <div class="files">
+              <div class="file-row">
+                <span class="file-info"><i class="pi pi-ban" aria-hidden="true"></i> Files</span>
+                <span class="file-none">Cancelled requirements keep no downloadable files.</span>
+              </div>
+            </div>
+          } @else {
+            <div class="files">
+              <p class="file-section-title">Staff documents</p>
+              @if (templateFiles(r).length) {
+                @for (file of templateFiles(r); track file.id) {
+                  <div class="file-row">
+                    <span class="file-info"><i class="pi pi-file" aria-hidden="true"></i> {{ file.name }}</span>
+                    @if (canUseStagingFiles(r)) {
+                      <span class="file-actions">
+                        <button type="button" class="ghost sm" (click)="viewFile(file)" [disabled]="viewing() === file.id">
+                          <i [class]="viewing() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                          {{ viewing() === file.id ? 'Opening…' : 'View' }}
+                        </button>
+                        <button type="button" class="ghost sm" (click)="download(file)" [disabled]="downloading() === file.id">
+                          <i [class]="downloading() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                          {{ downloading() === file.id ? 'Downloading…' : 'Download' }}
+                        </button>
+                      </span>
+                    }
+                  </div>
+                }
               } @else {
-                <span class="file-none">{{ r.hasClientFile ? 'Archived' : 'Not uploaded yet' }}</span>
+                <div class="file-row">
+                  <span class="file-info"><i class="pi pi-file" aria-hidden="true"></i> Staff documents</span>
+                  <span class="file-none">None</span>
+                </div>
+              }
+
+              <p class="file-section-title">Client uploads</p>
+              @if (clientFiles(r).length) {
+                @for (file of clientFiles(r); track file.id) {
+                  <div class="file-row">
+                    <span class="file-info"><i class="pi pi-file-check" aria-hidden="true"></i> {{ file.name }}</span>
+                    @if (canUseStagingFiles(r)) {
+                      <span class="file-actions">
+                        <button type="button" class="ghost sm" (click)="viewFile(file)" [disabled]="viewing() === file.id">
+                          <i [class]="viewing() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                          {{ viewing() === file.id ? 'Opening…' : 'View' }}
+                        </button>
+                        <button type="button" class="ghost sm" (click)="download(file)" [disabled]="downloading() === file.id">
+                          <i [class]="downloading() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                          {{ downloading() === file.id ? 'Downloading…' : 'Download' }}
+                        </button>
+                      </span>
+                    }
+                  </div>
+                }
+              } @else {
+                <div class="file-row">
+                  <span class="file-info"><i class="pi pi-file-check" aria-hidden="true"></i> Client uploads</span>
+                  <span class="file-none">Not uploaded yet</span>
+                </div>
               }
             </div>
-          </div>
+          }
         </div>
 
         @if (r.state === 'pending') {

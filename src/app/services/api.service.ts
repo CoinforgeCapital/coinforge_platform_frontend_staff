@@ -64,6 +64,15 @@ export type RequirementDocumentType =
   | 'source_of_funds'
   | 'source_of_wealth'
   | 'other';
+export type RequirementFileSide = 'staff' | 'client';
+
+export interface RequirementFile {
+  id: string;
+  name: string;
+  side: RequirementFileSide;
+  createdAt?: string;
+  uploadedBy?: StaffUser | null;
+}
 
 export interface Requirement {
   id: string;
@@ -73,6 +82,15 @@ export interface Requirement {
   state?: RequirementState;
   hasTemplateFile?: boolean;
   hasClientFile?: boolean;
+  hasTemplateFiles?: boolean;
+  hasClientFiles?: boolean;
+  templateFiles?: RequirementFile[];
+  clientFiles?: RequirementFile[];
+  /**
+   * El detalle de cliente embebe la entidad cruda con `files` (cada uno con su `side`),
+   * mientras que GET /api/requirement entrega templateFiles/clientFiles ya separados.
+   */
+  files?: RequirementFile[];
   createdAt?: string;
   updatedAt?: string;
   /** Fecha de aprobación o cancelación (cuando el requirement queda cerrado). */
@@ -82,6 +100,21 @@ export interface Requirement {
   closedBy?: StaffUser | null;
   transactionOrderId?: string | null;
   clientBankAccountId?: string | null;
+}
+
+/**
+ * Documento final archivado de un requirement aprobado. Al cerrar el requirement,
+ * los ficheros del cliente se mueven a la tabla documental de su `documentType` y
+ * quedan trazados por `sourceRequirement`; este es el shape para listarlos.
+ */
+export interface RequirementArchivedDocument {
+  id: string;
+  name: string;
+  documentType: RequirementDocumentType;
+  createdAt?: string;
+}
+export interface ListRequirementDocumentsResponse {
+  documents: RequirementArchivedDocument[];
 }
 
 export interface CreateRequirementRequest {
@@ -94,11 +127,14 @@ export interface CreateRequirementRequest {
   /** Solo para documentType 'additional_evidence_transaction'. */
   transactionOrderId?: string;
   file?: File | null;
+  files?: File[];
 }
 export interface UpdateRequirementRequest {
   name?: string;
   description?: string;
   file?: File | null;
+  files?: File[];
+  deleteFileIds?: string[];
 }
 
 /** Cuenta bancaria de un cliente (para vincular requirements de tipo client_bank). */
@@ -654,6 +690,15 @@ export class ApiService {
     return this.request.get<{ requirement: Requirement }>(`/api/requirement/${requirementId}`);
   }
 
+  /**
+   * Documentos finales archivados de un requirement aprobado. El staging se borra al
+   * aprobar, así que la lista de archivos de un requirement completado vive en las
+   * tablas documentales del cliente; cada uno se descarga/visualiza por documentType+id.
+   */
+  getRequirementDocuments(requirementId: string): Promise<ListRequirementDocumentsResponse> {
+    return this.request.get<ListRequirementDocumentsResponse>(`/api/requirement/${requirementId}/documents`);
+  }
+
   closeRequirement(requirementId: string): Promise<StandardDataResponse<Requirement>> {
     return this.request.patch<StandardDataResponse<Requirement>>(`/api/requirement/staff/close/${requirementId}`);
   }
@@ -674,7 +719,8 @@ export class ApiService {
     fd.append('documentType', body.documentType);
     if (body.clientBankId) fd.append('clientBankId', body.clientBankId);
     if (body.transactionOrderId) fd.append('transactionOrderId', body.transactionOrderId);
-    if (body.file) fd.append('file_1', body.file);
+    const files = body.files ?? (body.file ? [body.file] : []);
+    files.forEach((file, index) => fd.append(`file_${index + 1}`, file));
     return this.request.post<StandardMessageResponse, FormData>('/api/requirement', fd);
   }
 
@@ -695,15 +741,17 @@ export class ApiService {
     const fd = new FormData();
     if (body.name !== undefined) fd.append('name', body.name);
     if (body.description !== undefined) fd.append('description', body.description);
-    if (body.file) fd.append('file_1', body.file);
+    if (body.deleteFileIds?.length) fd.append('deleteFileIds', JSON.stringify(body.deleteFileIds));
+    const files = body.files ?? (body.file ? [body.file] : []);
+    files.forEach((file, index) => fd.append(`file_${index + 1}`, file));
     return this.request.patch<StandardDataResponse<Requirement>, FormData>(
       `/api/requirement/${requirementId}`,
       fd,
     );
   }
 
-  downloadRequirementFile(requirementId: string, fileType: 'empty' | 'filled'): Promise<Blob> {
-    return this.request.download(`/api/requirement/file/download/${requirementId}/file/${fileType}`);
+  downloadRequirementFile(requirementFileId: string): Promise<Blob> {
+    return this.request.download(`/api/requirement/file/download/${requirementFileId}`);
   }
 
   /**
