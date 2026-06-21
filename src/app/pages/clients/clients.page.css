@@ -363,7 +363,8 @@ button.crumb:hover {
   color: var(--cf-text);
   font: inherit;
 }
-.cf-select:focus {
+.cf-select:focus,
+.cf-input:focus {
   outline: none;
   border-color: var(--cf-teal-500);
   box-shadow: var(--cf-ring);
@@ -412,7 +413,8 @@ button.crumb:hover {
   gap: 8px;
   margin-bottom: 16px;
 }
-.field > span {
+.field > span,
+.state-current-label {
   color: var(--cf-text-muted);
   font-size: 0.66rem;
   font-weight: 800;
@@ -434,11 +436,6 @@ textarea.cf-input {
   resize: vertical;
   line-height: 1.45;
 }
-.cf-input:focus {
-  outline: none;
-  border-color: var(--cf-teal-500);
-  box-shadow: var(--cf-ring);
-}
 .cf-file {
   color: var(--cf-text-muted);
   font: inherit;
@@ -450,44 +447,10 @@ textarea.cf-input {
   margin-top: 4px;
 }
 
-/* ---- Categoría: Account state (estado de cuenta + KYC) ---- */
-.state-categories {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 480px));
-  gap: 16px;
-  max-width: 1000px;
-}
-.state-block {
-  display: grid;
-  gap: 14px;
-  align-content: start;
-  border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-sm);
-  background: var(--cf-surface-2);
-  padding: 16px 18px;
-}
-.state-block h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--cf-text);
-  font-size: 0.98rem;
-}
-.state-block h3 i {
-  color: var(--cf-teal-600);
-}
 .state-current {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.state-current-label {
-  color: var(--cf-text-muted);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 .state-field {
   margin-bottom: 0;
@@ -496,7 +459,7 @@ textarea.cf-input {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0;
+  margin: 12px 0 0;
   color: var(--cf-text-muted);
   font-size: 0.84rem;
 }
@@ -507,6 +470,43 @@ textarea.cf-input {
   display: flex;
 }
 
+/* ---- Categorías: Account settings / KYC settings ---- */
+.settings-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.audit-section.is-wide,
+.audit-json.is-wide {
+  grid-column: 1 / -1;
+}
+.settings-actions {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.settings-actions .field {
+  margin-bottom: 0;
+}
+.history-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+/* KYC: personal data (2 columnas, ancho acotado) junto a documentos (resto del ancho). */
+.kyc-data-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.kyc-personal .audit-grid {
+  grid-template-columns: 1fr 1fr;
+}
 /* ---- Diálogo: auditoría KYCAID de wallets ---- */
 .audit-summary {
   display: grid;
@@ -561,9 +561,13 @@ textarea.cf-input {
   font-size: 0.95rem;
 }
 
+.audit-subhead {
+  margin: 16px 0 8px;
+}
+
 .audit-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 10px 16px;
   margin: 0;
 }
@@ -578,7 +582,8 @@ textarea.cf-input {
   grid-column: 1 / -1;
 }
 
-.audit-grid dt {
+.audit-grid dt,
+.audit-subhead {
   color: var(--cf-text-muted);
   font-size: 0.7rem;
   font-weight: 900;
@@ -669,15 +674,12 @@ textarea.cf-input {
     width: 100%;
     max-width: none;
   }
-  .info-card dl > div {
-    grid-template-columns: 1fr;
-    gap: 2px;
-  }
   .req-grid {
     grid-template-columns: 1fr;
   }
   .audit-summary,
-  .audit-grid {
+  .history-detail-grid,
+  .kyc-data-row {
     grid-template-columns: 1fr;
   }
 }

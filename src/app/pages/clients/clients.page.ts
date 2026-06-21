@@ -16,6 +16,7 @@ import {
   RequirementFile,
   RiskProfile,
   SettableTransactionState,
+  StaffKycHistoryItem,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
@@ -46,6 +47,15 @@ interface InfoField {
   label: string;
   value: string;
   mono: boolean;
+  badge?: boolean;
+  badgeValue?: unknown;
+  wide?: boolean;
+}
+
+/** Grupo de campos relacionados, para dividir listas largas en subsecciones legibles. */
+interface FieldGroup {
+  title: string;
+  fields: InfoField[];
 }
 
 type WalletAuditDialogMode = 'latest' | 'detail';
@@ -64,7 +74,8 @@ const BANK_KEY = 'clientBankAccounts';
 const TX_KEY = 'transactions';
 /** Categorías sintéticas del detalle (no son colecciones embebidas del cliente). */
 const RISK_PROFILE_KEY = 'riskProfileCategory';
-const STATE_KEY = 'accountStateCategory';
+const ACCOUNT_SETTINGS_KEY = 'accountSettingsCategory';
+const KYC_SETTINGS_KEY = 'kycSettingsCategory';
 const ADMIN_KEY = 'adminActionsCategory';
 const PENDING_KEY = 'pendingApprovalsCategory';
 const ACTIVITY_ALERTS_KEY = 'activityAlertsCategory';
@@ -251,7 +262,8 @@ export class ClientsPage implements OnInit {
   readonly profileKey = PROFILE_KEY;
   readonly documentsKey = DOCUMENTS_KEY;
   readonly riskProfileKey = RISK_PROFILE_KEY;
-  readonly stateKey = STATE_KEY;
+  readonly accountSettingsKey = ACCOUNT_SETTINGS_KEY;
+  readonly kycSettingsKey = KYC_SETTINGS_KEY;
   readonly adminKey = ADMIN_KEY;
   readonly pendingKey = PENDING_KEY;
   readonly activityAlertsKey = ACTIVITY_ALERTS_KEY;
@@ -281,19 +293,15 @@ export class ClientsPage implements OnInit {
   /** Ver la última auditoría KYCAID de una wallet del cliente. */
   readonly canViewWalletKycaidAudit = this.auth.hasAnyRole(STAFF_PERMISSIONS.walletKycaidAuditView);
 
-  /**
-   * Pestañas del detalle. Tras "Profile" inserta la categoría sintética "Risk profile" y, solo
-   * si el rol tiene permiso para cambiar el estado, la categoría "Account state".
-   */
+  /** Pestañas del detalle. Las categorías sintéticas muestran paneles propios, no colecciones. */
   readonly entityGroups = computed<EntityGroup[]>(() => {
     const out: EntityGroup[] = [];
     for (const group of ENTITY_GROUPS) {
       out.push(group);
       if (group.key === PROFILE_KEY) {
         out.push({ key: RISK_PROFILE_KEY, label: 'Risk profile', icon: 'pi pi-shield', columns: [] });
-        if (this.canChangeState || this.canKyc) {
-          out.push({ key: STATE_KEY, label: 'Account state', icon: 'pi pi-sliders-h', columns: [] });
-        }
+        out.push({ key: ACCOUNT_SETTINGS_KEY, label: 'Account settings', icon: 'pi pi-user-edit', columns: [] });
+        out.push({ key: KYC_SETTINGS_KEY, label: 'KYC settings', icon: 'pi pi-verified', columns: [] });
         // "Pending approvals" del cliente: mismas operaciones y permisos que la página global
         // (la ruta /pending-approvals se gatea por clientFinancials).
         if (this.canFinancials || this.canKyc) {
@@ -404,6 +412,7 @@ export class ClientsPage implements OnInit {
   /** true = se muestra el formulario de alta de usuario en lugar del listado. */
   readonly creatingUser = signal(false);
   readonly selected = signal<Record<string, unknown> | null>(null);
+  readonly detailLoading = signal(false);
   readonly activeEntity = signal<string>(PROFILE_KEY);
   /** Elemento concreto en el que se ha hecho drill-down (null = se ve la tabla). */
   readonly drillItem = signal<Record<string, unknown> | null>(null);
@@ -480,6 +489,14 @@ export class ClientsPage implements OnInit {
   // ---- Acción sobre el KYC (misma categoría) ----
   kycTarget: KycAction | '' = '';
   readonly kycSaving = signal(false);
+  readonly kycHistory = signal<StaffKycHistoryItem[]>([]);
+  readonly kycHistoryTotal = signal(0);
+  readonly kycHistoryPage = signal(1);
+  readonly kycHistoryPageSize = signal(10);
+  readonly kycHistoryLoading = signal(false);
+  readonly kycHistoryError = signal('');
+  readonly historicalKyc = signal<StaffKycHistoryItem | null>(null);
+  private kycHistoryRequestSeq = 0;
 
   // ---- Documentos asociados al item (bank account / transaction) ----
   readonly showItemDocs = signal(false);
@@ -515,6 +532,46 @@ export class ClientsPage implements OnInit {
     const query = this.search().trim().toLowerCase();
     if (!query) return this.all();
     return this.all().filter((u) => String(u['email'] ?? '').toLowerCase().includes(query));
+  });
+
+  readonly accountSettingsGroups = computed<FieldGroup[]>(() => {
+    const client = this.selected();
+    if (!client) return [];
+    return [
+      {
+        title: 'Identity',
+        fields: [
+          { label: 'User ID', value: this.format(client['id']), mono: true },
+          { label: 'Email', value: this.format(client['email']), mono: true },
+          { label: 'Account type', value: this.typeLabel(client['type']), mono: false },
+          { label: 'Role', value: this.roleLabel(client['role']), mono: false },
+        ],
+      },
+      {
+        title: 'Status & activity',
+        fields: [
+          { label: 'Account state', value: this.stateLabel(client['state']), mono: false, badge: true, badgeValue: client['state'] },
+          { label: 'Created', value: this.format(client['createdAt']), mono: false },
+          { label: 'Updated', value: this.format(client['updatedAt']), mono: false },
+          { label: 'Last login', value: this.format(client['lastLoginAt']), mono: false },
+        ],
+      },
+    ];
+  });
+
+  readonly metadataFields = computed<InfoField[]>(() =>
+    this.objectFields(this.asRecord(this.selected()?.['clientMetadata']), ['client']),
+  );
+
+  readonly activeKyc = computed<StaffKycHistoryItem | null>(() => {
+    const client = this.selected();
+    const kyc = this.asRecord(client?.['kyc']);
+    if (!kyc) return null;
+    return {
+      ...(kyc as StaffKycHistoryItem),
+      personalData: (this.asRecord(client?.['personalData']) as StaffKycHistoryItem['personalData']) ?? null,
+      kycDocuments: this.asArray<Record<string, unknown>>(client?.['kycDocuments']) as StaffKycHistoryItem['kycDocuments'],
+    };
   });
 
   readonly entityItems = computed<Record<string, unknown>[]>(() => {
@@ -618,12 +675,32 @@ export class ClientsPage implements OnInit {
   }
 
   openDetail(row: Record<string, unknown>): void {
+    const clientId = String(row['id'] ?? '');
     this.selected.set(row);
     this.activeEntity.set(PROFILE_KEY);
     this.drillItem.set(null);
     this.showItemDocs.set(false);
     this.walletAuditHistoryVisible.set(false);
+    this.resetKycHistory();
     this.view.set('detail');
+
+    if (!clientId) return;
+    this.detailLoading.set(true);
+    this.api.getUser(clientId)
+      .then((client) => {
+        const detail = client as unknown as Record<string, unknown>;
+        if (this.selected()?.['id'] !== clientId) return;
+        this.selected.set(detail);
+        this.all.update((clients) =>
+          clients.map((item) => item['id'] === clientId ? { ...item, ...detail } : item),
+        );
+      })
+      .catch((err) => this.toast('error', 'Could not load client detail', this.errorOf(err)))
+      .finally(() => {
+        if (this.selected()?.['id'] === clientId) {
+          this.detailLoading.set(false);
+        }
+      });
   }
 
   onDrill(item: Record<string, unknown>): void {
@@ -639,8 +716,10 @@ export class ClientsPage implements OnInit {
   backToList(): void {
     this.view.set('list');
     this.selected.set(null);
+    this.detailLoading.set(false);
     this.drillItem.set(null);
     this.walletAuditHistoryVisible.set(false);
+    this.resetKycHistory();
   }
 
   selectEntity(key: string): void {
@@ -651,9 +730,13 @@ export class ClientsPage implements OnInit {
     this.reqFormOpen.set(false);
     this.walletAuditHistoryVisible.set(false);
     if (key === DOCUMENTS_KEY) this.activeDocTab.set(DOCUMENT_TABS[0].key);
-    if (key === STATE_KEY) {
+    if (key === ACCOUNT_SETTINGS_KEY) {
       this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
+    }
+    if (key === KYC_SETTINGS_KEY) {
       this.kycTarget = '';
+      this.historicalKyc.set(null);
+      void this.loadKycHistory(1, this.kycHistoryPageSize());
     }
   }
 
@@ -753,7 +836,7 @@ export class ClientsPage implements OnInit {
       verify: "Approve this client's KYC?",
       sync: "Re-sync this client's KYC data from KYCAID?",
       restricted: "Set this client's KYC to restricted?",
-      reset: "Reset this client's KYC? Documents will be deleted and the client must verify again.",
+      reset: "Reset this client's KYC? The current KYC will be archived and a new active KYC will be created.",
     };
     this.confirm.confirm({
       header: 'Change KYC state',
@@ -774,6 +857,10 @@ export class ClientsPage implements OnInit {
           })
           .then(() => {
             this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
+            if (this.activeEntity() === KYC_SETTINGS_KEY) {
+              return this.loadKycHistory(1, this.kycHistoryPageSize());
+            }
+            return undefined;
           })
           .catch((err) => this.toast('error', 'Could not update KYC', this.errorOf(err)))
           .finally(() => this.kycSaving.set(false));
@@ -792,6 +879,68 @@ export class ClientsPage implements OnInit {
       case 'reset':
         return this.api.resetKyc(id);
     }
+  }
+
+  onKycHistoryPage(event: { first?: number | null; rows?: number | null }): void {
+    const pageSize = Number(event.rows ?? this.kycHistoryPageSize());
+    const first = Number(event.first ?? 0);
+    const page = Math.floor(first / pageSize) + 1;
+    void this.loadKycHistory(page, pageSize);
+  }
+
+  openHistoricalKyc(kyc: StaffKycHistoryItem): void {
+    this.historicalKyc.set(kyc);
+  }
+
+  closeHistoricalKyc(): void {
+    this.historicalKyc.set(null);
+  }
+
+  isSelectedHistoricalKyc(kyc: StaffKycHistoryItem): boolean {
+    return this.historicalKyc()?.id === kyc.id;
+  }
+
+  private async loadKycHistory(page: number, pageSize: number): Promise<void> {
+    const clientId = this.selected()?.['id'] as string | undefined;
+    if (!clientId) {
+      this.resetKycHistory();
+      return;
+    }
+
+    const requestSeq = ++this.kycHistoryRequestSeq;
+    this.kycHistoryLoading.set(true);
+    this.kycHistoryError.set('');
+
+    try {
+      const res = await this.api.listClientKycHistory(clientId, page, pageSize);
+      if (requestSeq !== this.kycHistoryRequestSeq) return;
+      this.kycHistory.set(res.kycs ?? []);
+      this.kycHistoryTotal.set(res.total ?? 0);
+      this.kycHistoryPage.set(res.page ?? page);
+      this.kycHistoryPageSize.set(res.pageSize ?? pageSize);
+
+      const selectedId = this.historicalKyc()?.id;
+      if (selectedId && !(res.kycs ?? []).some((kyc) => kyc.id === selectedId)) {
+        this.historicalKyc.set(null);
+      }
+    } catch (err) {
+      if (requestSeq !== this.kycHistoryRequestSeq) return;
+      this.kycHistory.set([]);
+      this.historicalKyc.set(null);
+      this.kycHistoryError.set(this.errorOf(err));
+    } finally {
+      if (requestSeq === this.kycHistoryRequestSeq) this.kycHistoryLoading.set(false);
+    }
+  }
+
+  private resetKycHistory(): void {
+    this.kycHistoryRequestSeq++;
+    this.kycHistory.set([]);
+    this.kycHistoryTotal.set(0);
+    this.kycHistoryPage.set(1);
+    this.kycHistoryError.set('');
+    this.kycHistoryLoading.set(false);
+    this.historicalKyc.set(null);
   }
 
   // ---- Crear requirement (botón dentro de la pestaña Requirements) ----
@@ -865,13 +1014,16 @@ export class ClientsPage implements OnInit {
     this.reqFiles.set([]);
   }
 
-  /** Recarga el listado y vuelve a seleccionar el mismo cliente (para refrescar sus colecciones). */
+  /** Recarga el detalle completo del cliente seleccionado (para refrescar sus colecciones). */
   private async reloadSelectedClient(): Promise<void> {
     const id = this.selected()?.['id'];
     if (!id) return;
-    await this.load();
-    const found = this.all().find((u) => u['id'] === id);
-    if (found) this.selected.set(found);
+    const detail = await this.api.getUser(String(id));
+    const record = detail as unknown as Record<string, unknown>;
+    this.selected.set(record);
+    this.all.update((clients) =>
+      clients.map((item) => item['id'] === id ? { ...item, ...record } : item),
+    );
   }
 
   onDocTabChange(key: string | number | undefined): void {
@@ -891,7 +1043,8 @@ export class ClientsPage implements OnInit {
     return (
       key !== PROFILE_KEY &&
       key !== RISK_PROFILE_KEY &&
-      key !== STATE_KEY &&
+      key !== ACCOUNT_SETTINGS_KEY &&
+      key !== KYC_SETTINGS_KEY &&
       key !== ADMIN_KEY &&
       key !== PENDING_KEY &&
       key !== ACTIVITY_ALERTS_KEY
@@ -917,8 +1070,86 @@ export class ClientsPage implements OnInit {
     return this.format(this.resolvePath(row, field));
   }
 
+  kycState(row: Record<string, unknown>): string {
+    const kyc = row['kyc'];
+    if (kyc && typeof kyc === 'object' && !Array.isArray(kyc)) {
+      const data = kyc as Record<string, unknown>;
+      return this.format(data['kycState'] ?? data['state']);
+    }
+    return this.format(row['kycState']);
+  }
+
   roleLabel(role: unknown): string {
     return String(role ?? '-').replace(/_/g, ' ');
+  }
+
+  kycFieldGroups(kyc: StaffKycHistoryItem | null): FieldGroup[] {
+    if (!kyc) return [];
+    return [
+      {
+        title: 'Status & verification',
+        fields: [
+          { label: 'Internal state', value: this.format(kyc.kycState ?? kyc.state), mono: false, badge: true, badgeValue: kyc.kycState ?? kyc.state },
+          { label: 'Active', value: this.format(kyc.active), mono: false, badge: true, badgeValue: kyc.active ? 'active' : 'inactive' },
+          { label: 'KYCAID status', value: this.format(kyc['kycaidStatus']), mono: false, badge: true, badgeValue: kyc['kycaidStatus'] },
+          { label: 'KYCAID verification status', value: this.format(kyc['kycaidVerificationStatus']), mono: false },
+          {
+            label: 'KYCAID verified',
+            value: this.format(kyc['kycaidVerified']),
+            mono: false,
+            badge: true,
+            badgeValue: kyc['kycaidVerified'] === true ? 'verified' : (kyc['kycaidVerified'] === false ? 'restricted' : undefined),
+          },
+          { label: 'Inactive at', value: this.format(kyc.inactiveAt), mono: false },
+        ],
+      },
+      {
+        title: 'Identifiers',
+        fields: [
+          { label: 'KYC ID', value: this.format(kyc.id), mono: true },
+          { label: 'KYCAID verification ID', value: this.format(kyc['kycaidVerificationId']), mono: true },
+          { label: 'KYCAID applicant ID', value: this.format(kyc['kycaidApplicantId']), mono: true },
+          { label: 'KYCAID external applicant ID', value: this.format(kyc['kycaidExternalApplicantId']), mono: true },
+          { label: 'KYCAID form token', value: this.format(kyc['kycaidFormToken']), mono: true },
+          { label: 'KYCAID form URL', value: this.format(kyc['kycaidFormUrl']), mono: true, wide: true },
+        ],
+      },
+      {
+        title: 'Timeline',
+        fields: [
+          { label: 'KYCAID started', value: this.format(kyc['kycaidStartedAt']), mono: false },
+          { label: 'KYCAID completed', value: this.format(kyc['kycaidCompletedAt']), mono: false },
+          { label: 'KYCAID status synced', value: this.format(kyc['kycaidStatusSyncedAt']), mono: false },
+          { label: 'Last KYCAID callback', value: this.format(kyc['kycaidLastCallbackAt']), mono: false },
+          { label: 'Created', value: this.format(kyc.createdAt), mono: false },
+          { label: 'Updated', value: this.format(kyc.updatedAt), mono: false },
+        ],
+      },
+    ];
+  }
+
+  personalDataFields(data: unknown): InfoField[] {
+    return this.objectFields(this.asRecord(data), ['kyc']);
+  }
+
+  kycDocuments(kyc: StaffKycHistoryItem | null): Record<string, unknown>[] {
+    return this.asArray<Record<string, unknown>>(kyc?.kycDocuments);
+  }
+
+  hasValue(value: unknown): boolean {
+    if (value === null || value === undefined || value === '') return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value as Record<string, unknown>).length > 0;
+    return true;
+  }
+
+  jsonValue(value: unknown): string {
+    if (!this.hasValue(value)) return '-';
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
   }
 
   badgeClass(value: unknown): string {
@@ -1416,6 +1647,28 @@ export class ClientsPage implements OnInit {
   }
 
   // ---- helpers ----
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : null;
+  }
+
+  private asArray<T>(value: unknown): T[] {
+    return Array.isArray(value) ? value as T[] : [];
+  }
+
+  private objectFields(record: Record<string, unknown> | null, excludeKeys: string[] = []): InfoField[] {
+    if (!record) return [];
+    const excluded = new Set(excludeKeys);
+    return Object.entries(record)
+      .filter(([key, value]) => !excluded.has(key) && this.hasValue(value) && typeof value !== 'object')
+      .map(([key, value]) => ({
+        label: this.humanize(key),
+        value: this.format(value),
+        mono: key.toLowerCase().includes('id') || key.toLowerCase().includes('token'),
+      }));
+  }
 
   private resolvePath(row: Record<string, unknown> | null, path: string): unknown {
     if (!row) return undefined;

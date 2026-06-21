@@ -40,6 +40,58 @@ export type ManageableUserState = Exclude<UserState, 'deleted'>;
 export type ManualClientState = 'under_review' | 'approved' | 'restricted' | 'blocked';
 export type StaffState = 'approved' | 'blocked';
 
+export interface StaffKyc {
+  id: string;
+  state?: string;
+  kycState?: string;
+  active?: boolean;
+  inactiveAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+export interface StaffKycHistoryItem extends StaffKyc {
+  personalData?: StaffPersonalData | null;
+  kycDocuments?: StaffClientDocument[];
+}
+
+export interface StaffClientMetadata {
+  id?: string;
+  discoverySource?: string;
+  understandAndContinue?: boolean;
+  acknowledgesAxoraFintech?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+export interface StaffPersonalData {
+  id?: string;
+  name?: string;
+  surname?: string;
+  birthDate?: string;
+  nationality?: string;
+  identificationType?: string;
+  identificationNumber?: string;
+  expirationIDDate?: string;
+  address?: string;
+  residenceCountry?: string;
+  phoneNumber?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+export interface StaffClientDocument {
+  id: string;
+  name?: string;
+  path?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
 export interface StaffUser {
   id: string;
   email: string;
@@ -51,8 +103,20 @@ export interface StaffUser {
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string;
-  /** KYC del cliente (solo se rellena al pedir un cliente por id). */
-  kyc?: { id: string; state: string } | null;
+  /** Vista del KYC activo del cliente. El historial queda en backend y aquí se muestra solo el vigente. */
+  kyc?: StaffKyc | null;
+  clientMetadata?: StaffClientMetadata | null;
+  personalData?: StaffPersonalData | null;
+  kycDocuments?: StaffClientDocument[];
+  [key: string]: unknown;
+}
+
+export interface ListClientKycHistoryResponse {
+  ok: boolean;
+  kycs: StaffKycHistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export type RequirementState = 'pending' | 'under_review' | 'approved' | 'cancelled';
@@ -571,6 +635,39 @@ export interface ParametersRequest {
 export class ApiService {
   private readonly request = inject(RequestService);
 
+  private normalizeStaffKyc<T extends StaffKyc>(kyc: T): T {
+    const state = kyc.kycState ?? kyc.state;
+    if (!state) return kyc;
+    return {
+      ...kyc,
+      state,
+      kycState: state,
+    };
+  }
+
+  private normalizeStaffUser<T extends StaffUser>(user: T): T {
+    if (!user?.kyc) return user;
+
+    return {
+      ...user,
+      kyc: this.normalizeStaffKyc(user.kyc),
+    };
+  }
+
+  private normalizeClientKycHistoryResponse(response: ListClientKycHistoryResponse): ListClientKycHistoryResponse {
+    return {
+      ...response,
+      kycs: (response.kycs ?? []).map((kyc) => this.normalizeStaffKyc(kyc)),
+    };
+  }
+
+  private normalizeListUsersResponse(response: ListUsersResponse): ListUsersResponse {
+    return {
+      ...response,
+      users: (response.users ?? []).map((user) => this.normalizeStaffUser(user)),
+    };
+  }
+
   login(body: LoginRequest): Promise<LoginResponse> {
     // La respuesta ya no incluye el token: el backend lo entrega en una cookie HttpOnly.
     return this.request.post<LoginResponse, LoginRequest>('/api/auth/staff/login', body);
@@ -638,7 +735,9 @@ export class ApiService {
   }
 
   listClients(): Promise<ListUsersResponse> {
-    return this.request.get<ListUsersResponse>('/api/user/client/list');
+    return this.request
+      .get<ListUsersResponse>('/api/user/client/list')
+      .then((response) => this.normalizeListUsersResponse(response));
   }
 
   /** Búsqueda de usuarios para selectores escalables (autocomplete). */
@@ -656,11 +755,26 @@ export class ApiService {
 
   /** Detalle completo (poblado, solo lectura) de un usuario borrado. Solo admin. */
   getDeletedUser(id: string): Promise<DeletedUserDetailResponse> {
-    return this.request.get<DeletedUserDetailResponse>(`/api/user/deleted/${id}`);
+    return this.request
+      .get<DeletedUserDetailResponse>(`/api/user/deleted/${id}`)
+      .then((response) => ({
+        ...response,
+        user: this.normalizeStaffUser(response.user),
+      }));
   }
 
   getUser(id: string): Promise<StaffUser> {
-    return this.request.get<StaffUser>(`/api/user/${id}`);
+    return this.request
+      .get<StaffUser>(`/api/user/${id}`)
+      .then((user) => this.normalizeStaffUser(user));
+  }
+
+  listClientKycHistory(id: string, page = 1, pageSize = 10): Promise<ListClientKycHistoryResponse> {
+    return this.request
+      .get<ListClientKycHistoryResponse>(`/api/user/${id}/kyc-history`, {
+        params: { page, pageSize },
+      })
+      .then((response) => this.normalizeClientKycHistoryResponse(response));
   }
 
   createUser(body: CreateUserRequest): Promise<StandardMessageResponse> {

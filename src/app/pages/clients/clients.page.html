@@ -77,7 +77,9 @@
           @for (column of columns; track column.field) {
             <td>
               @if (column.field === 'state' || column.field === 'kyc.kycState') {
-                <span [class]="badgeClass(value(row, column.field))">{{ value(row, column.field) }}</span>
+                <span [class]="badgeClass(column.field === 'kyc.kycState' ? kycState(row) : value(row, column.field))">
+                  {{ column.field === 'kyc.kycState' ? kycState(row) : value(row, column.field) }}
+                </span>
               } @else {
                 {{ value(row, column.field) }}
               }
@@ -107,7 +109,10 @@
           <span class="cf-badge cf-badge--neutral">Type: {{ typeLabel(c['type']) }}</span>
         }
         @if (c['kyc']) {
-          <span [class]="badgeClass(value(c, 'kyc.kycState'))">KYC: {{ value(c, 'kyc.kycState') }}</span>
+          <span [class]="badgeClass(kycState(c))">KYC: {{ kycState(c) }}</span>
+        }
+        @if (detailLoading()) {
+          <span class="cf-badge cf-badge--neutral">Loading detail...</span>
         }
       </div>
     </div>
@@ -162,11 +167,59 @@
       @if (riskClientRef(); as rc) {
         <app-risk-profile-detail [client]="rc" (profileSynced)="onClientRiskSynced($event)" />
       }
-    } @else if (activeEntity() === stateKey) {
-      <div class="state-categories">
+    } @else if (activeEntity() === accountSettingsKey) {
+      <div class="settings-layout">
+        <section class="audit-section is-wide">
+          <header class="audit-section-head">
+            <h3><i class="pi pi-user" aria-hidden="true"></i> Account settings</h3>
+          </header>
+          @for (group of accountSettingsGroups(); track group.title) {
+            <div class="audit-subgroup">
+              <h4 class="audit-subhead">{{ group.title }}</h4>
+              <dl class="audit-grid">
+                @for (field of group.fields; track field.label) {
+                  <div [class.is-wide]="field.wide">
+                    <dt>{{ field.label }}</dt>
+                    <dd [class.mono]="field.mono">
+                      @if (field.badge) {
+                        <span [class]="badgeClass(field.badgeValue ?? field.value)">{{ field.value }}</span>
+                      } @else {
+                        {{ field.value }}
+                      }
+                    </dd>
+                  </div>
+                }
+              </dl>
+            </div>
+          }
+        </section>
+
+        <section class="audit-section">
+          <header class="audit-section-head">
+            <h3><i class="pi pi-database" aria-hidden="true"></i> Metadata</h3>
+          </header>
+          @if (metadataFields().length) {
+            <dl class="audit-grid">
+              @for (field of metadataFields(); track field.label) {
+                <div [class.is-wide]="field.wide">
+                  <dt>{{ field.label }}</dt>
+                  <dd [class.mono]="field.mono">{{ field.value }}</dd>
+                </div>
+              }
+            </dl>
+          } @else {
+            <div class="dialog-placeholder">
+              <i class="pi pi-info-circle" aria-hidden="true"></i>
+              <span>No metadata has been registered for this client.</span>
+            </div>
+          }
+        </section>
+
         @if (canChangeState) {
-          <section class="state-block">
-            <h3><i class="pi pi-user" aria-hidden="true"></i> Account state</h3>
+          <section class="audit-section">
+            <header class="audit-section-head">
+              <h3><i class="pi pi-sliders-h" aria-hidden="true"></i> Change account state</h3>
+            </header>
             <div class="state-current">
               <span class="state-current-label">Current</span>
               <span [class]="badgeClass(c['state'])">{{ stateLabel(c['state']) }}</span>
@@ -197,29 +250,45 @@
             </div>
           </section>
         }
-
-        @if (canKyc) {
-          @if (c['kyc']) {
-            <section class="state-block">
-              <h3><i class="pi pi-verified" aria-hidden="true"></i> KYC state</h3>
-              <div class="state-current">
-                <span class="state-current-label">Current</span>
-                <span [class]="badgeClass(value(c, 'kyc.kycState'))">{{ value(c, 'kyc.kycState') }}</span>
-              </div>
-              <label class="field state-field">
-                <span>Action</span>
-                <select class="cf-select" [ngModel]="kycTarget" (ngModelChange)="onKycTargetChange($event)">
-                  <option value="" disabled>Select an action…</option>
-                  @for (a of kycActions; track a.value) {
-                    <option [value]="a.value">{{ a.label }}</option>
+      </div>
+    } @else if (activeEntity() === kycSettingsKey) {
+      <div class="settings-layout">
+        @if (activeKyc(); as active) {
+          <section class="audit-section is-wide">
+            <header class="audit-section-head">
+              <h3><i class="pi pi-verified" aria-hidden="true"></i> Active KYC</h3>
+            </header>
+            @for (group of kycFieldGroups(active); track group.title) {
+              <div class="audit-subgroup">
+                <h4 class="audit-subhead">{{ group.title }}</h4>
+                <dl class="audit-grid">
+                  @for (field of group.fields; track field.label) {
+                    <div [class.is-wide]="field.wide">
+                      <dt>{{ field.label }}</dt>
+                      <dd [class.mono]="field.mono">
+                        @if (field.badge) {
+                          <span [class]="badgeClass(field.badgeValue ?? field.value)">{{ field.value }}</span>
+                        } @else {
+                          {{ field.value }}
+                        }
+                      </dd>
+                    </div>
                   }
-                </select>
-              </label>
-              <p class="state-hint">
-                <i class="pi pi-info-circle" aria-hidden="true"></i>
-                <span>Verifying, restricting or resetting the KYC also affects the client's access.</span>
-              </p>
-              <div class="state-actions">
+                </dl>
+              </div>
+            }
+
+            @if (canKyc) {
+              <div class="settings-actions">
+                <label class="field state-field">
+                  <span>KYC action</span>
+                  <select class="cf-select" [ngModel]="kycTarget" (ngModelChange)="onKycTargetChange($event)">
+                    <option value="" disabled>Select an action…</option>
+                    @for (a of kycActions; track a.value) {
+                      <option [value]="a.value">{{ a.label }}</option>
+                    }
+                  </select>
+                </label>
                 <button
                   type="button"
                   class="ghost create-btn"
@@ -230,16 +299,275 @@
                   <span>{{ kycSaving() ? 'Applying…' : 'Apply KYC action' }}</span>
                 </button>
               </div>
-            </section>
-          } @else {
-            <section class="state-block">
-              <h3><i class="pi pi-verified" aria-hidden="true"></i> KYC state</h3>
               <p class="state-hint">
                 <i class="pi pi-info-circle" aria-hidden="true"></i>
-                <span>This client has no KYC record yet.</span>
+                <span>Only the active KYC can be verified, restricted, reset or synchronized.</span>
               </p>
+            }
+          </section>
+
+          <div class="kyc-data-row">
+            <section class="audit-section kyc-personal">
+              <header class="audit-section-head">
+                <h3><i class="pi pi-id-card" aria-hidden="true"></i> Personal data</h3>
+              </header>
+              @if (personalDataFields(active.personalData).length) {
+                <dl class="audit-grid">
+                  @for (field of personalDataFields(active.personalData); track field.label) {
+                    <div [class.is-wide]="field.wide">
+                      <dt>{{ field.label }}</dt>
+                      <dd [class.mono]="field.mono">{{ field.value }}</dd>
+                    </div>
+                  }
+                </dl>
+              } @else {
+                <div class="dialog-placeholder">
+                  <i class="pi pi-info-circle" aria-hidden="true"></i>
+                  <span>No personal data has been synchronized from KYCAID yet.</span>
+                </div>
+              }
             </section>
+
+            <section class="audit-section kyc-documents">
+              <header class="audit-section-head">
+                <h3><i class="pi pi-folder" aria-hidden="true"></i> KYC documents</h3>
+              </header>
+              <p-table [value]="kycDocuments(active)" [paginator]="kycDocuments(active).length > 10" [rows]="10" styleClass="cf-doc-table">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>Name</th>
+                    <th>Created</th>
+                    <th class="col-dl">Actions</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-d>
+                  <tr>
+                    <td>{{ value(d, 'name') }}</td>
+                    <td>{{ value(d, 'createdAt') }}</td>
+                    <td class="col-dl">
+                      <div class="doc-actions">
+                        <button type="button" class="dl-btn" (click)="viewDoc(d, 'kyc')" [disabled]="viewingDocId() === d.id">
+                          <i [class]="viewingDocId() === d.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                          <span>View</span>
+                        </button>
+                        <button type="button" class="dl-btn" (click)="downloadDoc(d, 'kyc')" [disabled]="downloadingDocId() === d.id">
+                          <i [class]="downloadingDocId() === d.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                          <span>Download</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                  <tr><td colspan="3" class="doc-empty">No KYC documents have been synchronized yet.</td></tr>
+                </ng-template>
+              </p-table>
+            </section>
+          </div>
+
+          <section class="audit-section is-wide">
+            <header class="audit-section-head">
+              <h3><i class="pi pi-code" aria-hidden="true"></i> KYCAID raw data</h3>
+            </header>
+            <div class="raw-grid">
+              @if (hasValue(active['kycaidRawVerification'])) {
+                <details class="json-details">
+                  <summary>Raw verification</summary>
+                  <pre>{{ jsonValue(active['kycaidRawVerification']) }}</pre>
+                </details>
+              }
+              @if (hasValue(active['kycaidRawApplicant'])) {
+                <details class="json-details">
+                  <summary>Raw applicant</summary>
+                  <pre>{{ jsonValue(active['kycaidRawApplicant']) }}</pre>
+                </details>
+              }
+              @if (hasValue(active['kycaidRawLastCallback'])) {
+                <details class="json-details">
+                  <summary>Last callback</summary>
+                  <pre>{{ jsonValue(active['kycaidRawLastCallback']) }}</pre>
+                </details>
+              }
+              @if (!hasValue(active['kycaidRawVerification']) && !hasValue(active['kycaidRawApplicant']) && !hasValue(active['kycaidRawLastCallback'])) {
+                <div class="dialog-placeholder">
+                  <i class="pi pi-info-circle" aria-hidden="true"></i>
+                  <span>No raw KYCAID data has been stored yet.</span>
+                </div>
+              }
+            </div>
+          </section>
+        } @else {
+          <section class="audit-section is-wide">
+            <header class="audit-section-head">
+              <h3><i class="pi pi-verified" aria-hidden="true"></i> Active KYC</h3>
+            </header>
+            <div class="dialog-placeholder">
+              <i class="pi pi-info-circle" aria-hidden="true"></i>
+              <span>This client has no active KYC record yet.</span>
+            </div>
+          </section>
+        }
+
+        <section class="audit-section is-wide">
+          <header class="audit-section-head">
+            <h3><i class="pi pi-history" aria-hidden="true"></i> Previous KYC records</h3>
+            <button type="button" class="ghost" (click)="onKycHistoryPage({ first: 0, rows: kycHistoryPageSize() })" [disabled]="kycHistoryLoading()">
+              <i [class]="kycHistoryLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
+              <span>Refresh</span>
+            </button>
+          </header>
+
+          @if (kycHistoryError()) {
+            <div class="dialog-placeholder is-error">
+              <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              <span>{{ kycHistoryError() }}</span>
+            </div>
+          } @else {
+            <p-table
+              [value]="kycHistory()"
+              [loading]="kycHistoryLoading()"
+              [lazy]="true"
+              (onLazyLoad)="onKycHistoryPage($event)"
+              [paginator]="kycHistoryTotal() > kycHistoryPageSize()"
+              [rows]="kycHistoryPageSize()"
+              [first]="(kycHistoryPage() - 1) * kycHistoryPageSize()"
+              [totalRecords]="kycHistoryTotal()"
+              [rowsPerPageOptions]="[10, 25, 50]"
+              [showCurrentPageReport]="kycHistoryTotal() > 0"
+              currentPageReportTemplate="{first}–{last} of {totalRecords}"
+              [tableStyle]="{ 'min-width': '52rem' }"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>State</th>
+                  <th>KYCAID status</th>
+                  <th>Verification ID</th>
+                  <th>Created</th>
+                  <th>Inactive at</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-old>
+                <tr class="audit-history-row" [class.active]="isSelectedHistoricalKyc(old)" (click)="openHistoricalKyc(old)">
+                  <td><span [class]="badgeClass(old.kycState ?? old.state)">{{ format(old.kycState ?? old.state) }}</span></td>
+                  <td>{{ format(old.kycaidStatus) }}</td>
+                  <td class="mono">{{ format(old.kycaidVerificationId) }}</td>
+                  <td>{{ format(old.createdAt) }}</td>
+                  <td>{{ format(old.inactiveAt) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="5" class="doc-empty">
+                    {{ kycHistoryLoading() ? 'Loading previous KYC records...' : 'No previous KYC records.' }}
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
           }
+        </section>
+
+        @if (historicalKyc(); as oldKyc) {
+          <section class="audit-section is-wide">
+            <header class="audit-section-head">
+              <h3><i class="pi pi-history" aria-hidden="true"></i> Previous KYC detail</h3>
+              <button type="button" class="ghost" (click)="closeHistoricalKyc()">
+                <i class="pi pi-times" aria-hidden="true"></i>
+                <span>Close</span>
+              </button>
+            </header>
+            @for (group of kycFieldGroups(oldKyc); track group.title) {
+              <div class="audit-subgroup">
+                <h4 class="audit-subhead">{{ group.title }}</h4>
+                <dl class="audit-grid">
+                  @for (field of group.fields; track field.label) {
+                    <div [class.is-wide]="field.wide">
+                      <dt>{{ field.label }}</dt>
+                      <dd [class.mono]="field.mono">
+                        @if (field.badge) {
+                          <span [class]="badgeClass(field.badgeValue ?? field.value)">{{ field.value }}</span>
+                        } @else {
+                          {{ field.value }}
+                        }
+                      </dd>
+                    </div>
+                  }
+                </dl>
+              </div>
+            }
+
+            <div class="history-detail-grid">
+              <section class="history-subsection">
+                <h4>Personal data</h4>
+                @if (personalDataFields(oldKyc.personalData).length) {
+                  <dl class="audit-grid">
+                    @for (field of personalDataFields(oldKyc.personalData); track field.label) {
+                      <div>
+                        <dt>{{ field.label }}</dt>
+                        <dd [class.mono]="field.mono">{{ field.value }}</dd>
+                      </div>
+                    }
+                  </dl>
+                } @else {
+                  <p class="muted-note"><i class="pi pi-info-circle" aria-hidden="true"></i> No personal data stored.</p>
+                }
+              </section>
+
+              <section class="history-subsection">
+                <h4>KYC documents</h4>
+                <p-table [value]="kycDocuments(oldKyc)" [paginator]="kycDocuments(oldKyc).length > 10" [rows]="10" styleClass="cf-doc-table">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th>Name</th>
+                      <th>Created</th>
+                      <th class="col-dl">Actions</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-d>
+                    <tr>
+                      <td>{{ value(d, 'name') }}</td>
+                      <td>{{ value(d, 'createdAt') }}</td>
+                      <td class="col-dl">
+                        <div class="doc-actions">
+                          <button type="button" class="dl-btn" (click)="viewDoc(d, 'kyc')" [disabled]="viewingDocId() === d.id">
+                            <i [class]="viewingDocId() === d.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                            <span>View</span>
+                          </button>
+                          <button type="button" class="dl-btn" (click)="downloadDoc(d, 'kyc')" [disabled]="downloadingDocId() === d.id">
+                            <i [class]="downloadingDocId() === d.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                            <span>Download</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr><td colspan="3" class="doc-empty">No KYC documents stored.</td></tr>
+                  </ng-template>
+                </p-table>
+              </section>
+            </div>
+
+            <div class="raw-grid">
+              @if (hasValue(oldKyc['kycaidRawVerification'])) {
+                <details class="json-details">
+                  <summary>Raw verification</summary>
+                  <pre>{{ jsonValue(oldKyc['kycaidRawVerification']) }}</pre>
+                </details>
+              }
+              @if (hasValue(oldKyc['kycaidRawApplicant'])) {
+                <details class="json-details">
+                  <summary>Raw applicant</summary>
+                  <pre>{{ jsonValue(oldKyc['kycaidRawApplicant']) }}</pre>
+                </details>
+              }
+              @if (hasValue(oldKyc['kycaidRawLastCallback'])) {
+                <details class="json-details">
+                  <summary>Last callback</summary>
+                  <pre>{{ jsonValue(oldKyc['kycaidRawLastCallback']) }}</pre>
+                </details>
+              }
+            </div>
+          </section>
         }
       </div>
     } @else if (activeEntity() === adminKey) {
@@ -405,6 +733,7 @@
         [requirements]="customerRequirements()"
         (requirementChanged)="onRequirementChanged($event)"
       />
+    } @else {
       @if (activeEntity() === 'transactions' && canFinancials && !drillItem()) {
         <div class="req-toolbar">
           <button type="button" class="ghost create-btn" (click)="downloadAllTransactionsPdf()" [disabled]="downloadingAllTxPdf()">
@@ -477,91 +806,91 @@
             </p-table>
           }
         </section>
-      } @else if (activeEntity() !== 'requirementsCustomer') {
-      <app-entity-collection
-        [items]="entityItems()"
-        [columns]="currentColumns()"
-        [selectedItem]="drillItem()"
-        [emptyLabel]="'No records in ' + activeLabel().toLowerCase() + '.'"
-        (open)="onDrill($event)"
-      >
-        <div detailActions class="inline-actions">
-          @if (drillItem(); as item) {
-            @if (actionableEntity()) {
-              @if (activeEntity() === 'transactions') {
-                @if (canChangeTx(item)) {
-                  <select class="cf-select" [(ngModel)]="txTarget">
-                    <option value="" disabled>Set state…</option>
-                    @for (o of txStateOptions; track o.value) {
-                      <option [value]="o.value">{{ o.label }}</option>
-                    }
-                  </select>
-                  <button type="button" class="ghost" (click)="applyTxState(item)" [disabled]="actionBusy() || !txTarget">
-                    <i class="pi pi-save" aria-hidden="true"></i><span>Apply</span>
-                  </button>
+      } @else {
+        <app-entity-collection
+          [items]="entityItems()"
+          [columns]="currentColumns()"
+          [selectedItem]="drillItem()"
+          [emptyLabel]="'No records in ' + activeLabel().toLowerCase() + '.'"
+          (open)="onDrill($event)"
+        >
+          <div detailActions class="inline-actions">
+            @if (drillItem(); as item) {
+              @if (actionableEntity()) {
+                @if (activeEntity() === 'transactions') {
+                  @if (canChangeTx(item)) {
+                    <select class="cf-select" [(ngModel)]="txTarget">
+                      <option value="" disabled>Set state…</option>
+                      @for (o of txStateOptions; track o.value) {
+                        <option [value]="o.value">{{ o.label }}</option>
+                      }
+                    </select>
+                    <button type="button" class="ghost" (click)="applyTxState(item)" [disabled]="actionBusy() || !txTarget">
+                      <i class="pi pi-save" aria-hidden="true"></i><span>Apply</span>
+                    </button>
+                  }
+                  @if (canFinancials) {
+                    <button type="button" class="ghost" (click)="downloadTransactionPdf(item)" [disabled]="isDownloadingTxPdf(item)">
+                      <i [class]="isDownloadingTxPdf(item) ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" aria-hidden="true"></i>
+                      <span>Print (PDF)</span>
+                    </button>
+                  }
+                } @else {
+                  @if (canVerify(item)) {
+                    <button type="button" class="ghost" (click)="verifyItem(item)" [disabled]="actionBusy()">
+                      <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
+                    </button>
+                  }
+                  @if (canBlock(item)) {
+                    <button type="button" class="ghost danger" (click)="blockItem(item)" [disabled]="actionBusy()">
+                      <i class="pi pi-ban" aria-hidden="true"></i><span>Block</span>
+                    </button>
+                  }
+                  @if (activeEntity() === walletKey && canViewWalletKycaidAudit) {
+                    <button type="button" class="ghost" (click)="viewWalletAudit(item)" [disabled]="walletAuditLoading()">
+                      <i [class]="walletAuditLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-shield'" aria-hidden="true"></i>
+                      <span>View last KYCAID audit</span>
+                    </button>
+                    <button type="button" class="ghost" (click)="viewWalletAuditHistory(item)" [disabled]="walletAuditsLoading()">
+                      <i [class]="walletAuditsLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-list'" aria-hidden="true"></i>
+                      <span>View all audits</span>
+                    </button>
+                  }
+                  @if (activeEntity() === walletKey && canRequestWalletAudit(item)) {
+                    <button type="button" class="ghost create-btn" (click)="requestWalletAudit(item)" [disabled]="walletAuditBusy()">
+                      <i [class]="walletAuditBusy() ? 'pi pi-spin pi-spinner' : 'pi pi-search'" aria-hidden="true"></i>
+                      <span>Run KYCAID audit</span>
+                    </button>
+                  }
                 }
-                @if (canFinancials) {
-                  <button type="button" class="ghost" (click)="downloadTransactionPdf(item)" [disabled]="isDownloadingTxPdf(item)">
-                    <i [class]="isDownloadingTxPdf(item) ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" aria-hidden="true"></i>
-                    <span>Print (PDF)</span>
-                  </button>
-                }
-              } @else {
-                @if (canVerify(item)) {
-                  <button type="button" class="ghost" (click)="verifyItem(item)" [disabled]="actionBusy()">
-                    <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
-                  </button>
-                }
-                @if (canBlock(item)) {
-                  <button type="button" class="ghost danger" (click)="blockItem(item)" [disabled]="actionBusy()">
-                    <i class="pi pi-ban" aria-hidden="true"></i><span>Block</span>
-                  </button>
-                }
-                @if (activeEntity() === walletKey && canViewWalletKycaidAudit) {
-                  <button type="button" class="ghost" (click)="viewWalletAudit(item)" [disabled]="walletAuditLoading()">
-                    <i [class]="walletAuditLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-shield'" aria-hidden="true"></i>
-                    <span>View last KYCAID audit</span>
-                  </button>
-                  <button type="button" class="ghost" (click)="viewWalletAuditHistory(item)" [disabled]="walletAuditsLoading()">
-                    <i [class]="walletAuditsLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-list'" aria-hidden="true"></i>
-                    <span>View all audits</span>
-                  </button>
-                }
-                @if (activeEntity() === walletKey && canRequestWalletAudit(item)) {
-                  <button type="button" class="ghost create-btn" (click)="requestWalletAudit(item)" [disabled]="walletAuditBusy()">
-                    <i [class]="walletAuditBusy() ? 'pi pi-spin pi-spinner' : 'pi pi-search'" aria-hidden="true"></i>
-                    <span>Run KYCAID audit</span>
+                @if (itemDocType()) {
+                  <button type="button" class="ghost" (click)="toggleItemDocs()">
+                    <i class="pi pi-folder" aria-hidden="true"></i>
+                    <span>{{ showItemDocs() ? 'Hide' : 'View' }} documents ({{ itemDocs().length }})</span>
                   </button>
                 }
               }
-              @if (itemDocType()) {
-                <button type="button" class="ghost" (click)="toggleItemDocs()">
-                  <i class="pi pi-folder" aria-hidden="true"></i>
-                  <span>{{ showItemDocs() ? 'Hide' : 'View' }} documents ({{ itemDocs().length }})</span>
-                </button>
+              @if (activeEntity() === 'requirementsCustomer') {
+                @for (file of requirementTemplateFiles(item); track file.id) {
+                  @if (canDownloadReqFile(item, file)) {
+                    <button type="button" class="ghost" (click)="downloadRequirementFile(item, file)" [disabled]="isDownloadingReqFile(file)">
+                      <i [class]="isDownloadingReqFile(file) ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                      <span>Template: {{ file.name }}</span>
+                    </button>
+                  }
+                }
+                @for (file of requirementClientFiles(item); track file.id) {
+                  @if (canDownloadReqFile(item, file)) {
+                    <button type="button" class="ghost" (click)="downloadRequirementFile(item, file)" [disabled]="isDownloadingReqFile(file)">
+                      <i [class]="isDownloadingReqFile(file) ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                      <span>Client: {{ file.name }}</span>
+                    </button>
+                  }
+                }
               }
             }
-            @if (activeEntity() === 'requirementsCustomer') {
-              @for (file of requirementTemplateFiles(item); track file.id) {
-                @if (canDownloadReqFile(item, file)) {
-                  <button type="button" class="ghost" (click)="downloadRequirementFile(item, file)" [disabled]="isDownloadingReqFile(file)">
-                    <i [class]="isDownloadingReqFile(file) ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
-                    <span>Template: {{ file.name }}</span>
-                  </button>
-                }
-              }
-              @for (file of requirementClientFiles(item); track file.id) {
-                @if (canDownloadReqFile(item, file)) {
-                  <button type="button" class="ghost" (click)="downloadRequirementFile(item, file)" [disabled]="isDownloadingReqFile(file)">
-                    <i [class]="isDownloadingReqFile(file) ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
-                    <span>Client: {{ file.name }}</span>
-                  </button>
-                }
-              }
-            }
-          }
-        </div>
-      </app-entity-collection>
+          </div>
+        </app-entity-collection>
 
       @if (showItemDocs() && itemDocType(); as dt) {
         <div class="item-docs">

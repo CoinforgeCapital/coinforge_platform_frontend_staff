@@ -56,13 +56,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       } else if (!silent) {
         messages.add({
           severity: isNetworkError ? 'warn' : 'error',
-          summary: isNetworkError ? 'Network error' : 'Request failed',
+          summary: isNetworkError ? 'Connection failed' : 'Request failed',
           detail,
           life: 6000,
         });
       }
 
-      return throwError(() => err);
+      return throwError(() => isNetworkError ? withUserFacingMessage(error, detail) : err);
     }),
   );
 };
@@ -77,11 +77,19 @@ function readCookie(name: string): string | null {
 }
 
 function extractErrorMessage(error: HttpErrorResponse, isNetworkError: boolean): string {
-  if (isNetworkError) return 'The backend is not reachable. Please try again.';
+  if (isNetworkError) return 'Could not connect to the server. Please try again later.';
   if (typeof error.error === 'string' && error.error.trim()) return error.error;
   if (typeof error.error?.message === 'string' && error.error.message.trim()) return error.error.message;
   if (error.message) return error.message;
   return 'Something went wrong. Please try again.';
+}
+
+function withUserFacingMessage(error: HttpErrorResponse, message: string): HttpErrorResponse {
+  const mutable = error as any;
+  mutable.userMessage = message;
+  mutable.message = message;
+  mutable.error = { message };
+  return error;
 }
 
 function isAccountDeletedError(error: HttpErrorResponse): boolean {

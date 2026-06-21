@@ -53,10 +53,13 @@ export class LoginPage {
   }
 
   private toErrorMessage(err: unknown): string {
-    const error = err as { error?: { message?: unknown }; message?: unknown };
+    const error = err as { error?: { message?: unknown }; message?: unknown; status?: unknown; userMessage?: unknown };
+    const userMessage = error.userMessage;
     const apiMessage = error.error?.message;
     const message = error.message;
 
+    if (typeof userMessage === 'string' && userMessage.trim()) return userMessage;
+    if (error.status === 0) return 'Could not connect to the server. Please try again later.';
     if (typeof apiMessage === 'string' && apiMessage.trim()) return apiMessage;
     if (typeof message === 'string' && message.trim()) return message;
     return 'Unable to sign in. Please check your credentials and try again.';
