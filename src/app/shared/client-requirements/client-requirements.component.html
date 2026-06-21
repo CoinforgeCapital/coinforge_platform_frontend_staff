@@ -1,0 +1,290 @@
+<div class="cr">
+  @if (selected(); as r) {
+    <!-- ===== DETAIL ===== -->
+    <div class="cr-detail">
+      <div class="cr-detail-bar">
+        <button type="button" class="cr-ghost" (click)="backToList()">
+          <i class="pi pi-arrow-left" aria-hidden="true"></i>
+          <span>Back to list</span>
+        </button>
+        <div class="cr-detail-actions">
+          @if (!editing() && canEdit(r)) {
+            <button type="button" class="cr-ghost" (click)="startEdit(r)">
+              <i class="pi pi-pencil" aria-hidden="true"></i>
+              <span>Edit</span>
+            </button>
+          }
+          @if (!editing() && canReview(r)) {
+            <button type="button" class="cr-ghost" (click)="onApprove(r)" [disabled]="actionBusyId() === r.id">
+              <i class="pi pi-check-circle" aria-hidden="true"></i>
+              <span>Approve</span>
+            </button>
+            <button type="button" class="cr-ghost danger" (click)="onReject(r)" [disabled]="actionBusyId() === r.id">
+              <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              <span>Reject files</span>
+            </button>
+          }
+          @if (!editing() && canCancel(r)) {
+            <button type="button" class="cr-ghost danger" (click)="onCancel(r)" [disabled]="actionBusyId() === r.id">
+              <i class="pi pi-ban" aria-hidden="true"></i>
+              <span>Cancel requirement</span>
+            </button>
+          }
+          <span [class]="stateBadgeClass(r.state)">{{ stateLabel(r.state) }}</span>
+        </div>
+      </div>
+
+      <header class="cr-detail-head">
+        <p class="cr-eyebrow">Requirement</p>
+        <h3>{{ r.name }}</h3>
+        <p class="cr-muted">{{ shortId(r) }} · {{ docTypeLabel(r.documentType) }}</p>
+      </header>
+
+      <dl class="cr-meta">
+        <div><dt>Created by</dt><dd>{{ staffLabel(r) }}</dd></div>
+        <div><dt>Created</dt><dd>{{ formatDate(r.createdAt) }}</dd></div>
+        @if (r.state === 'approved') {
+          <div><dt>Approved by</dt><dd>{{ closedByLabel(r) }}</dd></div>
+          <div><dt>Approved on</dt><dd>{{ formatDate(r.closedDate) }}</dd></div>
+        }
+        @if (r.state === 'cancelled') {
+          <div><dt>Cancelled on</dt><dd>{{ formatDate(r.closedDate) }}</dd></div>
+        }
+      </dl>
+
+      @if (editing()) {
+        <form class="cr-edit-form" (submit)="$event.preventDefault(); saveEdit(r)">
+          <label class="cr-field">
+            <span>Name</span>
+            <input type="text" [value]="editName()" maxlength="350" (input)="onEditName($event)" />
+          </label>
+
+          <label class="cr-field">
+            <span>Description</span>
+            <textarea rows="4" maxlength="10000" [value]="editDescription()" (input)="onEditDescription($event)"></textarea>
+          </label>
+
+          <div class="cr-block">
+            <h4>Current staff documents</h4>
+            <div class="cr-files">
+              @for (file of templateFiles(r); track file.id) {
+                <div class="cr-file-row" [class.is-remove-marked]="isEditFileMarkedForRemoval(file)">
+                  <span class="cr-file-info"><i class="pi pi-file" aria-hidden="true"></i> {{ file.name }}</span>
+                  <div class="cr-file-actions">
+                    <button type="button" class="cr-btn" (click)="viewFile(file)" [disabled]="viewingId() === file.id">
+                      <i [class]="viewingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                      <span>View</span>
+                    </button>
+                    <button type="button" class="cr-btn" (click)="downloadFile(file)" [disabled]="downloadingId() === file.id">
+                      <i [class]="downloadingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                      <span>Download</span>
+                    </button>
+                    <button type="button" class="cr-btn danger" (click)="toggleEditFileRemoval(file)">
+                      <i [class]="isEditFileMarkedForRemoval(file) ? 'pi pi-undo' : 'pi pi-trash'" aria-hidden="true"></i>
+                      <span>{{ isEditFileMarkedForRemoval(file) ? 'Keep' : 'Remove' }}</span>
+                    </button>
+                  </div>
+                </div>
+              } @empty {
+                <div class="cr-file-row">
+                  <span class="cr-file-info cr-muted">No templates attached.</span>
+                </div>
+              }
+            </div>
+
+            @if (clientFiles(r).length) {
+              <h4 class="cr-spaced">Client uploads</h4>
+              <div class="cr-files">
+                @for (file of clientFiles(r); track file.id) {
+                  <div class="cr-file-row">
+                    <span class="cr-file-info"><i class="pi pi-file-check" aria-hidden="true"></i> {{ file.name }}</span>
+                    <div class="cr-file-actions">
+                      <button type="button" class="cr-btn" (click)="viewFile(file)" [disabled]="viewingId() === file.id">
+                        <i [class]="viewingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                        <span>View</span>
+                      </button>
+                      <button type="button" class="cr-btn" (click)="downloadFile(file)" [disabled]="downloadingId() === file.id">
+                        <i [class]="downloadingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+              <p class="cr-block-hint">Client uploads are handled by review actions; editing only removes staff documents.</p>
+            }
+          </div>
+
+          <label class="cr-file-picker">
+            <input type="file" multiple (change)="onEditFile($event)" />
+            <i class="pi pi-paperclip" aria-hidden="true"></i>
+            <span>{{ editFileNames(editFiles()) }}</span>
+          </label>
+
+          <div class="cr-form-actions">
+            <button type="button" class="cr-ghost" (click)="cancelEdit()" [disabled]="savingEdit()">Cancel</button>
+            <button type="submit" class="cr-primary" [disabled]="savingEdit()">
+              <i [class]="savingEdit() ? 'pi pi-spin pi-spinner' : 'pi pi-save'" aria-hidden="true"></i>
+              <span>{{ savingEdit() ? 'Saving...' : 'Save changes' }}</span>
+            </button>
+          </div>
+        </form>
+      } @else {
+      @if (r.description) {
+        <div class="cr-block">
+          <h4>Description</h4>
+          <p class="cr-description">{{ r.description }}</p>
+        </div>
+      }
+
+      @switch (r.state) {
+        @case ('cancelled') {
+          <div class="cr-note">
+            <i class="pi pi-ban" aria-hidden="true"></i>
+            <span>This requirement was cancelled. No documents were stored.</span>
+          </div>
+        }
+        @case ('approved') {
+          <div class="cr-block">
+            <h4>Stored documents</h4>
+            <p class="cr-block-hint">Files archived into the client's records when this requirement was approved.</p>
+            @if (archivedLoading()) {
+              <div class="cr-loading">
+                <i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading documents…</span>
+              </div>
+            } @else if (archivedError()) {
+              <div class="cr-note error">
+                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i><span>{{ archivedError() }}</span>
+              </div>
+            } @else {
+              <div class="cr-files">
+                @for (doc of archivedDocs(); track doc.id) {
+                  <div class="cr-file-row">
+                    <span class="cr-file-info"><i class="pi pi-file" aria-hidden="true"></i> {{ doc.name }}</span>
+                    @if (canRead) {
+                      <div class="cr-file-actions">
+                        <button type="button" class="cr-btn" (click)="viewDocument(doc)" [disabled]="viewingId() === doc.id">
+                          <i [class]="viewingId() === doc.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                          <span>View</span>
+                        </button>
+                        <button type="button" class="cr-btn" (click)="downloadDocument(doc)" [disabled]="downloadingId() === doc.id">
+                          <i [class]="downloadingId() === doc.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                          <span>Download</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                } @empty {
+                  <div class="cr-file-row">
+                    <span class="cr-file-info cr-muted">No documents were stored for this requirement.</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+        @default {
+          <!-- pending / under_review: ficheros staging -->
+          <div class="cr-block">
+            <h4>Templates</h4>
+            <div class="cr-files">
+              @for (file of templateFiles(r); track file.id) {
+                <div class="cr-file-row">
+                  <span class="cr-file-info"><i class="pi pi-file" aria-hidden="true"></i> {{ file.name }}</span>
+                  @if (canRead) {
+                    <div class="cr-file-actions">
+                      <button type="button" class="cr-btn" (click)="viewFile(file)" [disabled]="viewingId() === file.id">
+                        <i [class]="viewingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                        <span>View</span>
+                      </button>
+                      <button type="button" class="cr-btn" (click)="downloadFile(file)" [disabled]="downloadingId() === file.id">
+                        <i [class]="downloadingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+              } @empty {
+                <div class="cr-file-row">
+                  <span class="cr-file-info cr-muted">No templates attached.</span>
+                </div>
+              }
+            </div>
+
+            <h4 class="cr-spaced">Client uploads</h4>
+            <div class="cr-files">
+              @for (file of clientFiles(r); track file.id) {
+                <div class="cr-file-row">
+                  <span class="cr-file-info"><i class="pi pi-file-check" aria-hidden="true"></i> {{ file.name }}</span>
+                  @if (canRead) {
+                    <div class="cr-file-actions">
+                      <button type="button" class="cr-btn" (click)="viewFile(file)" [disabled]="viewingId() === file.id">
+                        <i [class]="viewingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-eye'" aria-hidden="true"></i>
+                        <span>View</span>
+                      </button>
+                      <button type="button" class="cr-btn" (click)="downloadFile(file)" [disabled]="downloadingId() === file.id">
+                        <i [class]="downloadingId() === file.id ? 'pi pi-spin pi-spinner' : 'pi pi-download'" aria-hidden="true"></i>
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+              } @empty {
+                <div class="cr-file-row">
+                  <span class="cr-file-info cr-muted">The client has not uploaded any files yet.</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+      }
+    </div>
+  } @else {
+    <!-- ===== LIST ===== -->
+    <nav class="cr-tabs" aria-label="Requirement status">
+      @for (t of tabs; track t.key) {
+        <button type="button" class="cr-tab" [class.active]="activeTab() === t.key" (click)="setTab(t.key)">
+          <i [class]="t.icon" aria-hidden="true"></i>
+          <span>{{ t.label }}</span>
+          <span class="cr-tab-count">{{ groupCount(t.key) }}</span>
+        </button>
+      }
+    </nav>
+
+    <p-table
+      [value]="currentList()"
+      [paginator]="currentList().length > 8"
+      [rows]="8"
+      [rowsPerPageOptions]="[8, 16, 32]"
+      [showCurrentPageReport]="currentList().length > 0"
+      currentPageReportTemplate="{first}–{last} of {totalRecords}"
+      styleClass="cf-doc-table cr-table"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-r>
+        <tr class="cr-row" (click)="openDetail(r)">
+          <td>
+            <div class="cr-row-name">
+              <strong>{{ r.name }}</strong>
+              <small class="cr-mono">{{ shortId(r) }}</small>
+            </div>
+          </td>
+          <td>{{ docTypeLabel(r.documentType) }}</td>
+          <td><span [class]="stateBadgeClass(r.state)">{{ stateLabel(r.state) }}</span></td>
+          <td>{{ formatDate(r.createdAt) }}</td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="4" class="cr-empty">No requirements in this tab.</td></tr>
+      </ng-template>
+    </p-table>
+  }
+</div>
