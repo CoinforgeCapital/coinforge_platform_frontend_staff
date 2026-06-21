@@ -6,6 +6,7 @@ import {
   WarningLimit,
   WarningLimitsService,
 } from '../../services/warning-limits.service';
+import { formatFiatAmount } from '../../shared/amount-format';
 
 interface Option {
   label: string;
@@ -233,8 +234,7 @@ export class WarningLimitsPage implements OnInit {
   }
 
   formatAmount(value: number): string {
-    if (!value) return '-';
-    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+    return formatFiatAmount(value);
   }
 
   formatTrigger(limit: WarningLimit): string {

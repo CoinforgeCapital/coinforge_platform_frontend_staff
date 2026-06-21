@@ -2,6 +2,8 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { TableModule } from 'primeng/table';
 import { DialogModule } from 'primeng/dialog';
 
+import { formatAmountByField } from '../amount-format';
+
 export interface EntityColumn {
   field: string;
   label: string;
@@ -96,6 +98,8 @@ export class EntityCollectionComponent {
       if (!current || typeof current !== 'object') return undefined;
       return (current as Record<string, unknown>)[key];
     }, row);
+    const formattedAmount = formatAmountByField(field, value as string | number | null | undefined);
+    if (formattedAmount !== null) return formattedAmount;
     return this.format(value);
   }
 
@@ -197,7 +201,7 @@ export class EntityCollectionComponent {
         if (ref === undefined) continue;
         value = String(ref);
       } else {
-        value = this.format(raw);
+        value = formatAmountByField(key, raw as string | number | null | undefined) ?? this.format(raw);
       }
 
       const isId = key === 'id' || /Id$/.test(key) || (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{20,}$/i.test(raw));

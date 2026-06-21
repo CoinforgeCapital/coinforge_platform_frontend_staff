@@ -35,6 +35,7 @@ import { ClientPendingApprovalsComponent } from '../../shared/client-pending-app
 import { ClientActivityAlertsComponent } from '../../shared/client-activity-alerts/client-activity-alerts.component';
 import { ClientProfileOverviewComponent } from '../../shared/client-profile-overview/client-profile-overview.component';
 import { ClientRequirementsComponent } from '../../shared/client-requirements/client-requirements.component';
+import { formatAmountByField } from '../../shared/amount-format';
 
 interface EntityGroup {
   key: string;
@@ -1067,7 +1068,8 @@ export class ClientsPage implements OnInit {
   }
 
   value(row: Record<string, unknown>, field: string): string {
-    return this.format(this.resolvePath(row, field));
+    const value = this.resolvePath(row, field);
+    return formatAmountByField(field, value as string | number | null | undefined) ?? this.format(value);
   }
 
   kycState(row: Record<string, unknown>): string {
@@ -1665,7 +1667,7 @@ export class ClientsPage implements OnInit {
       .filter(([key, value]) => !excluded.has(key) && this.hasValue(value) && typeof value !== 'object')
       .map(([key, value]) => ({
         label: this.humanize(key),
-        value: this.format(value),
+        value: formatAmountByField(key, value as string | number | null | undefined) ?? this.format(value),
         mono: key.toLowerCase().includes('id') || key.toLowerCase().includes('token'),
       }));
   }

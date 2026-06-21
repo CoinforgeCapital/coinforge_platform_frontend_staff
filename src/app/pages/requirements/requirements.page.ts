@@ -17,6 +17,7 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
+import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format';
 
 type View = 'list' | 'detail' | 'create';
 
@@ -628,10 +629,11 @@ export class RequirementsPage implements OnInit {
     if (!state) return '—';
     return state.charAt(0).toUpperCase() + state.slice(1).replace(/_/g, ' ');
   }
-  formatAmount(value?: string): string {
-    if (!value) return '—';
-    const n = Number(value);
-    return Number.isNaN(n) ? value : n.toLocaleString(undefined, { maximumFractionDigits: 8 });
+  formatFiatAmount(value?: string): string {
+    return formatFiatAmount(value, '—');
+  }
+  formatCryptoAmount(value?: string): string {
+    return formatCryptoAmount(value, '—');
   }
 
   formatDate(value?: string | Date | null): string {

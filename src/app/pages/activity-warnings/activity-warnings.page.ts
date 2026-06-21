@@ -11,6 +11,7 @@ import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { ActivityWarningsStoreService } from '../../services/activity-warnings-store.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { formatFiatAmount } from '../../shared/amount-format';
 
 type WarningTab = 'active' | 'solved';
 
@@ -213,10 +214,10 @@ export class ActivityWarningsPage {
     if (warning.kycaidRiskReason) return warning.kycaidRiskReason;
     if (warning.transactionCount) return `${warning.transactionCount} transactions matched the rule.`;
     if (warning.triggerAmountEur && warning.thresholdAmountEur) {
-      return `${warning.triggerAmountEur} EUR triggered a ${warning.thresholdAmountEur} EUR threshold.`;
+      return `${this.formatAmount(warning.triggerAmountEur)} EUR triggered a ${this.formatAmount(warning.thresholdAmountEur)} EUR threshold.`;
     }
     if (warning.totalAmountEur && warning.thresholdAmountEur) {
-      return `${warning.totalAmountEur} EUR total crossed a ${warning.thresholdAmountEur} EUR threshold.`;
+      return `${this.formatAmount(warning.totalAmountEur)} EUR total crossed a ${this.formatAmount(warning.thresholdAmountEur)} EUR threshold.`;
     }
     return 'Compliance review required.';
   }
@@ -268,11 +269,7 @@ export class ActivityWarningsPage {
   }
 
   formatAmount(value?: string | null): string {
-    if (!value) return '-';
-    const n = Number(value);
-    return Number.isNaN(n)
-      ? value
-      : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatFiatAmount(value);
   }
 
   private toast(severity: 'success' | 'error', summary: string, detail: string): void {

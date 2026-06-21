@@ -15,6 +15,7 @@ import {
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { formatCryptoAmount, formatFiatAmount } from '../amount-format';
 
 type TabKey = 'wallets' | 'bank-accounts' | 'transactions' | 'kyc';
 
@@ -313,10 +314,11 @@ export class ClientPendingApprovalsComponent {
   shortId(value?: string): string {
     return value ? `#${value.slice(0, 8).toUpperCase()}` : '—';
   }
-  formatAmount(value?: string): string {
-    if (!value) return '—';
-    const n = Number(value);
-    return Number.isNaN(n) ? value : n.toLocaleString(undefined, { maximumFractionDigits: 8 });
+  formatFiatAmount(value?: string): string {
+    return formatFiatAmount(value, '—');
+  }
+  formatCryptoAmount(value?: string): string {
+    return formatCryptoAmount(value, '—');
   }
   prettyState(state?: string): string {
     if (!state) return '—';

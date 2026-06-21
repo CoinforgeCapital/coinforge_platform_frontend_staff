@@ -102,7 +102,7 @@
           } @else {
             @if (selectedTx(); as t) {
               <div class="selected-resource">
-                <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ txShort(t) }} · {{ formatAmount(t.amountSent) }} {{ t.fiatSymbol }} → {{ formatAmount(t.amountReceive) }} {{ t.cryptoSymbol }}</span>
+                <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ txShort(t) }} · {{ formatFiatAmount(t.amountSent) }} {{ t.fiatSymbol }} → {{ formatCryptoAmount(t.amountReceive) }} {{ t.cryptoSymbol }}</span>
                 <button type="button" class="link-btn" (click)="clearTxSelection()">Change</button>
               </div>
             }
@@ -119,8 +119,8 @@
               <ng-template pTemplate="body" let-row>
                 <tr class="pick-row" [class.picked]="selectedTx()?.id === row.id" (click)="onPickTransaction(row)">
                   <td class="mono">{{ txShort(row) }}</td>
-                  <td>{{ formatAmount(row.amountSent) }} {{ row.fiatSymbol }}</td>
-                  <td>{{ formatAmount(row.amountReceive) }} {{ row.cryptoSymbol }}</td>
+                  <td>{{ formatFiatAmount(row.amountSent) }} {{ row.fiatSymbol }}</td>
+                  <td>{{ formatCryptoAmount(row.amountReceive) }} {{ row.cryptoSymbol }}</td>
                   <td>{{ prettyState(row.state) }}</td>
                   <td>{{ formatDate(row.createdAt) }}</td>
                 </tr>

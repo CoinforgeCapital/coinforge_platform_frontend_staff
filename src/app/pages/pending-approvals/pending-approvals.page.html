@@ -132,7 +132,7 @@
               <tr class="clickable" (click)="openTransaction(t)">
                 <td>{{ t.client.email }}</td>
                 <td class="mono">{{ shortId(t.id) }}</td>
-                <td>{{ formatAmount(t.amountSent) }} {{ t.fiatSymbol }} → {{ formatAmount(t.amountReceive) }} {{ t.cryptoSymbol }}</td>
+                <td>{{ formatFiatAmount(t.amountSent) }} {{ t.fiatSymbol }} → {{ formatCryptoAmount(t.amountReceive) }} {{ t.cryptoSymbol }}</td>
                 <td><span [class]="resourceStateBadge(t.state)">{{ prettyState(t.state) }}</span></td>
                 <td>{{ formatDate(t.createdAt) }}</td>
               </tr>
@@ -229,7 +229,7 @@
         <dl class="detail">
           <div><dt>Client</dt><dd>{{ d.data.client.email }}</dd></div>
           <div><dt>Reference</dt><dd class="mono">{{ shortId(d.data.id) }}</dd></div>
-          <div><dt>Amount</dt><dd>{{ formatAmount(d.data.amountSent) }} {{ d.data.fiatSymbol }} → {{ formatAmount(d.data.amountReceive) }} {{ d.data.cryptoSymbol }}</dd></div>
+          <div><dt>Amount</dt><dd>{{ formatFiatAmount(d.data.amountSent) }} {{ d.data.fiatSymbol }} → {{ formatCryptoAmount(d.data.amountReceive) }} {{ d.data.cryptoSymbol }}</dd></div>
           <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
         </dl>
         @if (canChangeTxState) {
