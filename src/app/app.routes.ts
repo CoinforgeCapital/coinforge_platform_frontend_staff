@@ -125,6 +125,13 @@ export const routes: Routes = [
           import('./pages/user-creation/user-creation.page').then((m) => m.UserManagementPage),
       },
       {
+        path: 'inactive-users',
+        canMatch: [roleMatchGuard],
+        data: { roles: STAFF_PERMISSIONS.inactiveUsersRead },
+        loadComponent: () =>
+          import('./pages/inactive-users/inactive-users.page').then((m) => m.InactiveUsersPage),
+      },
+      {
         path: 'blockchains',
         canMatch: [roleMatchGuard],
         data: { roles: STAFF_PERMISSIONS.adminCatalogs, sectionKey: 'blockchains' },

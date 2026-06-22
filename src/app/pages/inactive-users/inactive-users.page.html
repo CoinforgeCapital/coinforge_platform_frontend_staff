@@ -1,0 +1,142 @@
+@if (view() === 'list') {
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">User management</p>
+      <h1>Inactive users</h1>
+      <p>Accounts that have not completed activation. Click a row to inspect the activation details.</p>
+    </div>
+  </section>
+
+  <form class="toolbar" (submit)="applySearch($event)">
+    <label class="search">
+      <i class="pi pi-search" aria-hidden="true"></i>
+      <input
+        type="search"
+        placeholder="Search by email"
+        [value]="search()"
+        (input)="onSearchInput($event)"
+      />
+      @if (search()) {
+        <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">
+          <i class="pi pi-times" aria-hidden="true"></i>
+        </button>
+      }
+    </label>
+    <button type="submit" class="ghost" [disabled]="loading()">
+      <i class="pi pi-search" aria-hidden="true"></i>
+      <span>Search</span>
+    </button>
+  </form>
+
+  <div class="data-panel">
+    <p-table
+      [value]="rows()"
+      [lazy]="true"
+      (onLazyLoad)="onLazyLoad($event)"
+      [paginator]="true"
+      [rows]="pageSize()"
+      [first]="first()"
+      [totalRecords]="total()"
+      [rowsPerPageOptions]="[10, 20, 50, 100]"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="{first}–{last} of {totalRecords}"
+      [loading]="loading()"
+      styleClass="cf-table"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Email</th>
+          <th>Activation code</th>
+          <th>State</th>
+          <th>Type</th>
+          <th>Created</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-u>
+        <tr class="clickable" (click)="openDetail(u)">
+          <td>
+            <span class="email">{{ u.email }}</span>
+            <small class="muted mono">{{ u.id }}</small>
+          </td>
+          <td class="mono">{{ u.activationCode || '-' }}</td>
+          <td><span [class]="stateBadgeClass(u.state)">{{ stateLabel(u.state) }}</span></td>
+          <td>{{ u.type ?? '-' }}</td>
+          <td>{{ u.createdAt ? (u.createdAt | date:'short') : '-' }}</td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="5" class="empty">
+            <i class="pi pi-user-minus" aria-hidden="true"></i>
+            <span>{{ search() ? 'No inactive users match that search.' : 'No inactive users found.' }}</span>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+} @else if (selected(); as user) {
+  <button type="button" class="ghost back" (click)="backToList()">
+    <i class="pi pi-arrow-left" aria-hidden="true"></i>
+    <span>Back to inactive users</span>
+  </button>
+
+  <section class="detail-head">
+    <div class="head-main">
+      <p class="eyebrow">Inactive user</p>
+      <h1>{{ user.email }}</h1>
+      <div class="badges">
+        <span class="cf-badge cf-badge--neutral">{{ roleLabel(user.role) }}</span>
+        <span [class]="stateBadgeClass(user.state)">{{ stateLabel(user.state) }}</span>
+        @if (user.type) {
+          <span class="cf-badge cf-badge--neutral">{{ user.type }}</span>
+        }
+      </div>
+    </div>
+
+    <dl class="meta">
+      <div><dt>User ID</dt><dd class="mono">{{ user.id }}</dd></div>
+      <div><dt>Created</dt><dd>{{ user.createdAt ? (user.createdAt | date:'short') : '-' }}</dd></div>
+      <div><dt>Updated</dt><dd>{{ user.updatedAt ? (user.updatedAt | date:'short') : '-' }}</dd></div>
+    </dl>
+  </section>
+
+  @if (detailLoading()) {
+    <div class="empty-panel">
+      <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+      <p>Loading inactive user detail…</p>
+    </div>
+  } @else {
+    <div class="detail-grid">
+      <section class="info-card">
+        <h2><i class="pi pi-id-card" aria-hidden="true"></i> User data</h2>
+        <dl>
+          @for (field of accountFields(); track field.label) {
+            <div>
+              <dt>{{ field.label }}</dt>
+              <dd [class.mono]="field.mono">{{ field.value }}</dd>
+            </div>
+          }
+        </dl>
+      </section>
+
+      <section class="info-card">
+        <h2><i class="pi pi-database" aria-hidden="true"></i> Metadata</h2>
+        @if (metadataFields().length) {
+          <dl>
+            @for (field of metadataFields(); track field.label) {
+              <div>
+                <dt>{{ field.label }}</dt>
+                <dd [class.mono]="field.mono">{{ field.value }}</dd>
+              </div>
+            }
+          </dl>
+        } @else {
+          <div class="card-empty">
+            <i class="pi pi-info-circle" aria-hidden="true"></i>
+            <span>No metadata available for this user.</span>
+          </div>
+        }
+      </section>
+    </div>
+  }
+}

@@ -9,6 +9,14 @@ export interface StandardDataResponse<T = unknown> { ok: boolean; message: strin
 export interface ListUsersResponse { users: StaffUser[]; }
 /** Detalle completo (poblado) de un usuario borrado. Solo admin. */
 export interface DeletedUserDetailResponse { user: StaffUser; }
+export interface ListInactiveUsersResponse {
+  ok: boolean;
+  users: InactiveUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+export interface InactiveUserDetailResponse { ok: boolean; user: InactiveUser; }
 export interface ListRequirementsResponse { requirements: Requirement[]; }
 export interface ListSupportTicketsResponse { tickets: SupportTicket[]; }
 export interface ListInternalConversationsResponse { conversations: InternalConversation[]; }
@@ -109,6 +117,19 @@ export interface StaffUser {
   clientMetadata?: StaffClientMetadata | null;
   personalData?: StaffPersonalData | null;
   kycDocuments?: StaffClientDocument[];
+  [key: string]: unknown;
+}
+
+export interface InactiveUser {
+  id: string;
+  email: string;
+  role: 'INACTIVE';
+  state: UserState;
+  type?: string;
+  activationCode?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  clientMetadata?: StaffClientMetadata | null;
   [key: string]: unknown;
 }
 
@@ -752,6 +773,16 @@ export class ApiService {
 
   listDeletedUsers(): Promise<ListUsersResponse> {
     return this.request.get<ListUsersResponse>('/api/user/deleted/list');
+  }
+
+  listInactiveUsers(page = 1, pageSize = 20, q?: string): Promise<ListInactiveUsersResponse> {
+    return this.request.get<ListInactiveUsersResponse>('/api/user/inactive', {
+      params: { page, pageSize, q: q?.trim() || undefined },
+    });
+  }
+
+  getInactiveUser(id: string): Promise<InactiveUserDetailResponse> {
+    return this.request.get<InactiveUserDetailResponse>(`/api/user/inactive/${id}`);
   }
 
   /** Detalle completo (poblado, solo lectura) de un usuario borrado. Solo admin. */

@@ -80,6 +80,8 @@ export const STAFF_PERMISSIONS = {
   usersWrite: [STAFF_ROLES.admin],
   // GET /api/user/deleted/list
   deletedUsersRead: [STAFF_ROLES.admin],
+  // GET /api/user/inactive + /api/user/inactive/:id
+  inactiveUsersRead: [STAFF_ROLES.admin],
   // PATCH /api/user/state/change/:id sobre un CLIENTE. En changeStateAction, admin, operator,
   // compliance officer y compliance pueden cambiar el estado de un cliente; el support officer NO
   // (solo gestiona cuentas de soporte: `isSupportOfficer() && !user.isSupport()` => 403).
@@ -181,6 +183,7 @@ export const STAFF_NAV_ITEMS: readonly StaffNavItem[] = [
 
   { path: '/clients', label: 'Clients', icon: 'pi pi-users', group: 'User management', roles: STAFF_PERMISSIONS.usersRead },
   { path: '/staff-members', label: 'Staff members', icon: 'pi pi-id-card', group: 'User management', roles: STAFF_PERMISSIONS.staffRead },
+  { path: '/inactive-users', label: 'Inactive users', icon: 'pi pi-user-minus', group: 'User management', roles: STAFF_PERMISSIONS.inactiveUsersRead },
   { path: '/user-management', label: 'Deleted users', icon: 'pi pi-trash', group: 'User management', roles: STAFF_PERMISSIONS.deletedUsersRead },
 
   { path: '/requirements', label: 'Requirements', icon: 'pi pi-verified', group: 'Compliance', roles: STAFF_PERMISSIONS.requirements },
