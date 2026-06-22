@@ -200,6 +200,9 @@
           <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
         </dl>
         <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="openClient(d.data)" [disabled]="busy()">
+            <i class="pi pi-user" aria-hidden="true"></i><span>Open client</span>
+          </button>
           <button type="button" class="ghost" (click)="verifyWallet(d.data)" [disabled]="busy()">
             <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
           </button>
@@ -217,6 +220,9 @@
           <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
         </dl>
         <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="openClient(d.data)" [disabled]="busy()">
+            <i class="pi pi-user" aria-hidden="true"></i><span>Open client</span>
+          </button>
           <button type="button" class="ghost" (click)="verifyBank(d.data)" [disabled]="busy()">
             <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
           </button>
@@ -234,6 +240,9 @@
         </dl>
         @if (canChangeTxState) {
           <div class="dialog-actions tx">
+            <button type="button" class="ghost" (click)="openClient(d.data)" [disabled]="busy()">
+              <i class="pi pi-user" aria-hidden="true"></i><span>Open client</span>
+            </button>
             <select class="cf-select" [(ngModel)]="txTarget">
               <option value="" disabled>Set state…</option>
               @for (o of txStateOptions; track o.value) {
@@ -245,6 +254,11 @@
             </button>
           </div>
         } @else {
+          <div class="dialog-actions">
+            <button type="button" class="ghost" (click)="openClient(d.data)" [disabled]="busy()">
+              <i class="pi pi-user" aria-hidden="true"></i><span>Open client</span>
+            </button>
+          </div>
           <p class="muted-note">
             <i class="pi pi-info-circle" aria-hidden="true"></i>
             Only operations/admin can change transaction states.
@@ -257,6 +271,9 @@
           <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
         </dl>
         <div class="dialog-actions">
+          <button type="button" class="ghost" (click)="openClient(d.data)" [disabled]="busy()">
+            <i class="pi pi-user" aria-hidden="true"></i><span>Open client</span>
+          </button>
           <button type="button" class="ghost" (click)="verifyKyc(d.data)" [disabled]="busy()">
             <i class="pi pi-check-circle" aria-hidden="true"></i><span>Verify</span>
           </button>

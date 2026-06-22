@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 import { DialogModule } from 'primeng/dialog';
@@ -50,6 +51,7 @@ export class PendingApprovalsPage {
   private readonly auth = inject(AuthService);
   private readonly messages = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly router = inject(Router);
 
   /** Filas por página (paginación en cliente). */
   readonly pageSize = 20;
@@ -221,6 +223,12 @@ export class PendingApprovalsPage {
   openKyc(k: PendingKyc): void {
     this.dialog.set({ type: 'kyc', data: k });
     this.dialogVisible.set(true);
+  }
+
+  async openClient(row: DialogRow['data']): Promise<void> {
+    if (!row.client?.id) return;
+    this.dialogVisible.set(false);
+    await this.router.navigate(['/clients'], { queryParams: { client: row.client.id } });
   }
 
   // ---- Acciones ----

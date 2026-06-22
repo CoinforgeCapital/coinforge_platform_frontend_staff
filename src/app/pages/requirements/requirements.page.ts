@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
 
@@ -74,6 +75,7 @@ export class RequirementsPage implements OnInit {
   private readonly messages = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   /** Crear/editar/aprobar/rechazar/cancelar: solo compliance / compliance officer. */
   readonly canWrite = this.auth.hasAnyRole(STAFF_PERMISSIONS.requirementsWrite);
@@ -210,6 +212,12 @@ export class RequirementsPage implements OnInit {
     this.editing.set(false);
     this.view.set('list');
     this.clearArchivedDocuments();
+  }
+
+  async openClient(requirement: Requirement): Promise<void> {
+    const clientId = requirement.customerUser?.id;
+    if (!clientId) return;
+    await this.router.navigate(['/clients'], { queryParams: { client: clientId } });
   }
 
   // ---- Creación ----

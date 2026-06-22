@@ -99,6 +99,13 @@
       <span class="crumb current">{{ c.email }}</span>
     </nav>
 
+    <div class="toolbar">
+      <button type="button" class="ghost" (click)="navigateToClient(c)">
+        <i class="pi pi-user" aria-hidden="true"></i>
+        <span>Open client</span>
+      </button>
+    </div>
+
     <app-risk-profile-detail [client]="c" (profileSynced)="onProfileChanged(c.id, $event)" />
   }
 }

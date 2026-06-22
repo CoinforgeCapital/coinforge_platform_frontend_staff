@@ -181,6 +181,10 @@
         </button>
         @if (!editing()) {
           <div class="detail-bar-actions">
+            <button type="button" class="ghost" (click)="openClient(r)" [disabled]="!r.customerUser?.id">
+              <i class="pi pi-user" aria-hidden="true"></i>
+              <span>Open client</span>
+            </button>
             @if (canEdit(r)) {
               <button type="button" class="ghost" (click)="startEdit()">
                 <i class="pi pi-pencil" aria-hidden="true"></i>

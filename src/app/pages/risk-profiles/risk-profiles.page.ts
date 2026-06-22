@@ -1,6 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
 
@@ -54,6 +54,7 @@ export class RiskProfilesPage implements OnInit {
   private readonly messages = inject(MessageService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   /** Crear/editar perfil y notas solo para compliance / compliance officer. */
   readonly canWrite = this.auth.hasAnyRole(STAFF_PERMISSIONS.riskProfilesWrite);
@@ -139,6 +140,10 @@ export class RiskProfilesPage implements OnInit {
   openClient(client: ClientRow): void {
     this.selectedClient.set(client);
     this.view.set('detail');
+  }
+
+  async navigateToClient(client: ClientRow): Promise<void> {
+    await this.router.navigate(['/clients'], { queryParams: { client: client.id } });
   }
 
   /** El detalle compartido avisa del perfil cargado/creado/editado; sincroniza el listado. */

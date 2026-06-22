@@ -48,7 +48,7 @@
           @if (canWrite() && c.status !== 'closed') {
             <button type="button" class="ghost sm danger" (click)="onClose(c.id)" [disabled]="closingId() === c.id">
               <i class="pi pi-times-circle" aria-hidden="true"></i>
-              <span>{{ closingId() === c.id ? 'Closing…' : 'Close' }}</span>
+              <span>{{ closingId() === c.id ? 'Closing…' : 'Close conversation' }}</span>
             </button>
           }
         </div>
