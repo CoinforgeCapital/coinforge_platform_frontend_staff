@@ -6,9 +6,8 @@ import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 
-import { ActivityWarning, ActivityWarningState } from '../../services/api.service';
+import { ActivityWarning, ActivityWarningState, ApiService } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
-import { ActivityWarningsStoreService } from '../../services/activity-warnings-store.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { formatFiatAmount } from '../../shared/amount-format';
@@ -23,7 +22,7 @@ type WarningTab = 'active' | 'solved';
   styleUrl: './activity-warnings.page.css',
 })
 export class ActivityWarningsPage {
-  private readonly activityWarnings = inject(ActivityWarningsStoreService);
+  private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly messages = inject(MessageService);
@@ -61,7 +60,7 @@ export class ActivityWarningsPage {
   async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const res = await this.activityWarnings.listActivityWarnings();
+      const res = await this.api.listActivityWarnings();
       this.warnings.set(res.warnings ?? []);
     } catch (err) {
       this.toast('error', 'Could not load warnings', this.errorOf(err));
@@ -111,7 +110,7 @@ export class ActivityWarningsPage {
       rejectButtonStyleClass: 'p-button-text',
       accept: () => {
         this.busy.set(true);
-        this.activityWarnings
+        this.api
           .updateActivityWarningState(warning.id, { state: 'solved' })
           .then((res) => {
             this.patchWarning(res.warning);
@@ -145,9 +144,20 @@ export class ActivityWarningsPage {
     }
 
     const message = this.escalationForm.getRawValue().body.trim();
+    const creatorId = this.auth.currentUserId();
+    if (!creatorId) {
+      this.toast('error', 'Could not create escalation', 'The current staff session could not be identified.');
+      return;
+    }
+
     this.escalationLoading.set(true);
     try {
-      const res = await this.activityWarnings.createEscalation(warning, this.escalationBodyFor(warning, message));
+      const res = await this.api.createActionRequest({
+        staffUserCreatorId: creatorId,
+        target: 'COMPLIANCE_OFFICER',
+        subject: this.escalationSubjectFor(warning),
+        body: this.escalationBodyFor(warning, message),
+      });
       this.cancelEscalation();
       this.toast('success', 'Case escalated', res.message ?? 'The compliance officers were notified.');
     } catch (err: unknown) {
@@ -198,6 +208,11 @@ export class ActivityWarningsPage {
 
     const body = lines.join('\n');
     return body.length > 10000 ? `${body.slice(0, 9997)}...` : body;
+  }
+
+  private escalationSubjectFor(warning: ActivityWarning): string {
+    const subject = `Activity warning escalation: ${warning.client?.email ?? 'Client'}`;
+    return subject.length > 100 ? `${subject.slice(0, 97)}...` : subject;
   }
 
   warningTitle(warning: ActivityWarning | null): string {

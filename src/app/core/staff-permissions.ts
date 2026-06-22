@@ -188,7 +188,6 @@ export const STAFF_NAV_ITEMS: readonly StaffNavItem[] = [
   { path: '/compliance-assignments', label: 'Compliance assignments', icon: 'pi pi-link', group: 'Compliance', roles: STAFF_PERMISSIONS.complianceAssignmentView },
   { path: '/pending-approvals', label: 'Pending approvals', icon: 'pi pi-inbox', group: 'Compliance', roles: STAFF_PERMISSIONS.clientFinancials },
   { path: '/activity-warnings', label: 'Activity warnings', icon: 'pi pi-exclamation-triangle', group: 'Compliance', roles: STAFF_PERMISSIONS.activityWarningsView },
-  { path: '/warning-limits', label: 'Warning limits', icon: 'pi pi-sliders-h', group: 'Compliance', roles: STAFF_PERMISSIONS.activityWarningsView },
 
   { path: '/internal-messages', label: 'Internal messages', icon: 'pi pi-comments', group: 'Communications', roles: STAFF_PERMISSIONS.complianceConversations },
   { path: '/action-requests', label: 'Action requests', icon: 'pi pi-send', group: 'Communications', roles: STAFF_PERMISSIONS.actionRequests },

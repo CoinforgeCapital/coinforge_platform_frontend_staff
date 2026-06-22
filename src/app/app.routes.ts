@@ -104,15 +104,6 @@ export const routes: Routes = [
           ),
       },
       {
-        path: 'warning-limits',
-        canMatch: [roleMatchGuard],
-        data: { roles: STAFF_PERMISSIONS.activityWarningsView },
-        loadComponent: () =>
-          import('./pages/warning-limits/warning-limits.page').then(
-            (m) => m.WarningLimitsPage,
-          ),
-      },
-      {
         path: 'action-requests',
         canMatch: [roleMatchGuard],
         data: { roles: STAFF_PERMISSIONS.actionRequests },

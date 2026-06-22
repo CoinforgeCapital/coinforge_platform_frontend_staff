@@ -8,10 +8,10 @@ import { TabsModule } from 'primeng/tabs';
 import {
   ActivityWarning,
   ActivityWarningState,
+  ApiService,
   TransactionWarningLimit,
 } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
-import { ActivityWarningsStoreService } from '../../services/activity-warnings-store.service';
 import { formatFiatAmount } from '../amount-format';
 
 type WarningTab = 'active' | 'solved';
@@ -24,7 +24,7 @@ type WarningTab = 'active' | 'solved';
   styleUrl: './client-activity-alerts.component.css',
 })
 export class ClientActivityAlertsComponent {
-  private readonly activityWarnings = inject(ActivityWarningsStoreService);
+  private readonly api = inject(ApiService);
   private readonly messages = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
 
@@ -86,7 +86,7 @@ export class ClientActivityAlertsComponent {
 
     this.limitSaving.set(true);
     try {
-      const res = await this.activityWarnings.updateClientTransactionWarningLimit(this.clientId(), {
+      const res = await this.api.updateClientTransactionWarningLimit(this.clientId(), {
         fiatSingleTransactionLimit: value,
       });
       this.limit.set(res.limit);
@@ -116,7 +116,7 @@ export class ClientActivityAlertsComponent {
       rejectButtonStyleClass: 'p-button-text',
       accept: () => {
         this.busy.set(true);
-        this.activityWarnings
+        this.api
           .updateActivityWarningState(warning.id, { state: 'solved' })
           .then((res) => {
             this.patchWarning(res.warning);
@@ -205,7 +205,7 @@ export class ClientActivityAlertsComponent {
   private async loadLimit(clientId: string): Promise<void> {
     this.limitLoading.set(true);
     try {
-      const res = await this.activityWarnings.getClientTransactionWarningLimit(clientId);
+      const res = await this.api.getClientTransactionWarningLimit(clientId);
       this.limit.set(res.limit);
       this.limitDraft.set(res.limit.fiatSingleTransactionLimit);
     } catch (err) {
@@ -218,7 +218,7 @@ export class ClientActivityAlertsComponent {
   private async loadWarnings(clientId: string): Promise<void> {
     this.warningsLoading.set(true);
     try {
-      const res = await this.activityWarnings.listClientActivityWarnings(clientId, this.clientEmail(), this.canManage());
+      const res = await this.api.listClientActivityWarnings(clientId);
       this.warnings.set(res.warnings ?? []);
     } catch (err) {
       this.toast('error', 'Could not load warnings', this.errorOf(err));
