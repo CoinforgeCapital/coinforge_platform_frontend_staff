@@ -36,6 +36,7 @@ import { ClientActivityAlertsComponent } from '../../shared/client-activity-aler
 import { ClientProfileOverviewComponent } from '../../shared/client-profile-overview/client-profile-overview.component';
 import { ClientRequirementsComponent } from '../../shared/client-requirements/client-requirements.component';
 import { formatAmountByField } from '../../shared/amount-format';
+import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
 
 interface EntityGroup {
   key: string;
@@ -66,6 +67,20 @@ interface DocumentTab {
   label: string;
   collectionKey: string;
   type: RequirementDocumentType;
+}
+
+interface FinancialApprovalCheck {
+  header: string;
+  baseMessage: string;
+  checkRequirements: () => Promise<string | null>;
+  action: () => Promise<{ ok: boolean; message: string }>;
+  newState: string;
+  item: Record<string, unknown>;
+}
+
+interface ConfirmRunOptions {
+  icon?: string;
+  acceptLabel?: string;
 }
 
 const PROFILE_KEY = 'profile';
@@ -258,6 +273,7 @@ export class ClientsPage implements OnInit {
   private readonly messages = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
   private readonly route = inject(ActivatedRoute);
+  private readonly requirementWarnings = inject(ApprovalRequirementWarningService);
 
   readonly columns = LIST_COLUMNS;
   readonly profileKey = PROFILE_KEY;
@@ -1548,14 +1564,16 @@ export class ClientsPage implements OnInit {
   verifyItem(item: Record<string, unknown>): void {
     const id = item['id'] as string;
     const isWallet = this.activeEntity() === WALLET_KEY;
-    this.confirmRun(
-      isWallet ? 'Verify wallet' : 'Verify bank account',
-      'Mark this resource as verified?',
-      false,
-      () => (isWallet ? this.api.verifyWallet(id) : this.api.verifyClientBankAccount(id)),
-      'verified',
+    void this.confirmFinancialApprovalWithRequirementCheck({
+      header: isWallet ? 'Verify wallet' : 'Verify bank account',
+      baseMessage: 'Mark this resource as verified?',
+      checkRequirements: () => isWallet
+        ? this.requirementWarnings.forWalletClient(String(this.selected()?.['id'] ?? ''))
+        : this.requirementWarnings.forBankAccount(id),
+      action: () => (isWallet ? this.api.verifyWallet(id) : this.api.verifyClientBankAccount(id)),
+      newState: 'verified',
       item,
-    );
+    });
   }
   blockItem(item: Record<string, unknown>): void {
     const id = item['id'] as string;
@@ -1573,13 +1591,33 @@ export class ClientsPage implements OnInit {
     if (!this.txTarget) return;
     const id = item['id'] as string;
     const target = this.txTarget;
-    this.confirmRun(
-      'Update transaction',
-      `Set the transaction to "${this.roleLabel(target)}"?`,
-      false,
-      () => this.api.updateTransactionState(id, target),
-      target,
+    void this.confirmFinancialApprovalWithRequirementCheck({
+      header: 'Update transaction',
+      baseMessage: `Set the transaction to "${this.roleLabel(target)}"?`,
+      checkRequirements: () => this.requirementWarnings.forTransaction(id),
+      action: () => this.api.updateTransactionState(id, target),
+      newState: target,
       item,
+    });
+  }
+
+  private async confirmFinancialApprovalWithRequirementCheck(config: FinancialApprovalCheck): Promise<void> {
+    this.actionBusy.set(true);
+    let requirementWarning: string | null = null;
+    try {
+      requirementWarning = await config.checkRequirements();
+    } finally {
+      this.actionBusy.set(false);
+    }
+
+    this.confirmRun(
+      config.header,
+      requirementWarning ? `${config.baseMessage} ${requirementWarning}` : config.baseMessage,
+      false,
+      config.action,
+      config.newState,
+      config.item,
+      requirementWarning ? { icon: 'pi pi-exclamation-triangle', acceptLabel: 'Continue' } : undefined,
     );
   }
 
@@ -1590,12 +1628,13 @@ export class ClientsPage implements OnInit {
     action: () => Promise<{ ok: boolean; message: string }>,
     newState: string,
     item: Record<string, unknown>,
+    options?: ConfirmRunOptions,
   ): void {
     this.confirm.confirm({
       header,
       message,
-      icon: danger ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle',
-      acceptLabel: 'Confirm',
+      icon: options?.icon ?? (danger ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle'),
+      acceptLabel: options?.acceptLabel ?? 'Confirm',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: danger ? 'p-button-danger' : undefined,
       rejectButtonStyleClass: 'p-button-text',

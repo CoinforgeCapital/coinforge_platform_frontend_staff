@@ -17,6 +17,7 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format';
+import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
 
 type TabKey = 'wallets' | 'bank-accounts' | 'transactions' | 'kyc';
 
@@ -32,6 +33,20 @@ type DialogRow =
   | { type: 'bank'; data: PendingBankAccount }
   | { type: 'transaction'; data: PendingTransaction }
   | { type: 'kyc'; data: PendingKyc };
+
+interface ApprovalRequirementCheck {
+  header: string;
+  baseMessage: string;
+  checkRequirements: () => Promise<string | null>;
+  action: () => Promise<{ ok: boolean; message: string }>;
+  summary: string;
+  reload: () => void;
+}
+
+interface ConfirmRunOptions {
+  icon?: string;
+  acceptLabel?: string;
+}
 
 /**
  * Cola de elementos pendientes de aprobación (wallets, cuentas, transacciones, KYC).
@@ -52,6 +67,7 @@ export class PendingApprovalsPage {
   private readonly messages = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
   private readonly router = inject(Router);
+  private readonly requirementWarnings = inject(ApprovalRequirementWarningService);
 
   /** Filas por página (paginación en cliente). */
   readonly pageSize = 20;
@@ -234,13 +250,27 @@ export class PendingApprovalsPage {
   // ---- Acciones ----
 
   verifyWallet(w: PendingWallet): void {
-    this.confirmRun('Verify wallet', `Verify the wallet ${this.shortAddr(w.publicAddress)}?`, false, () => this.api.verifyWallet(w.id), 'Wallet verified', () => this.loadWallets());
+    void this.confirmApprovalWithRequirementCheck({
+      header: 'Verify wallet',
+      baseMessage: `Verify the wallet ${this.shortAddr(w.publicAddress)}?`,
+      checkRequirements: () => this.requirementWarnings.forWalletClient(w.client.id),
+      action: () => this.api.verifyWallet(w.id),
+      summary: 'Wallet verified',
+      reload: () => this.loadWallets(),
+    });
   }
   blockWallet(w: PendingWallet): void {
     this.confirmRun('Block wallet', `Block the wallet ${this.shortAddr(w.publicAddress)}?`, true, () => this.api.blockWallet(w.id), 'Wallet blocked', () => this.loadWallets());
   }
   verifyBank(b: PendingBankAccount): void {
-    this.confirmRun('Verify bank account', `Verify the account ${b.iban}?`, false, () => this.api.verifyClientBankAccount(b.id), 'Bank account verified', () => this.loadBank());
+    void this.confirmApprovalWithRequirementCheck({
+      header: 'Verify bank account',
+      baseMessage: `Verify the account ${b.iban}?`,
+      checkRequirements: () => this.requirementWarnings.forBankAccount(b.id),
+      action: () => this.api.verifyClientBankAccount(b.id),
+      summary: 'Bank account verified',
+      reload: () => this.loadBank(),
+    });
   }
   blockBank(b: PendingBankAccount): void {
     this.confirmRun('Block bank account', `Block the account ${b.iban}?`, true, () => this.api.blockClientBankAccount(b.id), 'Bank account blocked', () => this.loadBank());
@@ -248,7 +278,14 @@ export class PendingApprovalsPage {
   setTxState(t: PendingTransaction): void {
     if (!this.txTarget) return;
     const target = this.txTarget;
-    this.confirmRun('Update transaction', `Set the transaction to "${this.prettyState(target)}"?`, false, () => this.api.updateTransactionState(t.id, target), 'Transaction updated', () => this.loadTransactions());
+    void this.confirmApprovalWithRequirementCheck({
+      header: 'Update transaction',
+      baseMessage: `Set the transaction to "${this.prettyState(target)}"?`,
+      checkRequirements: () => this.requirementWarnings.forTransaction(t.id),
+      action: () => this.api.updateTransactionState(t.id, target),
+      summary: 'Transaction updated',
+      reload: () => this.loadTransactions(),
+    });
   }
   verifyKyc(k: PendingKyc): void {
     this.confirmRun('Verify KYC', `Approve the KYC of ${k.client.email}?`, false, () => this.api.verifyKyc(k.client.id), 'KYC verified', () => this.loadKyc());
@@ -265,6 +302,26 @@ export class PendingApprovalsPage {
 
   // ---- Runner ----
 
+  private async confirmApprovalWithRequirementCheck(config: ApprovalRequirementCheck): Promise<void> {
+    this.busy.set(true);
+    let requirementWarning: string | null = null;
+    try {
+      requirementWarning = await config.checkRequirements();
+    } finally {
+      this.busy.set(false);
+    }
+
+    this.confirmRun(
+      config.header,
+      requirementWarning ? `${config.baseMessage} ${requirementWarning}` : config.baseMessage,
+      false,
+      config.action,
+      config.summary,
+      config.reload,
+      requirementWarning ? { icon: 'pi pi-exclamation-triangle', acceptLabel: 'Continue' } : undefined,
+    );
+  }
+
   private confirmRun(
     header: string,
     message: string,
@@ -272,12 +329,13 @@ export class PendingApprovalsPage {
     action: () => Promise<{ ok: boolean; message: string }>,
     summary: string,
     reload: () => void,
+    options?: ConfirmRunOptions,
   ): void {
     this.confirm.confirm({
       header,
       message,
-      icon: danger ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle',
-      acceptLabel: 'Confirm',
+      icon: options?.icon ?? (danger ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle'),
+      acceptLabel: options?.acceptLabel ?? 'Confirm',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: danger ? 'p-button-danger' : undefined,
       rejectButtonStyleClass: 'p-button-text',
