@@ -429,8 +429,8 @@ export class ClientRequirementsComponent {
     const tab = window.open('', '_blank');
     this.viewingId.set(file.id);
     try {
-      const blob = await this.api.downloadRequirementFile(file.id);
-      this.openBlobInTab(blob, tab, file.name);
+      const blob = await this.api.viewRequirementFile(file.id);
+      this.openBlobInTab(blob, tab);
     } catch (err: unknown) {
       tab?.close();
       this.toastError(err);
@@ -456,7 +456,7 @@ export class ClientRequirementsComponent {
     this.viewingId.set(doc.id);
     try {
       const blob = await this.api.viewClientDocument(doc.documentType, doc.id);
-      this.openBlobInTab(blob, tab, doc.name);
+      this.openBlobInTab(blob, tab);
     } catch (err: unknown) {
       tab?.close();
       this.toastError(err);
@@ -529,16 +529,31 @@ export class ClientRequirementsComponent {
     return Number.isNaN(date.getTime()) ? 0 : date.getTime();
   }
 
-  private openBlobInTab(blob: Blob, tab: Window | null, filename: string): void {
+  private openBlobInTab(blob: Blob, tab: Window | null): void {
     // La pestaña se abrió de forma síncrona en el click para no ser bloqueada como pop-up;
-    // aquí solo le asignamos la URL del blob. Si el navegador la bloqueó, descargamos.
+    // aquí solo le asignamos la URL del blob. Si el navegador la bloqueó, avisamos sin descargar.
+    if (!this.canPreviewBlob(blob)) {
+      throw new Error('This file type cannot be previewed. Use Download instead.');
+    }
+
     const url = URL.createObjectURL(blob);
     if (tab) {
       tab.location.href = url;
     } else {
-      this.saveBlobFromUrl(url, filename || 'document');
+      URL.revokeObjectURL(url);
+      throw new Error('The browser blocked the preview window. Allow pop-ups and try again.');
     }
     setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  private canPreviewBlob(blob: Blob): boolean {
+    const mimeType = blob.type.toLowerCase().split(';', 1)[0];
+    return (
+      mimeType === 'application/pdf' ||
+      mimeType.startsWith('image/') ||
+      mimeType.startsWith('video/') ||
+      mimeType.startsWith('text/')
+    );
   }
 
   private saveBlob(blob: Blob, filename: string): void {

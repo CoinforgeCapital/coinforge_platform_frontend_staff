@@ -864,8 +864,22 @@ export class ApiService {
     );
   }
 
+  private requirementFileBlob(
+    requirementFileId: string,
+    mode: 'download' | 'inline',
+  ): Promise<Blob> {
+    return this.request.download(`/api/requirement/file/download/${requirementFileId}`, {
+      params: { mode },
+      context: new HttpContext().set(SILENT_AUTH_ERROR, true),
+    });
+  }
+
   downloadRequirementFile(requirementFileId: string): Promise<Blob> {
-    return this.request.download(`/api/requirement/file/download/${requirementFileId}`);
+    return this.requirementFileBlob(requirementFileId, 'download');
+  }
+
+  viewRequirementFile(requirementFileId: string): Promise<Blob> {
+    return this.requirementFileBlob(requirementFileId, 'inline');
   }
 
   /**

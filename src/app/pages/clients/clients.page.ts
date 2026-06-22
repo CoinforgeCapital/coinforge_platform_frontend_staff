@@ -1282,11 +1282,16 @@ export class ClientsPage implements OnInit {
     this.viewingDocId.set(id);
     try {
       const blob = await this.api.viewClientDocument(type, id);
+      if (!this.canPreviewBlob(blob)) {
+        throw new Error('This file type cannot be previewed. Use Download instead.');
+      }
+
       const url = URL.createObjectURL(blob);
       if (tab) {
         tab.location.href = url;
       } else {
-        this.saveBlob(blob, String(doc['name'] ?? 'document'));
+        URL.revokeObjectURL(url);
+        throw new Error('The browser blocked the preview window. Allow pop-ups and try again.');
       }
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err: unknown) {
@@ -1726,6 +1731,16 @@ export class ClientsPage implements OnInit {
     URL.revokeObjectURL(url);
   }
 
+  private canPreviewBlob(blob: Blob): boolean {
+    const mimeType = blob.type.toLowerCase().split(';', 1)[0];
+    return (
+      mimeType === 'application/pdf' ||
+      mimeType.startsWith('image/') ||
+      mimeType.startsWith('video/') ||
+      mimeType.startsWith('text/')
+    );
+  }
+
   private toast(severity: 'success' | 'error', summary: string, detail: string): void {
     this.messages.add({ severity, summary, detail, life: severity === 'error' ? 6000 : 4000 });
   }
@@ -1742,6 +1757,10 @@ export class ClientsPage implements OnInit {
    * del servidor no es legible). Traducimos por código de estado.
    */
   private downloadErrorMessage(err: unknown): string {
+    if (err instanceof Error && !('status' in err)) {
+      return err.message;
+    }
+
     const status = (err as { status?: number }).status;
     if (status === 404) return 'This document is no longer available.';
     if (status === 403) return 'You are not allowed to access this document.';

@@ -461,11 +461,13 @@ export class RequirementsPage implements OnInit {
   }
 
   async viewFile(file: RequirementFile): Promise<void> {
+    const tab = window.open('', '_blank');
     this.viewing.set(file.id);
     try {
-      const blob = await this.api.downloadRequirementFile(file.id);
-      this.openBlob(blob, file.name || 'requirement-file');
+      const blob = await this.api.viewRequirementFile(file.id);
+      this.openBlob(blob, tab);
     } catch (err: unknown) {
+      tab?.close();
       this.toast('error', 'Could not open', this.errorOf(err));
     } finally {
       this.viewing.set(null);
@@ -485,11 +487,13 @@ export class RequirementsPage implements OnInit {
   }
 
   async viewArchivedDocument(document: RequirementArchivedDocument): Promise<void> {
+    const tab = window.open('', '_blank');
     this.viewing.set(document.id);
     try {
       const blob = await this.api.viewClientDocument(document.documentType, document.id);
-      this.openBlob(blob, document.name || 'requirement-document');
+      this.openBlob(blob, tab);
     } catch (err: unknown) {
+      tab?.close();
       this.toast('error', 'Could not open document', this.errorOf(err));
     } finally {
       this.viewing.set(null);
@@ -657,15 +661,29 @@ export class RequirementsPage implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  private openBlob(blob: Blob, filename: string): void {
+  private openBlob(blob: Blob, tab: Window | null): void {
+    if (!this.canPreviewBlob(blob)) {
+      throw new Error('This file type cannot be previewed. Use Download instead.');
+    }
+
     const url = URL.createObjectURL(blob);
-    const opened = window.open(url, '_blank', 'noopener');
-    if (!opened) {
+    if (tab) {
+      tab.location.href = url;
+    } else {
       URL.revokeObjectURL(url);
-      this.saveBlob(blob, filename);
-      return;
+      throw new Error('The browser blocked the preview window. Allow pop-ups and try again.');
     }
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  private canPreviewBlob(blob: Blob): boolean {
+    const mimeType = blob.type.toLowerCase().split(';', 1)[0];
+    return (
+      mimeType === 'application/pdf' ||
+      mimeType.startsWith('image/') ||
+      mimeType.startsWith('video/') ||
+      mimeType.startsWith('text/')
+    );
   }
 
   private toast(severity: 'success' | 'error', summary: string, detail: string): void {
