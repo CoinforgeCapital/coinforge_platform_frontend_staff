@@ -19,6 +19,7 @@ import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format';
+import { uploadFileSizeError } from '../../shared/upload-file-size';
 
 type View = 'list' | 'detail' | 'create';
 
@@ -306,11 +307,27 @@ export class RequirementsPage implements OnInit {
   }
 
   onCreateFile(event: Event): void {
-    this.createFiles.set(Array.from((event.target as HTMLInputElement).files ?? []));
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    const error = uploadFileSizeError(files);
+    if (error) {
+      this.toast('error', 'File too large', error);
+      input.value = '';
+      return;
+    }
+    this.createFiles.set(files);
   }
 
   onEditFile(event: Event): void {
-    this.editFiles.set(Array.from((event.target as HTMLInputElement).files ?? []));
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    const error = uploadFileSizeError(files);
+    if (error) {
+      this.toast('error', 'File too large', error);
+      input.value = '';
+      return;
+    }
+    this.editFiles.set(files);
   }
 
   async onCreate(): Promise<void> {

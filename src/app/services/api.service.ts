@@ -2,6 +2,7 @@ import { HttpContext } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { HttpRequestOptions, RequestService } from './request.service';
 import { SILENT_AUTH_ERROR } from '../core/http-context';
+import { assertUploadFilesWithinLimit } from '../shared/upload-file-size';
 
 export interface StandardMessageResponse { ok: boolean; message: string; }
 export interface StandardDataResponse<T = unknown> { ok: boolean; message: string; data: T; }
@@ -834,6 +835,7 @@ export class ApiService {
     if (body.clientBankId) fd.append('clientBankId', body.clientBankId);
     if (body.transactionOrderId) fd.append('transactionOrderId', body.transactionOrderId);
     const files = body.files ?? (body.file ? [body.file] : []);
+    assertUploadFilesWithinLimit(files);
     files.forEach((file, index) => fd.append(`file_${index + 1}`, file));
     return this.request.post<StandardMessageResponse, FormData>('/api/requirement', fd);
   }
@@ -857,6 +859,7 @@ export class ApiService {
     if (body.description !== undefined) fd.append('description', body.description);
     if (body.deleteFileIds?.length) fd.append('deleteFileIds', JSON.stringify(body.deleteFileIds));
     const files = body.files ?? (body.file ? [body.file] : []);
+    assertUploadFilesWithinLimit(files);
     files.forEach((file, index) => fd.append(`file_${index + 1}`, file));
     return this.request.patch<StandardDataResponse<Requirement>, FormData>(
       `/api/requirement/${requirementId}`,

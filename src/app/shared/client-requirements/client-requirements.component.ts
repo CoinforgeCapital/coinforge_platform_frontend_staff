@@ -11,6 +11,7 @@ import {
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { uploadFileSizeError } from '../upload-file-size';
 
 /** Agrupación por estado de las tres pestañas del detalle de cliente. */
 type RequirementGroup = 'active' | 'completed' | 'cancelled';
@@ -221,7 +222,20 @@ export class ClientRequirementsComponent {
   }
 
   onEditFile(event: Event): void {
-    this.editFiles.set(Array.from((event.target as HTMLInputElement).files ?? []));
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    const error = uploadFileSizeError(files);
+    if (error) {
+      this.messages.add({
+        severity: 'error',
+        summary: 'File too large',
+        detail: error,
+        life: 5000,
+      });
+      input.value = '';
+      return;
+    }
+    this.editFiles.set(files);
   }
 
   toggleEditFileRemoval(file: RequirementFile): void {

@@ -11,6 +11,7 @@ import {
 } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
+import { assertUploadFilesWithinLimit, uploadFileSizeError } from '../../shared/upload-file-size';
 
 type View = 'mine' | 'unassigned' | 'detail';
 type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed';
@@ -138,7 +139,14 @@ export class SupportTicketsPage implements OnInit {
 
   onReplyFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.replyFiles.set(Array.from(input.files ?? []));
+    const files = Array.from(input.files ?? []);
+    const error = uploadFileSizeError(files);
+    if (error) {
+      this.toast('error', 'File too large', error);
+      input.value = '';
+      return;
+    }
+    this.replyFiles.set(files);
   }
 
   removeReplyFile(index: number): void {
@@ -156,6 +164,7 @@ export class SupportTicketsPage implements OnInit {
     try {
       const formData = new FormData();
       formData.append('body', this.replyForm.getRawValue().body.trim());
+      assertUploadFilesWithinLimit(this.replyFiles());
       this.replyFiles().forEach((file, index) => formData.append(`file_${index + 1}`, file));
 
       const res = await this.api.createSupportTicketMessage(ticket.id, formData);

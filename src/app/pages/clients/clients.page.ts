@@ -38,6 +38,7 @@ import { ClientRequirementsComponent } from '../../shared/client-requirements/cl
 import { formatAmountByField } from '../../shared/amount-format';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
 import { matchesClientIdentity } from '../../shared/client-identity-search';
+import { uploadFileSizeError } from '../../shared/upload-file-size';
 
 interface EntityGroup {
   key: string;
@@ -978,7 +979,14 @@ export class ClientsPage implements OnInit {
 
   onReqFile(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.reqFiles.set(Array.from(input.files ?? []));
+    const files = Array.from(input.files ?? []);
+    const error = uploadFileSizeError(files);
+    if (error) {
+      this.toast('error', 'File too large', error);
+      input.value = '';
+      return;
+    }
+    this.reqFiles.set(files);
   }
 
   async submitRequirement(): Promise<void> {
