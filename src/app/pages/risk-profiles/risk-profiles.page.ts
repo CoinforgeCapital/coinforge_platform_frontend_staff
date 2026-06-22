@@ -14,6 +14,7 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { RiskProfileDetailComponent } from '../../shared/risk-profile-detail/risk-profile-detail.component';
+import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 interface LevelOption {
   label: string;
@@ -77,14 +78,14 @@ export class RiskProfilesPage implements OnInit {
   readonly filtered = computed(() => {
     const query = this.search().trim().toLowerCase();
     if (!query) return this.clients();
-    return this.clients().filter((c) => String(c.email ?? '').toLowerCase().includes(query));
+    return this.clients().filter((c) => matchesClientIdentity(c, query));
   });
 
   /** Clientes que aún NO tienen perfil de riesgo (para la pestaña "Create"). */
   readonly clientsNoProfile = computed(() => {
     const query = this.search().trim().toLowerCase();
     return this.clients().filter(
-      (c) => !c.riskProfile && (!query || String(c.email ?? '').toLowerCase().includes(query)),
+      (c) => !c.riskProfile && matchesClientIdentity(c, query),
     );
   });
 

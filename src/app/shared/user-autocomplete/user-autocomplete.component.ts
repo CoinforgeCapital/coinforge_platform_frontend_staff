@@ -1,10 +1,12 @@
 import { Component, inject, input, OnDestroy, OnInit, output, signal } from '@angular/core';
 import { catchError, debounceTime, distinctUntilChanged, from, map, of, Subject, Subscription, switchMap } from 'rxjs';
 import { ApiService, StaffUser } from '../../services/api.service';
+import { matchesClientIdentity } from '../client-identity-search';
 
 /**
- * Selector de usuario escalable: búsqueda en servidor (por email/nickname/id) con debounce.
- * No carga todos los usuarios; pide solo las mejores coincidencias mientras se escribe.
+ * Selector de usuario escalable con debounce. Para staff usa la búsqueda del backend
+ * por email/nickname/id; para clientes reutiliza la lista permitida por el backend y
+ * permite buscar también por nombre y apellidos de personal-data.
  */
 @Component({
   selector: 'app-user-autocomplete',
@@ -33,7 +35,7 @@ import { ApiService, StaffUser } from '../../services/api.service';
             @for (u of results(); track u.id) {
               <button type="button" class="ua-item" (click)="pick(u)">
                 <span class="ua-email">{{ u.email }}</span>
-                <span class="ua-meta">{{ u.nickname || roleLabel(u.role) }}</span>
+                <span class="ua-meta">{{ userSecondaryLabel(u) }}</span>
               </button>
             }
           } @else if (!loading() && query().trim().length >= 2) {
@@ -113,6 +115,7 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
 
   private readonly query$ = new Subject<string>();
   private sub?: Subscription;
+  private clientCache?: StaffUser[];
 
   ngOnInit(): void {
     this.sub = this.query$
@@ -126,7 +129,11 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
             return of<StaffUser[]>([]);
           }
           this.loading.set(true);
-          return from(this.api.searchUsers(q, this.type()).then((r) => r.users ?? [])).pipe(
+          const request =
+            this.type() === 'client'
+              ? this.searchClientsLocally(q)
+              : this.api.searchUsers(q, this.type()).then((r) => r.users ?? []);
+          return from(request).pipe(
             catchError(() => of<StaffUser[]>([])),
           );
         }),
@@ -167,6 +174,30 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
     this.query.set('');
     this.results.set([]);
     this.open.set(false);
+  }
+
+  private async searchClientsLocally(q: string): Promise<StaffUser[]> {
+    const term = q.trim().toLowerCase();
+    if (!this.clientCache) {
+      const res = await this.api.listClients();
+      this.clientCache = res.users ?? [];
+    }
+
+    return this.clientCache
+      .filter((user) =>
+        matchesClientIdentity(user, term) ||
+        String(user.id ?? '').toLowerCase().includes(term) ||
+        String(user.nickname ?? '').toLowerCase().includes(term),
+      )
+      .slice(0, 20);
+  }
+
+  userSecondaryLabel(user: StaffUser): string {
+    const fullName = [user.personalData?.name, user.personalData?.surname]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return fullName || user.nickname || this.roleLabel(user.role);
   }
 
   roleLabel(role: string): string {

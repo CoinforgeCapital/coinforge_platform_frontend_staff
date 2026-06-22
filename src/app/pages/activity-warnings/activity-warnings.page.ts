@@ -6,11 +6,12 @@ import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 
-import { ActivityWarning, ActivityWarningState, ApiService } from '../../services/api.service';
+import { ActivityWarning, ActivityWarningState, ApiService, StaffUser } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { formatFiatAmount } from '../../shared/amount-format';
+import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 type WarningTab = 'active' | 'solved';
 
@@ -39,6 +40,7 @@ export class ActivityWarningsPage {
   readonly escalationLoading = signal(false);
   readonly escalationOpen = signal(false);
   readonly search = signal('');
+  readonly clientSearchIndex = signal<Map<string, StaffUser>>(new Map());
   readonly selected = signal<ActivityWarning | null>(null);
   readonly detailVisible = signal(false);
 
@@ -54,7 +56,17 @@ export class ActivityWarningsPage {
   }
 
   constructor() {
+    void this.loadClientSearchIndex();
     void this.load();
+  }
+
+  private async loadClientSearchIndex(): Promise<void> {
+    try {
+      const res = await this.api.listClients();
+      this.clientSearchIndex.set(new Map((res.users ?? []).map((client) => [client.id, client])));
+    } catch {
+      this.clientSearchIndex.set(new Map());
+    }
   }
 
   async load(): Promise<void> {
@@ -176,6 +188,12 @@ export class ActivityWarningsPage {
     return this.warnings().filter((warning) => {
       if (warning.state !== state) return false;
       if (!query) return true;
+      const indexedClient = warning.client?.id ? this.clientSearchIndex().get(warning.client.id) : undefined;
+      const searchableClient = indexedClient
+        ? { ...indexedClient, email: warning.client?.email }
+        : { email: warning.client?.email };
+      const clientMatches = matchesClientIdentity(searchableClient, query);
+      if (clientMatches) return true;
       return [
         warning.client?.email,
         warning.type,

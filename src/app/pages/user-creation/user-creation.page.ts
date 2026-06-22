@@ -5,6 +5,7 @@ import { TableModule } from 'primeng/table';
 
 import { ApiService, StaffUser } from '../../services/api.service';
 import { EntityCollectionComponent, EntityColumn } from '../../shared/entity-collection/entity-collection.component';
+import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 interface EntityGroup {
   key: string;
@@ -382,7 +383,7 @@ export class UserManagementPage {
   private filterByEmail(rows: StaffUser[], q: string): StaffUser[] {
     const term = q.trim().toLowerCase();
     if (!term) return rows;
-    return rows.filter((u) => u.email.toLowerCase().includes(term));
+    return rows.filter((u) => matchesClientIdentity(u, term));
   }
 
   private objectFields(obj: unknown): InfoField[] {

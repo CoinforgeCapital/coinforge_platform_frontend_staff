@@ -117,7 +117,7 @@
           <span>Client</span>
           <app-user-autocomplete
             type="client"
-            placeholder="Search a client by email…"
+            placeholder="Search a client by email or name..."
             (selected)="onClientPicked($event)"
           />
           @if (createCustomer.touched && createCustomer.invalid) {

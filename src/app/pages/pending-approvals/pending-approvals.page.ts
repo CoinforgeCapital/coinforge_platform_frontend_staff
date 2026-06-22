@@ -13,11 +13,13 @@ import {
   PendingTransaction,
   PendingWallet,
   SettableTransactionState,
+  StaffUser,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
+import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 type TabKey = 'wallets' | 'bank-accounts' | 'transactions' | 'kyc';
 
@@ -93,13 +95,14 @@ export class PendingApprovalsPage {
   readonly kycRows = signal<PendingKyc[]>([]);
   readonly kycLoading = signal(false);
 
-  /** Filtro por correo de cliente, compartido por las 4 pestañas. */
+  /** Filtro por identidad de cliente, compartido por las 4 pestañas. */
   readonly search = signal('');
+  readonly clientSearchIndex = signal<Map<string, StaffUser>>(new Map());
 
-  readonly walletRowsView = computed(() => this.filterByEmail(this.walletRows(), this.search()));
-  readonly bankRowsView = computed(() => this.filterByEmail(this.bankRows(), this.search()));
-  readonly txRowsView = computed(() => this.filterByEmail(this.txRows(), this.search()));
-  readonly kycRowsView = computed(() => this.filterByEmail(this.kycRows(), this.search()));
+  readonly walletRowsView = computed(() => this.filterByClientIdentity(this.walletRows(), this.search()));
+  readonly bankRowsView = computed(() => this.filterByClientIdentity(this.bankRows(), this.search()));
+  readonly txRowsView = computed(() => this.filterByClientIdentity(this.txRows(), this.search()));
+  readonly kycRowsView = computed(() => this.filterByClientIdentity(this.kycRows(), this.search()));
 
   /** Pestañas ya cargadas (para no repetir la petición al volver a entrar). */
   private readonly loadedTabs = new Set<TabKey>();
@@ -117,6 +120,7 @@ export class PendingApprovalsPage {
   ];
 
   constructor() {
+    void this.loadClientSearchIndex();
     this.ensureLoaded(this.activeTab());
   }
 
@@ -146,11 +150,24 @@ export class PendingApprovalsPage {
     this.search.set('');
   }
 
-  /** Filtra una colección de pendientes por el correo del cliente (case-insensitive). */
-  private filterByEmail<T extends { client: { email: string } }>(rows: T[], q: string): T[] {
+  private async loadClientSearchIndex(): Promise<void> {
+    try {
+      const res = await this.api.listClients();
+      this.clientSearchIndex.set(new Map((res.users ?? []).map((client) => [client.id, client])));
+    } catch {
+      this.clientSearchIndex.set(new Map());
+    }
+  }
+
+  /** Filtra pendientes por email o por nombre/apellido del cliente cuando está disponible. */
+  private filterByClientIdentity<T extends { client: { id: string; email: string } }>(rows: T[], q: string): T[] {
     const term = q.trim().toLowerCase();
     if (!term) return rows;
-    return rows.filter((r) => r.client.email.toLowerCase().includes(term));
+    return rows.filter((r) => {
+      const indexedClient = this.clientSearchIndex().get(r.client.id);
+      const searchableClient = indexedClient ? { ...indexedClient, email: r.client.email } : { email: r.client.email };
+      return matchesClientIdentity(searchableClient, term);
+    });
   }
 
   private ensureLoaded(key: TabKey): void {

@@ -37,6 +37,7 @@ import { ClientProfileOverviewComponent } from '../../shared/client-profile-over
 import { ClientRequirementsComponent } from '../../shared/client-requirements/client-requirements.component';
 import { formatAmountByField } from '../../shared/amount-format';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
+import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 interface EntityGroup {
   key: string;
@@ -548,7 +549,7 @@ export class ClientsPage implements OnInit {
   readonly filtered = computed(() => {
     const query = this.search().trim().toLowerCase();
     if (!query) return this.all();
-    return this.all().filter((u) => String(u['email'] ?? '').toLowerCase().includes(query));
+    return this.all().filter((u) => matchesClientIdentity(u, query));
   });
 
   readonly accountSettingsGroups = computed<FieldGroup[]>(() => {
