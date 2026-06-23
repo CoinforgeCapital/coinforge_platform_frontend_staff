@@ -442,6 +442,8 @@ export class ClientsPage implements OnInit {
   readonly creatingUser = signal(false);
   readonly selected = signal<Record<string, unknown> | null>(null);
   readonly detailLoading = signal(false);
+  /** Spinner del botón "Refresh" del detalle de cliente. */
+  readonly detailRefreshing = signal(false);
   readonly activeEntity = signal<string>(PROFILE_KEY);
   /** Elemento concreto en el que se ha hecho drill-down (null = se ve la tabla). */
   readonly drillItem = signal<Record<string, unknown> | null>(null);
@@ -1242,6 +1244,19 @@ export class ClientsPage implements OnInit {
     this.all.update((clients) =>
       clients.map((item) => item['id'] === id ? { ...item, ...record } : item),
     );
+  }
+
+  /** Botón "Refresh" del detalle: recarga los datos del cliente abierto sin salir de la pestaña actual. */
+  async refreshDetail(): Promise<void> {
+    if (this.detailRefreshing()) return;
+    this.detailRefreshing.set(true);
+    try {
+      await this.reloadSelectedClient();
+    } catch {
+      /* el interceptor ya muestra el aviso */
+    } finally {
+      this.detailRefreshing.set(false);
+    }
   }
 
   onDocTabChange(key: string | number | undefined): void {

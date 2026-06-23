@@ -139,6 +139,17 @@
       <i class="pi pi-angle-right sep" aria-hidden="true"></i>
       <span class="crumb current">{{ value(c, 'email') }}</span>
     }
+    <button
+      type="button"
+      class="ghost"
+      style="margin-left: auto"
+      (click)="refreshDetail()"
+      [disabled]="detailRefreshing() || detailLoading()"
+      aria-label="Refresh client detail"
+    >
+      <i [class]="detailRefreshing() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
+      <span>{{ detailRefreshing() ? 'Refreshing…' : 'Refresh' }}</span>
+    </button>
   </nav>
 
   @if (!drillItem()) {

@@ -84,21 +84,27 @@ h1 {
   color: var(--cf-text);
 }
 
-.ghost {
-  min-height: 42px;
+.ghost,
+.entity-btn,
+.dl-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-sm);
-  padding: 0 14px;
   background: var(--cf-surface);
   color: var(--cf-text);
   font: inherit;
-  font-weight: 800;
   cursor: pointer;
 }
-.ghost:hover:not(:disabled) {
+.ghost {
+  min-height: 42px;
+  gap: 8px;
+  border-radius: var(--cf-radius-sm);
+  padding: 0 14px;
+  font-weight: 800;
+}
+.ghost:hover:not(:disabled),
+.entity-btn:hover,
+.dl-btn:hover:not(:disabled) {
   border-color: var(--cf-teal-500);
   color: var(--cf-teal-600);
 }
@@ -108,11 +114,14 @@ h1 {
 }
 
 /* ---- Tabla (listado) ---- */
-.data-panel {
+.data-panel,
+.entity-panel {
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius);
   background: var(--cf-surface);
   box-shadow: var(--cf-shadow);
+}
+.data-panel {
   overflow: hidden;
 }
 .is-clickable {
@@ -164,7 +173,11 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.crumb i {
+.crumb i,
+.entity-btn i,
+.dl-btn i,
+.muted-note i,
+.state-hint i {
   color: var(--cf-teal-600);
 }
 button.crumb:hover {
@@ -240,30 +253,16 @@ button.crumb:hover {
   margin-bottom: 16px;
 }
 .entity-btn {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
   min-height: 38px;
   padding: 0 12px;
-  border: 1px solid var(--cf-border);
   border-radius: 999px;
-  background: var(--cf-surface);
-  color: var(--cf-text);
-  font: inherit;
   font-weight: 700;
   font-size: 0.85rem;
-  cursor: pointer;
-}
-.entity-btn:hover {
-  border-color: var(--cf-teal-500);
-  color: var(--cf-teal-600);
 }
 .entity-btn.active {
   border-color: rgba(0, 184, 150, 0.5);
   background: rgba(0, 184, 150, 0.1);
-  color: var(--cf-teal-600);
-}
-.entity-btn i {
   color: var(--cf-teal-600);
 }
 .entity-btn .count {
@@ -282,10 +281,6 @@ button.crumb:hover {
 }
 
 .entity-panel {
-  border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius);
-  background: var(--cf-surface);
-  box-shadow: var(--cf-shadow);
   padding: 18px;
   min-height: 160px;
 }
@@ -305,30 +300,16 @@ button.crumb:hover {
   justify-content: flex-end;
 }
 .dl-btn {
-  display: inline-flex;
-  align-items: center;
   gap: 7px;
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-sm);
-  background: var(--cf-surface);
-  color: var(--cf-text);
-  font: inherit;
   font-weight: 700;
   font-size: 0.8rem;
-  cursor: pointer;
-}
-.dl-btn:hover:not(:disabled) {
-  border-color: var(--cf-teal-500);
-  color: var(--cf-teal-600);
 }
 .dl-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-.dl-btn i {
-  color: var(--cf-teal-600);
 }
 .doc-empty {
   padding: 24px 16px;
@@ -354,14 +335,17 @@ button.crumb:hover {
   border-color: var(--cf-danger);
   color: var(--cf-danger);
 }
-.cf-select {
-  min-height: 38px;
+.cf-select,
+.cf-input {
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-sm);
-  padding: 0 12px;
   background: var(--cf-surface);
   color: var(--cf-text);
   font: inherit;
+}
+.cf-select {
+  min-height: 38px;
+  padding: 0 12px;
 }
 .cf-select:focus,
 .cf-input:focus {
@@ -375,9 +359,6 @@ button.crumb:hover {
   gap: 8px;
   color: var(--cf-text-muted);
   font-size: 0.84rem;
-}
-.muted-note i {
-  color: var(--cf-teal-600);
 }
 
 /* CTA acentuado (crear requirement): reutiliza .ghost con acento teal. */
@@ -425,12 +406,7 @@ button.crumb:hover {
   width: 100%;
   box-sizing: border-box;
   min-height: 42px;
-  border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-sm);
   padding: 10px 12px;
-  background: var(--cf-surface);
-  color: var(--cf-text);
-  font: inherit;
 }
 textarea.cf-input {
   resize: vertical;
@@ -462,9 +438,6 @@ textarea.cf-input {
   margin: 12px 0 0;
   color: var(--cf-text-muted);
   font-size: 0.84rem;
-}
-.state-hint i {
-  color: var(--cf-teal-600);
 }
 .state-actions {
   display: flex;
