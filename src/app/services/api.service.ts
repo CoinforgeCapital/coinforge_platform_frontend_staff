@@ -269,6 +269,41 @@ export interface CreateComplianceAssignmentRequest {
   /** Solo lo envía el compliance officer; el compliance "raso" se asigna a sí mismo. */
   complianceUserId?: string;
 }
+export interface ReassignComplianceAssignmentRequest {
+  complianceUserId: string;
+  reason?: string;
+}
+export interface ReassignComplianceAssignmentResponse {
+  ok: boolean;
+  message: string;
+  data?: {
+    assignment?: ComplianceAssignment;
+    transferredRequirements?: number;
+    transferredConversations?: number;
+  };
+}
+export interface ComplianceAssignmentHistory {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  reason?: string | null;
+  assignment?: Pick<ComplianceAssignment, 'id' | 'createdAt'> & { updatedAt?: string } | null;
+  clientUser?: StaffUser | null;
+  previousComplianceUser?: StaffUser | null;
+  newComplianceUser?: StaffUser | null;
+  reassignedByUser?: StaffUser | null;
+}
+export interface ListComplianceAssignmentHistoryResponse {
+  ok: boolean;
+  history: ComplianceAssignmentHistory[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+export interface ComplianceAssignmentHistoryDetailResponse {
+  ok: boolean;
+  history: ComplianceAssignmentHistory;
+}
 
 export type WalletState = 'pending' | 'verified' | 'blocked' | 'deleted_by_client' | 'not_available';
 export interface Wallet {
@@ -976,8 +1011,31 @@ export class ApiService {
     );
   }
 
-  deleteComplianceAssignment(assignmentId: string): Promise<void> {
-    return this.request.delete<void>(`/api/compliance-assignment/${assignmentId}`);
+  reassignComplianceAssignment(
+    assignmentId: string,
+    body: ReassignComplianceAssignmentRequest,
+  ): Promise<ReassignComplianceAssignmentResponse> {
+    return this.request.patch<ReassignComplianceAssignmentResponse, ReassignComplianceAssignmentRequest>(
+      `/api/compliance-assignment/${assignmentId}/reassignment`,
+      body,
+    );
+  }
+
+  listComplianceAssignmentHistoryByClient(
+    clientUserId: string,
+    page = 1,
+    pageSize = 10,
+  ): Promise<ListComplianceAssignmentHistoryResponse> {
+    return this.request.get<ListComplianceAssignmentHistoryResponse>(
+      `/api/compliance-assignment/client/${clientUserId}/history`,
+      { params: { page, pageSize } },
+    );
+  }
+
+  getComplianceAssignmentHistory(historyId: string): Promise<ComplianceAssignmentHistoryDetailResponse> {
+    return this.request.get<ComplianceAssignmentHistoryDetailResponse>(
+      `/api/compliance-assignment/history/${historyId}`,
+    );
   }
 
   // ---- Client financials: wallets ----

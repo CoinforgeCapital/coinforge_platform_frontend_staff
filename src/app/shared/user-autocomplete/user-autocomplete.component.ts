@@ -105,6 +105,7 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
 
   readonly type = input<'client' | 'staff' | undefined>(undefined);
+  readonly allowedRoles = input<readonly string[] | null>(null);
   readonly placeholder = input<string>('Search by email or id…');
   readonly selected = output<StaffUser>();
 
@@ -132,7 +133,7 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
           const request =
             this.type() === 'client'
               ? this.searchClientsLocally(q)
-              : this.api.searchUsers(q, this.type()).then((r) => r.users ?? []);
+              : this.api.searchUsers(q, this.type()).then((r) => this.filterByAllowedRoles(r.users ?? []));
           return from(request).pipe(
             catchError(() => of<StaffUser[]>([])),
           );
@@ -190,6 +191,13 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
         String(user.nickname ?? '').toLowerCase().includes(term),
       )
       .slice(0, 20);
+  }
+
+  private filterByAllowedRoles(users: StaffUser[]): StaffUser[] {
+    const roles = this.allowedRoles();
+    if (!roles || roles.length === 0) return users;
+
+    return users.filter((user) => roles.includes(user.role));
   }
 
   userSecondaryLabel(user: StaffUser): string {

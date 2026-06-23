@@ -469,6 +469,40 @@ textarea.cf-input {
 .state-actions {
   display: flex;
 }
+.assignment-actions {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.selected-assignee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid rgba(0, 184, 150, 0.28);
+  border-radius: var(--cf-radius-sm);
+  background: rgba(0, 184, 150, 0.08);
+}
+.selected-assignee > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.selected-assignee span,
+.selected-assignee small {
+  color: var(--cf-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.selected-assignee span {
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.selected-assignee strong {
+  color: var(--cf-text);
+  overflow-wrap: anywhere;
+}
 
 /* ---- Categorías: Account settings / KYC settings ---- */
 .settings-layout {
@@ -618,6 +652,10 @@ textarea.cf-input {
 
 .audit-history-row {
   cursor: pointer;
+}
+
+.audit-history-row.active {
+  background: rgba(0, 184, 150, 0.08);
 }
 
 .audit-json {

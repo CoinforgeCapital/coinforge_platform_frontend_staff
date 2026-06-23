@@ -134,8 +134,8 @@ export const STAFF_PERMISSIONS = {
   ],
   // POST /api/compliance-assignment
   complianceAssignmentCreate: [STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
-  // DELETE /api/compliance-assignment/:id
-  complianceAssignmentDelete: [STAFF_ROLES.complianceOfficer],
+  // PATCH /api/compliance-assignment/:id/reassignment
+  complianceAssignmentReassign: [STAFF_ROLES.complianceOfficer],
   // GET /api/compliance-assignment/:complianceUserId (ver la cartera de un compliance concreto)
   complianceAssignmentByUser: [STAFF_ROLES.admin, STAFF_ROLES.operator, STAFF_ROLES.complianceOfficer],
   // GET /api/activity-warning/staff + /staff/client/:clientId + /limit

@@ -7,6 +7,7 @@ import { ApiService, ComplianceAssignment, StaffUser } from '../../services/api.
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
+import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 type Tab = 'assignments' | 'unassigned' | 'by-compliance';
 
@@ -25,21 +26,30 @@ export class ComplianceAssignmentsPage implements OnInit {
   private readonly router = inject(Router);
 
   readonly canCreate = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentCreate);
-  readonly canDelete = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentDelete);
+  readonly canReassign = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentReassign);
   readonly canViewByCompliance = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentByUser);
   readonly isComplianceOfficer = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
+  readonly assignableComplianceRoles = ['COMPLIANCE'] as const;
+  readonly reassignableComplianceRoles = ['COMPLIANCE', 'COMPLIANCE_OFFICER'] as const;
 
   readonly assignments = signal<ComplianceAssignment[]>([]);
   readonly unassignedClients = signal<StaffUser[]>([]);
+  readonly userSearch = signal('');
+  readonly filteredAssignments = computed(() => this.filterAssignments(this.assignments()));
+  readonly filteredUnassignedClients = computed(() => this.filterClients(this.unassignedClients()));
+  readonly filteredByAssignments = computed(() => this.filterAssignments(this.byAssignments()));
   readonly loading = signal(false);
   readonly loadingClients = signal(false);
   readonly unassignedLoaded = signal(false);
   readonly creating = signal(false);
-  readonly deletingId = signal<string | null>(null);
+  readonly reassigningId = signal<string | null>(null);
 
   readonly tab = signal<Tab>('assignments');
   readonly selectedClient = signal<StaffUser | null>(null);
   readonly selectedCompliance = signal<StaffUser | null>(null);
+  readonly selectedReassignment = signal<ComplianceAssignment | null>(null);
+  readonly selectedReassignmentCompliance = signal<StaffUser | null>(null);
+  readonly reassignmentReason = signal('');
   /** Solo aplica al compliance officer: true = se asigna a sí mismo. */
   readonly selfAssign = signal(false);
 
@@ -57,9 +67,11 @@ export class ComplianceAssignmentsPage implements OnInit {
   setTab(tab: Tab): void {
     this.tab.set(tab);
     if (tab === 'unassigned') {
+      this.cancelReassignment();
       this.resetSelection();
       if (!this.unassignedLoaded()) void this.loadUnassignedClients();
     } else if (tab === 'by-compliance') {
+      this.cancelReassignment();
       if (!this.complianceUsersLoaded()) void this.loadComplianceUsers();
     }
   }
@@ -68,6 +80,14 @@ export class ComplianceAssignmentsPage implements OnInit {
     if (this.tab() === 'assignments') void this.loadAssignments();
     else if (this.tab() === 'unassigned') void this.loadUnassignedClients();
     else if (this.byFilterId()) void this.loadByCompliance(this.byFilterId());
+  }
+
+  onUserSearchInput(event: Event): void {
+    this.userSearch.set((event.target as HTMLInputElement).value);
+  }
+
+  clearUserSearch(): void {
+    this.userSearch.set('');
   }
 
   /** Abre el detalle del cliente (misma página que Clients) a partir de una asignación. */
@@ -217,33 +237,83 @@ export class ComplianceAssignmentsPage implements OnInit {
     }
   }
 
-  // ---- borrado (solo compliance officer) ----
+  // ---- reasignación (solo compliance officer) ----
 
-  onDelete(assignment: ComplianceAssignment): void {
+  startReassignment(assignment: ComplianceAssignment): void {
+    if (!this.canReassign) return;
+    this.selectedReassignment.set(assignment);
+    this.selectedReassignmentCompliance.set(null);
+    this.reassignmentReason.set('');
+  }
+
+  cancelReassignment(): void {
+    this.selectedReassignment.set(null);
+    this.selectedReassignmentCompliance.set(null);
+    this.reassignmentReason.set('');
+  }
+
+  onPickReassignmentCompliance(user: StaffUser): void {
+    if (user.role !== 'COMPLIANCE' && user.role !== 'COMPLIANCE_OFFICER') {
+      this.toast('error', 'Invalid user', 'Pick a compliance staff user.');
+      return;
+    }
+    if (user.state !== 'approved') {
+      this.toast('error', 'Invalid user', 'The target compliance staff user must be approved.');
+      return;
+    }
+
+    const assignment = this.selectedReassignment();
+    if (assignment?.complianceUser?.id === user.id) {
+      this.toast('error', 'Invalid user', 'This client is already assigned to that user.');
+      return;
+    }
+
+    this.selectedReassignmentCompliance.set(user);
+  }
+
+  clearReassignmentCompliance(): void {
+    this.selectedReassignmentCompliance.set(null);
+  }
+
+  onReassignmentReasonInput(event: Event): void {
+    this.reassignmentReason.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  onReassign(): void {
+    const assignment = this.selectedReassignment();
+    const target = this.selectedReassignmentCompliance();
+    if (!assignment || !target) {
+      this.toast('error', 'Compliance required', 'Select the new compliance staff user.');
+      return;
+    }
+
     this.confirm.confirm({
-      header: 'Remove assignment',
-      message: `Remove the assignment of ${this.clientLabel(assignment)} from ${this.complianceLabel(assignment)}?`,
-      icon: 'pi pi-trash',
-      acceptLabel: 'Remove',
+      header: 'Reassign client',
+      message: `Move ${this.clientLabel(assignment)} from ${this.complianceLabel(assignment)} to ${target.email}? Open requirements and conversations will be transferred.`,
+      icon: 'pi pi-users',
+      acceptLabel: 'Reassign',
       rejectLabel: 'Cancel',
-      acceptButtonStyleClass: 'p-button-danger',
       rejectButtonStyleClass: 'p-button-text',
-      accept: () => void this.doDelete(assignment.id),
+      accept: () => void this.doReassign(assignment, target),
     });
   }
 
-  private async doDelete(id: string): Promise<void> {
-    this.deletingId.set(id);
+  private async doReassign(assignment: ComplianceAssignment, target: StaffUser): Promise<void> {
+    const reason = this.reassignmentReason().trim();
+    this.reassigningId.set(assignment.id);
     try {
-      await this.api.deleteComplianceAssignment(id);
+      const res = await this.api.reassignComplianceAssignment(assignment.id, {
+        complianceUserId: target.id,
+        reason: reason || undefined,
+      });
+      this.cancelReassignment();
       await this.loadAssignments();
-      // El cliente vuelve a estar disponible para asignar.
-      this.unassignedLoaded.set(false);
-      this.toast('success', 'Assignment removed', 'The assignment was removed.');
+      if (this.byFilterId()) await this.loadByCompliance(this.byFilterId());
+      this.toast('success', 'Assignment reassigned', res.message);
     } catch (err: unknown) {
-      this.toast('error', 'Could not remove', this.errorOf(err));
+      this.toast('error', 'Could not reassign', this.errorOf(err));
     } finally {
-      this.deletingId.set(null);
+      this.reassigningId.set(null);
     }
   }
 
@@ -251,6 +321,15 @@ export class ComplianceAssignmentsPage implements OnInit {
 
   clientLabel(a: ComplianceAssignment): string {
     return a.clientUser?.email || '—';
+  }
+  clientNameLabel(client?: StaffUser | null): string {
+    return [
+      client?.personalData?.name,
+      client?.personalData?.surname,
+    ]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
   }
   complianceLabel(a: ComplianceAssignment): string {
     return a.complianceUser?.email || a.complianceUser?.nickname || '—';
@@ -276,5 +355,29 @@ export class ComplianceAssignmentsPage implements OnInit {
     if (typeof e.error?.message === 'string' && e.error.message.trim()) return e.error.message;
     if (typeof e.message === 'string' && e.message.trim()) return e.message;
     return 'The request could not be completed.';
+  }
+
+  private filterAssignments(assignments: ComplianceAssignment[]): ComplianceAssignment[] {
+    const term = this.userSearch().trim();
+    if (!term) return assignments;
+
+    return assignments.filter((assignment) => this.clientMatchesSearch(assignment.clientUser, term));
+  }
+
+  private filterClients(clients: StaffUser[]): StaffUser[] {
+    const term = this.userSearch().trim();
+    if (!term) return clients;
+
+    return clients.filter((client) => this.clientMatchesSearch(client, term));
+  }
+
+  private clientMatchesSearch(client: StaffUser | null | undefined, term: string): boolean {
+    if (!client) return false;
+    const normalizedTerm = term.toLowerCase();
+    return (
+      matchesClientIdentity(client, normalizedTerm) ||
+      String(client.id ?? '').toLowerCase().includes(normalizedTerm) ||
+      String(client.nickname ?? '').toLowerCase().includes(normalizedTerm)
+    );
   }
 }

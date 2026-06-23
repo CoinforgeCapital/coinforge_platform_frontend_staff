@@ -58,6 +58,62 @@ h1 {
   color: var(--cf-teal-600);
   border-bottom-color: var(--cf-teal-500);
 }
+.search-panel {
+  margin: 0 0 16px;
+  max-width: 520px;
+}
+.search-field {
+  display: grid;
+  gap: 8px;
+}
+.search-field > span {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-box > i {
+  position: absolute;
+  left: 12px;
+  color: var(--cf-text-muted);
+}
+.search-box input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 42px 0 36px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.search-box input:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+.search-clear {
+  position: absolute;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cf-text-muted);
+  cursor: pointer;
+}
+.search-clear:hover {
+  color: var(--cf-teal-600);
+  background: var(--cf-surface-2);
+}
 
 /* ---- Panel de asignación (tab unassigned) ---- */
 .assign-panel {
@@ -190,6 +246,15 @@ h1 {
 .cell strong {
   font-weight: 700;
 }
+.cell-sub {
+  display: block;
+  margin-top: 3px;
+  color: var(--cf-text-muted);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .col-action {
   display: flex;
   justify-content: flex-end;
@@ -295,6 +360,23 @@ h1 {
 .muted-note {
   color: var(--cf-text-muted);
   font-size: 0.78rem;
+}
+.reason-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 92px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 10px 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+  resize: vertical;
+}
+.reason-input:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
 }
 
 .seg {

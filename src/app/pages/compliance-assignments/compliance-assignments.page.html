@@ -30,12 +30,88 @@
   }
 </nav>
 
+<section class="search-panel">
+  <label class="search-field">
+    <span>User search</span>
+    <div class="search-box">
+      <i class="pi pi-search" aria-hidden="true"></i>
+      <input
+        type="text"
+        placeholder="Search by email, name or surname…"
+        [value]="userSearch()"
+        (input)="onUserSearchInput($event)"
+      />
+      @if (userSearch()) {
+        <button type="button" class="search-clear" (click)="clearUserSearch()" aria-label="Clear search">
+          <i class="pi pi-times" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+  </label>
+</section>
+
 <!-- ===================== ASSIGNMENTS ===================== -->
 @if (tab() === 'assignments') {
+  @if (selectedReassignment(); as assignment) {
+    <section class="assign-panel">
+      <div class="selected-resource">
+        <span>
+          <i class="pi pi-users" aria-hidden="true"></i>
+          Reassign {{ clientLabel(assignment) }} from {{ complianceLabel(assignment) }}
+        </span>
+        <button type="button" class="link-btn" (click)="cancelReassignment()">Cancel</button>
+      </div>
+
+      <div class="field">
+        <span>New compliance staff</span>
+        @if (selectedReassignmentCompliance(); as comp) {
+          <div class="selected-resource">
+            <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ comp.email }}</span>
+            <button type="button" class="link-btn" (click)="clearReassignmentCompliance()">Change</button>
+          </div>
+        }
+        <app-user-autocomplete
+          type="staff"
+          [allowedRoles]="reassignableComplianceRoles"
+          placeholder="Search compliance or compliance officer by email…"
+          (selected)="onPickReassignmentCompliance($event)"
+        />
+        <small class="muted-note">Open requirements and conversations move to the new user. Closed items stay with the original user.</small>
+      </div>
+
+      <label class="field">
+        <span>Reason</span>
+        <textarea
+          class="reason-input"
+          rows="3"
+          maxlength="1000"
+          placeholder="Optional reassignment reason…"
+          [value]="reassignmentReason()"
+          (input)="onReassignmentReasonInput($event)"
+        ></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="button" class="ghost" (click)="cancelReassignment()" [disabled]="reassigningId() === assignment.id">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="primary"
+          (click)="onReassign()"
+          [disabled]="reassigningId() === assignment.id || !selectedReassignmentCompliance()"
+        >
+          <i class="pi pi-users" aria-hidden="true"></i>
+          <span>{{ reassigningId() === assignment.id ? 'Reassigning…' : 'Reassign client' }}</span>
+        </button>
+      </div>
+    </section>
+  }
+
   <section class="list-panel">
     @if (loading()) {
       <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading assignments…</span></div>
-    } @else if (assignments().length) {
+    } @else if (filteredAssignments().length) {
       <div class="assign-row assign-head">
         <span>Client</span>
         <span>Compliance</span>
@@ -43,7 +119,7 @@
         <span>Date</span>
         <span class="col-action"></span>
       </div>
-      @for (a of assignments(); track a.id) {
+      @for (a of filteredAssignments(); track a.id) {
         <div
           class="assign-row"
           [class.is-clickable]="a.clientUser?.id"
@@ -52,6 +128,9 @@
         >
           <span class="cell">
             <strong>{{ clientLabel(a) }}</strong>
+            @if (clientNameLabel(a.clientUser); as fullName) {
+              <small class="cell-sub">{{ fullName }}</small>
+            }
             @if (a.clientUser?.id) {
               <i class="pi pi-external-link open-hint" aria-hidden="true"></i>
             }
@@ -60,10 +139,10 @@
           <span class="cell">{{ assignedByLabel(a) }}</span>
           <span class="cell">{{ formatDate(a.createdAt) }}</span>
           <span class="cell col-action">
-            @if (canDelete) {
-              <button type="button" class="ghost sm danger" (click)="$event.stopPropagation(); onDelete(a)" [disabled]="deletingId() === a.id">
-                <i class="pi pi-trash" aria-hidden="true"></i>
-                <span>Remove</span>
+            @if (canReassign) {
+              <button type="button" class="ghost sm" (click)="$event.stopPropagation(); startReassignment(a)" [disabled]="reassigningId() === a.id">
+                <i class="pi pi-users" aria-hidden="true"></i>
+                <span>Reassign</span>
               </button>
             }
           </span>
@@ -72,7 +151,7 @@
     } @else {
       <div class="list-empty">
         <i class="pi pi-link" aria-hidden="true"></i>
-        <span>No compliance assignments yet.</span>
+        <span>{{ userSearch().trim() ? 'No compliance assignments match this search.' : 'No compliance assignments yet.' }}</span>
       </div>
     }
   </section>
@@ -109,6 +188,7 @@
               }
               <app-user-autocomplete
                 type="staff"
+                [allowedRoles]="assignableComplianceRoles"
                 placeholder="Search a compliance user by email…"
                 (selected)="onPickCompliance($event)"
               />
@@ -143,10 +223,11 @@
     @if (loadingClients()) {
       <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading clients…</span></div>
     } @else {
-      <p-table [value]="unassignedClients()" [paginator]="unassignedClients().length > 10" [rows]="10" styleClass="cf-pick-table">
+      <p-table [value]="filteredUnassignedClients()" [paginator]="filteredUnassignedClients().length > 10" [rows]="10" styleClass="cf-pick-table">
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+            <th>Name</th>
             <th pSortableColumn="state">State <p-sortIcon field="state" /></th>
             <th pSortableColumn="createdAt">Created <p-sortIcon field="createdAt" /></th>
           </tr>
@@ -159,12 +240,13 @@
             (click)="onPickClient(row)"
           >
             <td>{{ row.email }}</td>
+            <td>{{ clientNameLabel(row) || '—' }}</td>
             <td>{{ row.state }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="3" class="pick-empty">No clients awaiting assignment.</td></tr>
+          <tr><td colspan="4" class="pick-empty">{{ userSearch().trim() ? 'No clients match this search.' : 'No clients awaiting assignment.' }}</td></tr>
         </ng-template>
       </p-table>
     }
@@ -190,7 +272,7 @@
       @if (loadingBy()) {
         <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading assignments…</span></div>
       } @else {
-        <p-table [value]="byAssignments()" [paginator]="byAssignments().length > 10" [rows]="10" styleClass="cf-pick-table">
+        <p-table [value]="filteredByAssignments()" [paginator]="filteredByAssignments().length > 10" [rows]="10" styleClass="cf-pick-table">
           <ng-template pTemplate="header">
             <tr>
               <th pSortableColumn="clientUser.email">Client <p-sortIcon field="clientUser.email" /></th>
@@ -200,13 +282,18 @@
           </ng-template>
           <ng-template pTemplate="body" let-a>
             <tr>
-              <td><strong>{{ clientLabel(a) }}</strong></td>
+              <td>
+                <strong>{{ clientLabel(a) }}</strong>
+                @if (clientNameLabel(a.clientUser); as fullName) {
+                  <small class="cell-sub">{{ fullName }}</small>
+                }
+              </td>
               <td>{{ assignedByLabel(a) }}</td>
               <td>{{ formatDate(a.createdAt) }}</td>
             </tr>
           </ng-template>
           <ng-template pTemplate="emptymessage">
-            <tr><td colspan="3" class="pick-empty">This compliance user has no assigned clients.</td></tr>
+            <tr><td colspan="3" class="pick-empty">{{ userSearch().trim() ? 'No assigned clients match this search.' : 'This compliance user has no assigned clients.' }}</td></tr>
           </ng-template>
         </p-table>
       }

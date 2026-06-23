@@ -8,6 +8,8 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import {
   ApiService,
+  ComplianceAssignment,
+  ComplianceAssignmentHistory,
   KycaidWalletAudit,
   ManualClientState,
   ManageableUserState,
@@ -17,6 +19,7 @@ import {
   RiskProfile,
   SettableTransactionState,
   StaffKycHistoryItem,
+  StaffUser,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
@@ -39,6 +42,7 @@ import { formatAmountByField } from '../../shared/amount-format';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
 import { matchesClientIdentity } from '../../shared/client-identity-search';
 import { uploadFileSizeError } from '../../shared/upload-file-size';
+import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 
 interface EntityGroup {
   key: string;
@@ -97,6 +101,7 @@ const KYC_SETTINGS_KEY = 'kycSettingsCategory';
 const ADMIN_KEY = 'adminActionsCategory';
 const PENDING_KEY = 'pendingApprovalsCategory';
 const ACTIVITY_ALERTS_KEY = 'activityAlertsCategory';
+const COMPLIANCE_ASSIGNMENTS_KEY = 'complianceAssignmentsAsClient';
 
 /** Etiquetas de estados de cliente conocidos, incluidos los automaticos de KYC. */
 const CLIENT_STATE_LABELS: readonly { label: string; value: ManageableUserState }[] = [
@@ -199,8 +204,8 @@ const ENTITY_GROUPS: readonly EntityGroup[] = [
     ],
   },
   {
-    key: 'complianceAssignmentsAsClient',
-    label: 'Compliance',
+    key: COMPLIANCE_ASSIGNMENTS_KEY,
+    label: 'Compliance assignments',
     icon: 'pi pi-link',
     columns: [
       { field: 'complianceUser.email', label: 'Compliance' },
@@ -265,6 +270,7 @@ const TX_STATE_OPTIONS: readonly { label: string; value: SettableTransactionStat
     ClientActivityAlertsComponent,
     ClientProfileOverviewComponent,
     ClientRequirementsComponent,
+    UserAutocompleteComponent,
   ],
   templateUrl: './clients.page.html',
   styleUrl: './clients.page.css',
@@ -286,12 +292,14 @@ export class ClientsPage implements OnInit {
   readonly adminKey = ADMIN_KEY;
   readonly pendingKey = PENDING_KEY;
   readonly activityAlertsKey = ACTIVITY_ALERTS_KEY;
+  readonly complianceAssignmentsKey = COMPLIANCE_ASSIGNMENTS_KEY;
   readonly walletKey = WALLET_KEY;
   readonly documentTabs = DOCUMENT_TABS;
   readonly txStateOptions = TX_STATE_OPTIONS;
   readonly reqDocTypeOptions = REQUIREMENT_DOC_TYPES;
   readonly clientStateOptions = MANUAL_CLIENT_STATE_OPTIONS;
   readonly kycActions = KYC_ACTIONS;
+  readonly reassignComplianceRoles = [STAFF_ROLES.compliance, STAFF_ROLES.complianceOfficer] as const;
 
   // ---- Permisos (espejo del backend) ----
   readonly canFinancials = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientFinancials);
@@ -311,6 +319,8 @@ export class ClientsPage implements OnInit {
   readonly canActivityWarnings = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningsView);
   /** Ver la última auditoría KYCAID de una wallet del cliente. */
   readonly canViewWalletKycaidAudit = this.auth.hasAnyRole(STAFF_PERMISSIONS.walletKycaidAuditView);
+  /** PATCH /api/compliance-assignment/:id/reassignment. */
+  readonly canReassignComplianceAssignment = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentReassign);
 
   /** Pestañas del detalle. Las categorías sintéticas muestran paneles propios, no colecciones. */
   readonly entityGroups = computed<EntityGroup[]>(() => {
@@ -517,6 +527,32 @@ export class ClientsPage implements OnInit {
   readonly historicalKyc = signal<StaffKycHistoryItem | null>(null);
   private kycHistoryRequestSeq = 0;
 
+  // ---- Compliance assignments (reasignación + histórico) ----
+  readonly activeComplianceAssignment = computed<ComplianceAssignment | null>(() => {
+    const assignments = this.selected()?.[COMPLIANCE_ASSIGNMENTS_KEY];
+    return Array.isArray(assignments) ? (assignments[0] as ComplianceAssignment | undefined) ?? null : null;
+  });
+  readonly reassignTarget = signal<StaffUser | null>(null);
+  readonly reassignReason = signal('');
+  readonly reassignSaving = signal(false);
+  readonly canSubmitReassignment = computed(() => {
+    const assignment = this.activeComplianceAssignment();
+    const target = this.reassignTarget();
+    if (!assignment || !target || this.reassignSaving()) return false;
+    if (assignment.complianceUser?.id === target.id) return false;
+    return target.state === 'approved';
+  });
+  readonly assignmentHistory = signal<ComplianceAssignmentHistory[]>([]);
+  readonly assignmentHistoryTotal = signal(0);
+  readonly assignmentHistoryPage = signal(1);
+  readonly assignmentHistoryPageSize = signal(10);
+  readonly assignmentHistoryLoading = signal(false);
+  readonly assignmentHistoryError = signal('');
+  readonly selectedAssignmentHistory = signal<ComplianceAssignmentHistory | null>(null);
+  readonly assignmentHistoryDetailLoading = signal(false);
+  readonly assignmentHistoryDetailError = signal('');
+  private assignmentHistoryRequestSeq = 0;
+
   // ---- Documentos asociados al item (bank account / transaction) ----
   readonly showItemDocs = signal(false);
   readonly itemDocs = computed<Record<string, unknown>[]>(() => {
@@ -701,6 +737,7 @@ export class ClientsPage implements OnInit {
     this.showItemDocs.set(false);
     this.walletAuditHistoryVisible.set(false);
     this.resetKycHistory();
+    this.resetAssignmentHistory();
     this.view.set('detail');
 
     if (!clientId) return;
@@ -739,6 +776,7 @@ export class ClientsPage implements OnInit {
     this.drillItem.set(null);
     this.walletAuditHistoryVisible.set(false);
     this.resetKycHistory();
+    this.resetAssignmentHistory();
   }
 
   selectEntity(key: string): void {
@@ -756,6 +794,10 @@ export class ClientsPage implements OnInit {
       this.kycTarget = '';
       this.historicalKyc.set(null);
       void this.loadKycHistory(1, this.kycHistoryPageSize());
+    }
+    if (key === COMPLIANCE_ASSIGNMENTS_KEY) {
+      this.resetReassignmentForm();
+      void this.loadAssignmentHistory(1, this.assignmentHistoryPageSize());
     }
   }
 
@@ -777,6 +819,156 @@ export class ClientsPage implements OnInit {
     const current = this.selected();
     if (current) this.selected.set(apply(current));
     this.all.update((list) => list.map(apply));
+  }
+
+  // ---- Categoría: Compliance assignments ----
+
+  pickReassignTarget(user: StaffUser): void {
+    if (user.role !== STAFF_ROLES.compliance && user.role !== STAFF_ROLES.complianceOfficer) {
+      this.toast('error', 'Invalid assignee', 'The client can only be reassigned to compliance staff.');
+      return;
+    }
+    if (user.state !== 'approved') {
+      this.toast('error', 'Invalid assignee', 'The selected compliance user is not approved.');
+      return;
+    }
+    if (this.activeComplianceAssignment()?.complianceUser?.id === user.id) {
+      this.toast('error', 'Already assigned', 'This client is already assigned to that compliance user.');
+      return;
+    }
+
+    this.reassignTarget.set(user);
+  }
+
+  onReassignReason(value: string): void {
+    this.reassignReason.set(value);
+  }
+
+  clearReassignmentTarget(): void {
+    this.reassignTarget.set(null);
+  }
+
+  submitComplianceReassignment(): void {
+    const assignment = this.activeComplianceAssignment();
+    const target = this.reassignTarget();
+    if (!assignment || !target || !this.canSubmitReassignment()) return;
+
+    this.confirm.confirm({
+      header: 'Reassign compliance owner',
+      message: `Move this client from ${this.assignmentUserLabel(assignment.complianceUser)} to ${this.assignmentUserLabel(target)}? Open requirements and open internal conversations will be transferred.`,
+      icon: 'pi pi-sync',
+      acceptLabel: 'Reassign',
+      rejectLabel: 'Cancel',
+      rejectButtonStyleClass: 'p-button-text',
+      accept: () => {
+        this.reassignSaving.set(true);
+        this.api
+          .reassignComplianceAssignment(assignment.id, {
+            complianceUserId: target.id,
+            reason: this.reassignReason().trim() || undefined,
+          })
+          .then(async (res) => {
+            const data = res.data;
+            const transferNote =
+              data
+                ? ` Requirements transferred: ${data.transferredRequirements ?? 0}. Conversations transferred: ${data.transferredConversations ?? 0}.`
+                : '';
+            this.toast('success', 'Client reassigned', `${res.message ?? 'Done.'}${transferNote}`);
+            this.resetReassignmentForm();
+            await this.reloadSelectedClient();
+            await this.loadAssignmentHistory(1, this.assignmentHistoryPageSize());
+          })
+          .catch((err) => this.toast('error', 'Could not reassign client', this.errorOf(err)))
+          .finally(() => this.reassignSaving.set(false));
+      },
+    });
+  }
+
+  onAssignmentHistoryPage(event: { first?: number | null; rows?: number | null }): void {
+    const pageSize = Number(event.rows ?? this.assignmentHistoryPageSize());
+    const first = Number(event.first ?? 0);
+    const page = Math.floor(first / pageSize) + 1;
+    void this.loadAssignmentHistory(page, pageSize);
+  }
+
+  async openAssignmentHistoryDetail(history: ComplianceAssignmentHistory): Promise<void> {
+    this.selectedAssignmentHistory.set(history);
+    this.assignmentHistoryDetailError.set('');
+    this.assignmentHistoryDetailLoading.set(true);
+
+    try {
+      const res = await this.api.getComplianceAssignmentHistory(history.id);
+      if (this.selectedAssignmentHistory()?.id !== history.id) return;
+      this.selectedAssignmentHistory.set(res.history);
+    } catch (err) {
+      if (this.selectedAssignmentHistory()?.id !== history.id) return;
+      this.assignmentHistoryDetailError.set(this.errorOf(err));
+    } finally {
+      if (this.selectedAssignmentHistory()?.id === history.id) {
+        this.assignmentHistoryDetailLoading.set(false);
+      }
+    }
+  }
+
+  closeAssignmentHistoryDetail(): void {
+    this.selectedAssignmentHistory.set(null);
+    this.assignmentHistoryDetailError.set('');
+    this.assignmentHistoryDetailLoading.set(false);
+  }
+
+  assignmentUserLabel(user: StaffUser | null | undefined): string {
+    if (!user) return '-';
+    const fullName = [user.personalData?.name, user.personalData?.surname]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return fullName ? `${fullName} (${user.email})` : user.email;
+  }
+
+  private async loadAssignmentHistory(page: number, pageSize: number): Promise<void> {
+    const clientId = this.selected()?.['id'] as string | undefined;
+    if (!clientId) return;
+
+    const requestSeq = ++this.assignmentHistoryRequestSeq;
+    this.assignmentHistoryLoading.set(true);
+    this.assignmentHistoryError.set('');
+
+    try {
+      const res = await this.api.listComplianceAssignmentHistoryByClient(clientId, page, pageSize);
+      if (requestSeq !== this.assignmentHistoryRequestSeq) return;
+      this.assignmentHistory.set(res.history ?? []);
+      this.assignmentHistoryTotal.set(res.total ?? 0);
+      this.assignmentHistoryPage.set(res.page ?? page);
+      this.assignmentHistoryPageSize.set(res.pageSize ?? pageSize);
+      this.selectedAssignmentHistory.set(null);
+    } catch (err) {
+      if (requestSeq !== this.assignmentHistoryRequestSeq) return;
+      this.assignmentHistory.set([]);
+      this.assignmentHistoryTotal.set(0);
+      this.assignmentHistoryError.set(this.errorOf(err));
+    } finally {
+      if (requestSeq === this.assignmentHistoryRequestSeq) {
+        this.assignmentHistoryLoading.set(false);
+      }
+    }
+  }
+
+  private resetReassignmentForm(): void {
+    this.reassignTarget.set(null);
+    this.reassignReason.set('');
+  }
+
+  private resetAssignmentHistory(): void {
+    this.assignmentHistoryRequestSeq++;
+    this.assignmentHistory.set([]);
+    this.assignmentHistoryTotal.set(0);
+    this.assignmentHistoryPage.set(1);
+    this.assignmentHistoryError.set('');
+    this.assignmentHistoryLoading.set(false);
+    this.selectedAssignmentHistory.set(null);
+    this.assignmentHistoryDetailError.set('');
+    this.assignmentHistoryDetailLoading.set(false);
+    this.resetReassignmentForm();
   }
 
   // ---- Categoría: Account state (cambiar estado del cliente) ----
