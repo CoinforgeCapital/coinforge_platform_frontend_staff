@@ -95,19 +95,25 @@
     <section class="empty-panel">
       <i class="pi pi-send" aria-hidden="true"></i>
       <p>Action request not found.</p>
-      <button type="button" class="ghost" (click)="showInbox()">Back to inbox</button>
+      <button type="button" class="ghost" (click)="showUnassigned()">Back</button>
     </section>
   }
 } @else {
   <nav class="tabs" aria-label="Action request views">
-    <button type="button" class="tab" [class.active]="view() === 'inbox'" (click)="showInbox()">
+    <button type="button" class="tab" [class.active]="view() === 'unassigned'" (click)="showUnassigned()">
       <i class="pi pi-inbox" aria-hidden="true"></i>
-      <span>Inbox</span>
+      <span>Unassigned</span>
     </button>
     <button type="button" class="tab" [class.active]="view() === 'mine'" (click)="showMine()">
       <i class="pi pi-user" aria-hidden="true"></i>
       <span>Mine</span>
     </button>
+    @if (isAdmin) {
+      <button type="button" class="tab" [class.active]="view() === 'assigned'" (click)="showAssigned()">
+        <i class="pi pi-users" aria-hidden="true"></i>
+        <span>All assigned</span>
+      </button>
+    }
     <button type="button" class="tab" [class.active]="view() === 'create'" (click)="showCreate()">
       <i class="pi pi-plus" aria-hidden="true"></i>
       <span>New request</span>
@@ -155,7 +161,7 @@
         </label>
 
         <div class="form-actions">
-          <button type="button" class="ghost" (click)="showInbox()">Cancel</button>
+          <button type="button" class="ghost" (click)="showUnassigned()">Cancel</button>
           <button type="submit" class="primary" [disabled]="createLoading() || createForm.invalid">
             <i class="pi pi-send" aria-hidden="true"></i>
             <span>{{ createLoading() ? 'Creating…' : 'Create request' }}</span>
@@ -171,7 +177,7 @@
           <span>Loading…</span>
         </div>
       } @else {
-        @let rows = view() === 'mine' ? mineList() : inboxList();
+        @let rows = view() === 'mine' ? mineList() : (view() === 'assigned' ? assignedList() : unassignedList());
         @for (a of rows; track a.id) {
           <button type="button" class="ar" (click)="openDetail(a)">
             <span class="ar-main">
@@ -186,7 +192,7 @@
         } @empty {
           <div class="list-empty">
             <i class="pi pi-inbox" aria-hidden="true"></i>
-            <span>{{ view() === 'mine' ? 'You have no action requests yet.' : 'No action requests for your area.' }}</span>
+            <span>{{ emptyLabel() }}</span>
           </div>
         }
       }

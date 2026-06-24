@@ -4,13 +4,20 @@ import { ActivatedRoute } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { Subscription } from 'rxjs';
 
-import { ActionRequest, ActionRequestMessage, ApiService } from '../../services/api.service';
-import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import {
+  ActionRequest,
+  ActionRequestMessage,
+  ApiService,
+  ListActionRequestsResponse,
+} from '../../services/api.service';
+import { STAFF_ROLES } from '../../core/staff-permissions';
 import { NotificationsService } from '../../services/notifications.service';
 import { RealtimeService } from '../../services/realtime.service';
 import { SessionService } from '../../services/session.service';
 
-type View = 'inbox' | 'mine' | 'create' | 'detail';
+/** Pestañas de listado. La de "assigned" (todos los asignados) es solo admin. */
+type ListTab = 'unassigned' | 'mine' | 'assigned';
+type View = ListTab | 'create' | 'detail';
 
 interface TargetOption {
   label: string;
@@ -50,16 +57,24 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
   readonly myRole = this.session.role();
   readonly targetOptions = TARGET_OPTIONS;
 
-  readonly inbox = signal<ActionRequest[]>([]);
+  /**
+   * La pestaña "All assigned" (todas las conversaciones ya asignadas) es exclusiva de admin:
+   * solo el admin puede ver todos los action requests asignados (GET /api/action-request).
+   */
+  readonly isAdmin = this.myRole === STAFF_ROLES.admin;
+
+  // Sin asignar (por rol), asignados a mí / creados por mí, y —solo admin— todos los asignados.
+  readonly unassigned = signal<ActionRequest[]>([]);
   readonly mine = signal<ActionRequest[]>([]);
+  readonly assigned = signal<ActionRequest[]>([]);
   readonly loading = signal(false);
   readonly sendLoading = signal(false);
   readonly createLoading = signal(false);
   readonly claimingId = signal<string | null>(null);
   readonly closingId = signal<string | null>(null);
 
-  readonly view = signal<View>('inbox');
-  readonly returnView = signal<'inbox' | 'mine'>('inbox');
+  readonly view = signal<View>('unassigned');
+  readonly returnView = signal<ListTab>('unassigned');
   readonly selectedId = signal<string | null>(null);
 
   readonly replyForm = this.fb.nonNullable.group({
@@ -72,13 +87,22 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
     body: ['', [Validators.required, Validators.maxLength(10000)]],
   });
 
-  readonly inboxList = computed(() => this.sortByLatest(this.inbox()));
+  readonly unassignedList = computed(() => this.sortByLatest(this.unassigned()));
   readonly mineList = computed(() => this.sortByLatest(this.mine()));
+  /** "All assigned" = conversaciones ya asignadas (el endpoint admin devuelve todas, filtramos). */
+  readonly assignedList = computed(() =>
+    this.sortByLatest(this.assigned().filter((a) => !!a.staffUserAssigned)),
+  );
 
   readonly selected = computed<ActionRequest | null>(() => {
     const id = this.selectedId();
     if (!id) return null;
-    return this.inbox().find((a) => a.id === id) ?? this.mine().find((a) => a.id === id) ?? null;
+    return (
+      this.unassigned().find((a) => a.id === id) ??
+      this.mine().find((a) => a.id === id) ??
+      this.assigned().find((a) => a.id === id) ??
+      null
+    );
   });
 
   readonly selectedMessages = computed(() => {
@@ -127,20 +151,21 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
   async load(showLoading = true): Promise<void> {
     if (showLoading) this.loading.set(true);
     try {
-      const inboxRequest = this.canListAllActionRequests()
-        ? this.api.listActionRequests()
-        : this.api.listUnassignedActionRequests();
-      const [inboxRes, mineRes] = await Promise.all([
-        inboxRequest,
+      const emptyResponse: ListActionRequestsResponse = { conversations: [] };
+      const [unassignedRes, mineRes, assignedRes] = await Promise.all([
+        this.api.listUnassignedActionRequests(),
         this.api.listOwnActionRequests(),
+        // Solo admin consulta la lista global; el resto recibe una respuesta vacía.
+        this.isAdmin ? this.api.listActionRequests() : Promise.resolve(emptyResponse),
       ]);
-      this.inbox.set(inboxRes.conversations ?? []);
+      this.unassigned.set(unassignedRes.conversations ?? []);
       this.mine.set(mineRes.conversations ?? []);
+      this.assigned.set(assignedRes.conversations ?? []);
 
       const id = this.selectedId();
       if (id && !this.selected()) {
         this.selectedId.set(null);
-        if (this.view() === 'detail') this.view.set('inbox');
+        if (this.view() === 'detail') this.view.set('unassigned');
       }
 
       this.tryOpenPending();
@@ -151,18 +176,24 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
     }
   }
 
-  showInbox(): void {
-    this.view.set('inbox');
+  showUnassigned(): void {
+    this.view.set('unassigned');
   }
   showMine(): void {
     this.view.set('mine');
+  }
+  showAssigned(): void {
+    this.view.set('assigned');
   }
   showCreate(): void {
     this.view.set('create');
   }
 
   openDetail(actionRequest: ActionRequest): void {
-    this.returnView.set(this.view() === 'mine' ? 'mine' : 'inbox');
+    const current = this.view();
+    if (current === 'unassigned' || current === 'mine' || current === 'assigned') {
+      this.returnView.set(current);
+    }
     this.selectedId.set(actionRequest.id);
     this.replyForm.reset({ body: '' });
     this.view.set('detail');
@@ -249,10 +280,12 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
     return a.staffUserCreator?.id === this.myId || a.staffUserAssigned?.id === this.myId;
   }
 
+  /** Cualquier participante puede responder mientras la conversación esté abierta. */
   canReply(a: ActionRequest): boolean {
     return a.status !== 'closed' && this.isParticipant(a);
   }
 
+  /** Solo los dos usuarios que participan (creador o asignado) pueden cerrar la conversación. */
   canClose(a: ActionRequest): boolean {
     return a.status !== 'closed' && this.isParticipant(a);
   }
@@ -299,6 +332,17 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
     return this.formatDate(this.latestOf(a)?.createdAt ?? a.updatedAt ?? a.createdAt);
   }
 
+  emptyLabel(): string {
+    switch (this.view()) {
+      case 'mine':
+        return 'You have no action requests yet.';
+      case 'assigned':
+        return 'No assigned action requests.';
+      default:
+        return 'No unassigned action requests for your area.';
+    }
+  }
+
   formatDate(value?: string | Date | null): string {
     if (!value) return '—';
     const date = new Date(value);
@@ -313,14 +357,12 @@ export class ActionRequestsPage implements OnInit, OnDestroy {
     return false;
   }
 
-  private canListAllActionRequests(): boolean {
-    return !!this.myRole && (STAFF_PERMISSIONS.actionRequestsListAll as readonly string[]).includes(this.myRole);
-  }
-
   private tryOpenPending(): void {
     if (!this.pendingOpenId) return;
-    const found = this.inbox().find((a) => a.id === this.pendingOpenId)
-      ?? this.mine().find((a) => a.id === this.pendingOpenId);
+    const found =
+      this.unassigned().find((a) => a.id === this.pendingOpenId) ??
+      this.mine().find((a) => a.id === this.pendingOpenId) ??
+      this.assigned().find((a) => a.id === this.pendingOpenId);
     if (found) {
       this.openDetail(found);
       this.pendingOpenId = null;
