@@ -1029,6 +1029,11 @@ export class ApiService {
     return this.request.get<ListUnassignedClientsResponse>('/api/compliance-assignment/not-assigned');
   }
 
+  /** Clientes asignados a compliance staff bloqueado y pendientes de reasignación (CO). */
+  listComplianceAssignmentsPendingReassignment(): Promise<ListComplianceAssignmentsResponse> {
+    return this.request.get<ListComplianceAssignmentsResponse>('/api/compliance-assignment/pending-reassignment');
+  }
+
   /** Asignaciones de un compliance concreto (admin / CO / operator). */
   listComplianceAssignmentsByComplianceUser(complianceUserId: string): Promise<ListComplianceAssignmentsResponse> {
     return this.request.get<ListComplianceAssignmentsResponse>(`/api/compliance-assignment/${complianceUserId}`);

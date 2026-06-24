@@ -9,7 +9,7 @@ import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 import { matchesClientIdentity } from '../../shared/client-identity-search';
 
-type Tab = 'assignments' | 'unassigned' | 'by-compliance';
+type Tab = 'assignments' | 'unassigned' | 'pending-reassignment' | 'by-compliance';
 
 @Component({
   selector: 'app-compliance-assignments-page',
@@ -27,6 +27,7 @@ export class ComplianceAssignmentsPage implements OnInit {
 
   readonly canCreate = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentCreate);
   readonly canReassign = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentReassign);
+  readonly canViewPendingReassignment = this.canReassign;
   readonly canViewByCompliance = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentByUser);
   readonly isComplianceOfficer = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
   readonly assignableComplianceRoles = ['COMPLIANCE'] as const;
@@ -34,12 +35,17 @@ export class ComplianceAssignmentsPage implements OnInit {
 
   readonly assignments = signal<ComplianceAssignment[]>([]);
   readonly unassignedClients = signal<StaffUser[]>([]);
+  readonly pendingReassignmentAssignments = signal<ComplianceAssignment[]>([]);
   readonly userSearch = signal('');
   readonly filteredAssignments = computed(() => this.filterAssignments(this.assignments()));
   readonly filteredUnassignedClients = computed(() => this.filterClients(this.unassignedClients()));
+  readonly filteredPendingReassignmentAssignments = computed(() =>
+    this.filterAssignments(this.pendingReassignmentAssignments()),
+  );
   readonly filteredByAssignments = computed(() => this.filterAssignments(this.byAssignments()));
   readonly loading = signal(false);
   readonly loadingClients = signal(false);
+  readonly loadingPendingReassignment = signal(false);
   readonly unassignedLoaded = signal(false);
   readonly creating = signal(false);
   readonly reassigningId = signal<string | null>(null);
@@ -70,6 +76,9 @@ export class ComplianceAssignmentsPage implements OnInit {
       this.cancelReassignment();
       this.resetSelection();
       if (!this.unassignedLoaded()) void this.loadUnassignedClients();
+    } else if (tab === 'pending-reassignment') {
+      this.cancelReassignment();
+      void this.loadPendingReassignments();
     } else if (tab === 'by-compliance') {
       this.cancelReassignment();
       if (!this.complianceUsersLoaded()) void this.loadComplianceUsers();
@@ -79,6 +88,7 @@ export class ComplianceAssignmentsPage implements OnInit {
   refresh(): void {
     if (this.tab() === 'assignments') void this.loadAssignments();
     else if (this.tab() === 'unassigned') void this.loadUnassignedClients();
+    else if (this.tab() === 'pending-reassignment') void this.loadPendingReassignments();
     else if (this.byFilterId()) void this.loadByCompliance(this.byFilterId());
   }
 
@@ -118,6 +128,20 @@ export class ComplianceAssignmentsPage implements OnInit {
       this.toast('error', 'Could not load clients', this.errorOf(err));
     } finally {
       this.loadingClients.set(false);
+    }
+  }
+
+  async loadPendingReassignments(): Promise<void> {
+    if (!this.canViewPendingReassignment) return;
+
+    this.loadingPendingReassignment.set(true);
+    try {
+      const res = await this.api.listComplianceAssignmentsPendingReassignment();
+      this.pendingReassignmentAssignments.set(res.assignments ?? []);
+    } catch (err: unknown) {
+      this.toast('error', 'Could not load clients to reassign', this.errorOf(err));
+    } finally {
+      this.loadingPendingReassignment.set(false);
     }
   }
 
@@ -308,6 +332,7 @@ export class ComplianceAssignmentsPage implements OnInit {
       });
       this.cancelReassignment();
       await this.loadAssignments();
+      if (this.canViewPendingReassignment) await this.loadPendingReassignments();
       if (this.byFilterId()) await this.loadByCompliance(this.byFilterId());
       this.toast('success', 'Assignment reassigned', res.message);
     } catch (err: unknown) {

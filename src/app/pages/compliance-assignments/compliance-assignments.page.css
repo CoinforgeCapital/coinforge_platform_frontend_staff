@@ -33,6 +33,7 @@ h1 {
 /* ---- Pestañas ---- */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--cf-border);
@@ -217,6 +218,9 @@ h1 {
 }
 .assign-row.is-clickable:hover {
   background: var(--cf-surface-2);
+}
+.assign-row.needs-reassignment {
+  border-left: 3px solid rgba(239, 68, 68, 0.65);
 }
 .assign-row.is-clickable:hover .open-hint {
   opacity: 1;

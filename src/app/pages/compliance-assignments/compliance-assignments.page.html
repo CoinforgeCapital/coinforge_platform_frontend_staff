@@ -6,7 +6,7 @@
   </div>
 
   <div class="header-actions">
-    <button type="button" class="ghost" (click)="refresh()" [disabled]="loading() || loadingClients()">
+    <button type="button" class="ghost" (click)="refresh()" [disabled]="loading() || loadingClients() || loadingPendingReassignment()">
       <i class="pi pi-refresh" aria-hidden="true"></i>
       <span>Refresh</span>
     </button>
@@ -22,6 +22,12 @@
     <i class="pi pi-user-plus" aria-hidden="true"></i>
     <span>Unassigned clients</span>
   </button>
+  @if (canViewPendingReassignment) {
+    <button type="button" class="tab" [class.active]="tab() === 'pending-reassignment'" (click)="setTab('pending-reassignment')">
+      <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+      <span>Clients to reassign</span>
+    </button>
+  }
   @if (canViewByCompliance) {
     <button type="button" class="tab" [class.active]="tab() === 'by-compliance'" (click)="setTab('by-compliance')">
       <i class="pi pi-users" aria-hidden="true"></i>
@@ -50,64 +56,64 @@
   </label>
 </section>
 
+@if (selectedReassignment(); as assignment) {
+  <section class="assign-panel">
+    <div class="selected-resource">
+      <span>
+        <i class="pi pi-users" aria-hidden="true"></i>
+        Reassign {{ clientLabel(assignment) }} from {{ complianceLabel(assignment) }}
+      </span>
+      <button type="button" class="link-btn" (click)="cancelReassignment()">Cancel</button>
+    </div>
+
+    <div class="field">
+      <span>New compliance staff</span>
+      @if (selectedReassignmentCompliance(); as comp) {
+        <div class="selected-resource">
+          <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ comp.email }}</span>
+          <button type="button" class="link-btn" (click)="clearReassignmentCompliance()">Change</button>
+        </div>
+      }
+      <app-user-autocomplete
+        type="staff"
+        [allowedRoles]="reassignableComplianceRoles"
+        placeholder="Search compliance or compliance officer by email…"
+        (selected)="onPickReassignmentCompliance($event)"
+      />
+      <small class="muted-note">Open requirements and conversations move to the new user. Closed items stay with the original user.</small>
+    </div>
+
+    <label class="field">
+      <span>Reason</span>
+      <textarea
+        class="reason-input"
+        rows="3"
+        maxlength="1000"
+        placeholder="Optional reassignment reason…"
+        [value]="reassignmentReason()"
+        (input)="onReassignmentReasonInput($event)"
+      ></textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="button" class="ghost" (click)="cancelReassignment()" [disabled]="reassigningId() === assignment.id">
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="primary"
+        (click)="onReassign()"
+        [disabled]="reassigningId() === assignment.id || !selectedReassignmentCompliance()"
+      >
+        <i class="pi pi-users" aria-hidden="true"></i>
+        <span>{{ reassigningId() === assignment.id ? 'Reassigning…' : 'Reassign client' }}</span>
+      </button>
+    </div>
+  </section>
+}
+
 <!-- ===================== ASSIGNMENTS ===================== -->
 @if (tab() === 'assignments') {
-  @if (selectedReassignment(); as assignment) {
-    <section class="assign-panel">
-      <div class="selected-resource">
-        <span>
-          <i class="pi pi-users" aria-hidden="true"></i>
-          Reassign {{ clientLabel(assignment) }} from {{ complianceLabel(assignment) }}
-        </span>
-        <button type="button" class="link-btn" (click)="cancelReassignment()">Cancel</button>
-      </div>
-
-      <div class="field">
-        <span>New compliance staff</span>
-        @if (selectedReassignmentCompliance(); as comp) {
-          <div class="selected-resource">
-            <span><i class="pi pi-check-circle" aria-hidden="true"></i> {{ comp.email }}</span>
-            <button type="button" class="link-btn" (click)="clearReassignmentCompliance()">Change</button>
-          </div>
-        }
-        <app-user-autocomplete
-          type="staff"
-          [allowedRoles]="reassignableComplianceRoles"
-          placeholder="Search compliance or compliance officer by email…"
-          (selected)="onPickReassignmentCompliance($event)"
-        />
-        <small class="muted-note">Open requirements and conversations move to the new user. Closed items stay with the original user.</small>
-      </div>
-
-      <label class="field">
-        <span>Reason</span>
-        <textarea
-          class="reason-input"
-          rows="3"
-          maxlength="1000"
-          placeholder="Optional reassignment reason…"
-          [value]="reassignmentReason()"
-          (input)="onReassignmentReasonInput($event)"
-        ></textarea>
-      </label>
-
-      <div class="form-actions">
-        <button type="button" class="ghost" (click)="cancelReassignment()" [disabled]="reassigningId() === assignment.id">
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="primary"
-          (click)="onReassign()"
-          [disabled]="reassigningId() === assignment.id || !selectedReassignmentCompliance()"
-        >
-          <i class="pi pi-users" aria-hidden="true"></i>
-          <span>{{ reassigningId() === assignment.id ? 'Reassigning…' : 'Reassign client' }}</span>
-        </button>
-      </div>
-    </section>
-  }
-
   <section class="list-panel">
     @if (loading()) {
       <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading assignments…</span></div>
@@ -249,6 +255,63 @@
           <tr><td colspan="4" class="pick-empty">{{ userSearch().trim() ? 'No clients match this search.' : 'No clients awaiting assignment.' }}</td></tr>
         </ng-template>
       </p-table>
+    }
+  </section>
+}
+
+<!-- ===================== CLIENTS TO REASSIGN ===================== -->
+@else if (tab() === 'pending-reassignment') {
+  <p class="hint-line">
+    <i class="pi pi-info-circle" aria-hidden="true"></i>
+    Clients listed here are assigned to blocked compliance staff and should be moved to an approved compliance user.
+  </p>
+
+  <section class="list-panel">
+    @if (loadingPendingReassignment()) {
+      <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading clients to reassign…</span></div>
+    } @else if (filteredPendingReassignmentAssignments().length) {
+      <div class="assign-row assign-head">
+        <span>Client</span>
+        <span>Blocked compliance</span>
+        <span>Assigned by</span>
+        <span>Date</span>
+        <span class="col-action"></span>
+      </div>
+      @for (a of filteredPendingReassignmentAssignments(); track a.id) {
+        <div
+          class="assign-row needs-reassignment"
+          [class.is-clickable]="a.clientUser?.id"
+          (click)="openClientDetail(a)"
+          [title]="a.clientUser?.id ? 'Open client detail' : ''"
+        >
+          <span class="cell">
+            <strong>{{ clientLabel(a) }}</strong>
+            @if (clientNameLabel(a.clientUser); as fullName) {
+              <small class="cell-sub">{{ fullName }}</small>
+            }
+            @if (a.clientUser?.id) {
+              <i class="pi pi-external-link open-hint" aria-hidden="true"></i>
+            }
+          </span>
+          <span class="cell">
+            <strong>{{ complianceLabel(a) }}</strong>
+            <small class="cell-sub">Blocked</small>
+          </span>
+          <span class="cell">{{ assignedByLabel(a) }}</span>
+          <span class="cell">{{ formatDate(a.createdAt) }}</span>
+          <span class="cell col-action">
+            <button type="button" class="ghost sm" (click)="$event.stopPropagation(); startReassignment(a)" [disabled]="reassigningId() === a.id">
+              <i class="pi pi-users" aria-hidden="true"></i>
+              <span>Reassign</span>
+            </button>
+          </span>
+        </div>
+      }
+    } @else {
+      <div class="list-empty">
+        <i class="pi pi-check-circle" aria-hidden="true"></i>
+        <span>{{ userSearch().trim() ? 'No clients to reassign match this search.' : 'No clients require compliance reassignment.' }}</span>
+      </div>
     }
   </section>
 }
