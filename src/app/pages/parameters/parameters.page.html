@@ -85,7 +85,7 @@
     <h3 class="subsection-title">Security code expiry (hours)</h3>
     <p class="hint">
       <i class="pi pi-info-circle" aria-hidden="true"></i>
-      Hours before each one-time code/link expires. Account activation links never expire.
+      Hours before each one-time code/link expires, including the account activation link.
     </p>
 
     <div class="form-grid">
@@ -117,6 +117,14 @@
         <span>Change email code</span>
         <input type="number" formControlName="changeEmailCodeTtlHours" min="1" max="8760" placeholder="1" />
         @if (changeEmailCodeTtlHours.touched && changeEmailCodeTtlHours.invalid) {
+          <small class="err">Enter 1–8760 hours.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Account activation code</span>
+        <input type="number" formControlName="activationCodeTtlHours" min="1" max="8760" placeholder="24" />
+        @if (activationCodeTtlHours.touched && activationCodeTtlHours.invalid) {
           <small class="err">Enter 1–8760 hours.</small>
         }
       </label>

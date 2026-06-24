@@ -675,6 +675,7 @@ export interface PlatformParameters {
   changePasswordCodeTtlHours: number;
   changeEmailCodeTtlHours: number;
   setPasswordCodeTtlHours: number;
+  activationCodeTtlHours: number;
 }
 export interface ParametersRequest {
   smtpHost: string;
@@ -686,6 +687,7 @@ export interface ParametersRequest {
   changePasswordCodeTtlHours: number;
   changeEmailCodeTtlHours: number;
   setPasswordCodeTtlHours: number;
+  activationCodeTtlHours: number;
 }
 
 @Injectable({ providedIn: 'root' })

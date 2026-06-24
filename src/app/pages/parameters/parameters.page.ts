@@ -36,6 +36,7 @@ export class ParametersPage implements OnInit {
     changePasswordCodeTtlHours: [1, [Validators.required, Validators.min(1), Validators.max(8760)]],
     changeEmailCodeTtlHours: [1, [Validators.required, Validators.min(1), Validators.max(8760)]],
     setPasswordCodeTtlHours: [72, [Validators.required, Validators.min(1), Validators.max(8760)]],
+    activationCodeTtlHours: [24, [Validators.required, Validators.min(1), Validators.max(8760)]],
   });
 
   ngOnInit(): void {
@@ -69,6 +70,9 @@ export class ParametersPage implements OnInit {
   get setPasswordCodeTtlHours() {
     return this.form.controls.setPasswordCodeTtlHours;
   }
+  get activationCodeTtlHours() {
+    return this.form.controls.activationCodeTtlHours;
+  }
 
   togglePassword(): void {
     this.showPassword.update((visible) => !visible);
@@ -89,6 +93,7 @@ export class ParametersPage implements OnInit {
         changePasswordCodeTtlHours: p.changePasswordCodeTtlHours,
         changeEmailCodeTtlHours: p.changeEmailCodeTtlHours,
         setPasswordCodeTtlHours: p.setPasswordCodeTtlHours,
+        activationCodeTtlHours: p.activationCodeTtlHours,
       });
       this.configured.set(true);
     } catch (err: unknown) {
@@ -121,6 +126,7 @@ export class ParametersPage implements OnInit {
       changePasswordCodeTtlHours: Number(value.changePasswordCodeTtlHours),
       changeEmailCodeTtlHours: Number(value.changeEmailCodeTtlHours),
       setPasswordCodeTtlHours: Number(value.setPasswordCodeTtlHours),
+      activationCodeTtlHours: Number(value.activationCodeTtlHours),
     };
 
     this.saving.set(true);
