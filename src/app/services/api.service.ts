@@ -550,6 +550,31 @@ export interface SupportTicket {
   messages?: SupportTicketMessage[];
 }
 
+export interface SupportTicketAssignmentHistory {
+  id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  reason?: string | null;
+  ticket?: {
+    id: string;
+    subject?: string;
+    status?: string;
+    priority?: string;
+    customerUser?: StaffUser | null;
+  } | null;
+  previousSupportUser?: StaffUser | null;
+  newSupportUser?: StaffUser | null;
+  reassignedByUser?: StaffUser | null;
+}
+
+export interface ListSupportTicketAssignmentHistoryResponse {
+  ok: boolean;
+  history: SupportTicketAssignmentHistory[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface InternalMessage {
   id: string;
   body: string;
@@ -648,7 +673,10 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest extends Partial<Omit<CreateUserRequest, 'state'>> {
   state?: ManualClientState | StaffState;
 }
-export interface ChangeUserStateRequest { clientState?: ManualClientState; staffState?: StaffState; }
+export interface ChangeUserStateRequest {
+  clientState?: ManualClientState;
+  staffState?: StaffState;
+}
 export interface CreateInternalConversationRequest {
   customerUserId: string;
   supportUserId: string;
@@ -1243,8 +1271,28 @@ export class ApiService {
     return this.request.get<ListSupportTicketsResponse>('/api/support-ticket/unassigned');
   }
 
+  listPendingReassignmentSupportTickets(): Promise<ListSupportTicketsResponse> {
+    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket/pending-reassignment');
+  }
+
   getSupportTicket(ticketId: string): Promise<{ ticket: SupportTicket }> {
     return this.request.get<{ ticket: SupportTicket }>(`/api/support-ticket/${ticketId}`);
+  }
+
+  listSupportTicketAssignmentHistory(
+    ticketId: string,
+    query?: { page?: number; pageSize?: number },
+  ): Promise<ListSupportTicketAssignmentHistoryResponse> {
+    return this.request.get<ListSupportTicketAssignmentHistoryResponse>(
+      `/api/support-ticket/${ticketId}/assignment-history`,
+      { params: query },
+    );
+  }
+
+  getSupportTicketAssignmentHistory(historyId: string): Promise<{ ok: boolean; history: SupportTicketAssignmentHistory }> {
+    return this.request.get<{ ok: boolean; history: SupportTicketAssignmentHistory }>(
+      `/api/support-ticket/assignment-history/${historyId}`,
+    );
   }
 
   assignSupportTicketToMe(ticketId: string): Promise<StandardDataResponse<SupportTicket>> {

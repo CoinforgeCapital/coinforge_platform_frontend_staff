@@ -2,7 +2,12 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
-import { ApiService, StaffState } from '../../services/api.service';
+import {
+  ApiService,
+  StaffUser,
+  StaffState,
+  SupportTicketAssignmentHistory,
+} from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { SessionService } from '../../services/session.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
@@ -165,6 +170,19 @@ export class StaffMembersPage implements OnInit {
   /** Elemento concreto en el que se ha hecho drill-down (null = se ve la tabla). */
   readonly drillItem = signal<Record<string, unknown> | null>(null);
 
+  // ---- Support tickets (histórico de reasignaciones del ticket seleccionado) ----
+  readonly supportTicketAssignmentHistoryVisible = signal(false);
+  readonly supportTicketAssignmentHistory = signal<SupportTicketAssignmentHistory[]>([]);
+  readonly supportTicketAssignmentHistoryTotal = signal(0);
+  readonly supportTicketAssignmentHistoryPage = signal(1);
+  readonly supportTicketAssignmentHistoryPageSize = signal(10);
+  readonly supportTicketAssignmentHistoryLoading = signal(false);
+  readonly supportTicketAssignmentHistoryError = signal('');
+  readonly selectedSupportTicketAssignmentHistory = signal<SupportTicketAssignmentHistory | null>(null);
+  readonly supportTicketAssignmentHistoryDetailLoading = signal(false);
+  readonly supportTicketAssignmentHistoryDetailError = signal('');
+  private supportTicketAssignmentHistoryRequestSeq = 0;
+
   // ---- Cambiar estado de la cuenta de staff (categoría "Account state") ----
   stateTarget: StaffState | '' = '';
   readonly stateSaving = signal(false);
@@ -260,6 +278,7 @@ export class StaffMembersPage implements OnInit {
     const firstWithItems = ENTITY_GROUPS.find((g) => this.countFor(row, g.key) > 0);
     this.activeEntity.set((firstWithItems ?? ENTITY_GROUPS[0]).key);
     this.drillItem.set(null);
+    this.resetSupportTicketAssignmentHistory();
     this.view.set('detail');
   }
 
@@ -267,11 +286,13 @@ export class StaffMembersPage implements OnInit {
     this.view.set('list');
     this.selected.set(null);
     this.drillItem.set(null);
+    this.resetSupportTicketAssignmentHistory();
   }
 
   selectEntity(key: string): void {
     this.activeEntity.set(key);
     this.drillItem.set(null);
+    this.resetSupportTicketAssignmentHistory();
     if (key === STATE_KEY) this.stateTarget = (this.selected()?.['state'] as StaffState) ?? '';
   }
 
@@ -329,11 +350,17 @@ export class StaffMembersPage implements OnInit {
 
   applyStaffState(): void {
     const user = this.selected();
+    if (!user) return;
+
     const id = user?.['id'] as string | undefined;
     const current = user?.['state'] as string | undefined;
     const next = this.stateTarget;
     if (!id || !next || next === current) return;
 
+    this.confirmStaffStateChange(id, next);
+  }
+
+  private confirmStaffStateChange(id: string, next: StaffState): void {
     this.confirm.confirm({
       header: 'Change staff state',
       message: `Set this staff member's state to "${this.stateLabel(next)}"?`,
@@ -366,6 +393,12 @@ export class StaffMembersPage implements OnInit {
 
   closeItem(): void {
     this.drillItem.set(null);
+    this.resetSupportTicketAssignmentHistory();
+  }
+
+  onDrill(item: Record<string, unknown>): void {
+    this.resetSupportTicketAssignmentHistory();
+    this.drillItem.set(item);
   }
 
   entityCount(key: string): number {
@@ -401,6 +434,101 @@ export class StaffMembersPage implements OnInit {
       default:
         return 'cf-badge cf-badge--neutral';
     }
+  }
+
+  showSupportTicketAssignmentHistory(item: Record<string, unknown>): void {
+    if (this.activeEntity() !== 'supportTicketConversationsSupport') return;
+    this.drillItem.set(item);
+
+    if (this.supportTicketAssignmentHistoryVisible()) {
+      this.resetSupportTicketAssignmentHistory();
+      return;
+    }
+
+    this.supportTicketAssignmentHistoryVisible.set(true);
+    void this.loadSupportTicketAssignmentHistory(1, this.supportTicketAssignmentHistoryPageSize());
+  }
+
+  onSupportTicketAssignmentHistoryPage(event: { first?: number | null; rows?: number | null }): void {
+    const pageSize = Number(event.rows ?? this.supportTicketAssignmentHistoryPageSize());
+    const first = Number(event.first ?? 0);
+    const page = Math.floor(first / pageSize) + 1;
+    void this.loadSupportTicketAssignmentHistory(page, pageSize);
+  }
+
+  async openSupportTicketAssignmentHistoryDetail(history: SupportTicketAssignmentHistory): Promise<void> {
+    this.selectedSupportTicketAssignmentHistory.set(history);
+    this.supportTicketAssignmentHistoryDetailError.set('');
+    this.supportTicketAssignmentHistoryDetailLoading.set(true);
+
+    try {
+      const res = await this.api.getSupportTicketAssignmentHistory(history.id);
+      if (this.selectedSupportTicketAssignmentHistory()?.id !== history.id) return;
+      this.selectedSupportTicketAssignmentHistory.set(res.history);
+    } catch (err) {
+      if (this.selectedSupportTicketAssignmentHistory()?.id !== history.id) return;
+      this.supportTicketAssignmentHistoryDetailError.set(this.errorOf(err));
+    } finally {
+      if (this.selectedSupportTicketAssignmentHistory()?.id === history.id) {
+        this.supportTicketAssignmentHistoryDetailLoading.set(false);
+      }
+    }
+  }
+
+  closeSupportTicketAssignmentHistoryDetail(): void {
+    this.selectedSupportTicketAssignmentHistory.set(null);
+    this.supportTicketAssignmentHistoryDetailError.set('');
+    this.supportTicketAssignmentHistoryDetailLoading.set(false);
+  }
+
+  supportUserLabel(user: StaffUser | null | undefined): string {
+    if (!user) return '-';
+    const fullName = [user.personalData?.name, user.personalData?.surname]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return fullName ? `${fullName} (${user.email})` : user.email;
+  }
+
+  private async loadSupportTicketAssignmentHistory(page: number, pageSize: number): Promise<void> {
+    const ticketId = this.drillItem()?.['id'] as string | undefined;
+    if (!ticketId) return;
+
+    const requestSeq = ++this.supportTicketAssignmentHistoryRequestSeq;
+    this.supportTicketAssignmentHistoryLoading.set(true);
+    this.supportTicketAssignmentHistoryError.set('');
+
+    try {
+      const res = await this.api.listSupportTicketAssignmentHistory(ticketId, { page, pageSize });
+      if (requestSeq !== this.supportTicketAssignmentHistoryRequestSeq) return;
+      this.supportTicketAssignmentHistory.set(res.history ?? []);
+      this.supportTicketAssignmentHistoryTotal.set(res.total ?? 0);
+      this.supportTicketAssignmentHistoryPage.set(res.page ?? page);
+      this.supportTicketAssignmentHistoryPageSize.set(res.pageSize ?? pageSize);
+      this.selectedSupportTicketAssignmentHistory.set(null);
+    } catch (err) {
+      if (requestSeq !== this.supportTicketAssignmentHistoryRequestSeq) return;
+      this.supportTicketAssignmentHistory.set([]);
+      this.supportTicketAssignmentHistoryTotal.set(0);
+      this.supportTicketAssignmentHistoryError.set(this.errorOf(err));
+    } finally {
+      if (requestSeq === this.supportTicketAssignmentHistoryRequestSeq) {
+        this.supportTicketAssignmentHistoryLoading.set(false);
+      }
+    }
+  }
+
+  private resetSupportTicketAssignmentHistory(): void {
+    this.supportTicketAssignmentHistoryRequestSeq++;
+    this.supportTicketAssignmentHistoryVisible.set(false);
+    this.supportTicketAssignmentHistory.set([]);
+    this.supportTicketAssignmentHistoryTotal.set(0);
+    this.supportTicketAssignmentHistoryPage.set(1);
+    this.supportTicketAssignmentHistoryError.set('');
+    this.supportTicketAssignmentHistoryLoading.set(false);
+    this.selectedSupportTicketAssignmentHistory.set(null);
+    this.supportTicketAssignmentHistoryDetailError.set('');
+    this.supportTicketAssignmentHistoryDetailLoading.set(false);
   }
 
   private countFor(row: Record<string, unknown> | null, key: string): number {
@@ -466,7 +594,7 @@ export class StaffMembersPage implements OnInit {
     return 'The request could not be completed.';
   }
 
-  private format(value: unknown): string {
+  format(value: unknown): string {
     if (value === null || value === undefined || value === '') return '-';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString();

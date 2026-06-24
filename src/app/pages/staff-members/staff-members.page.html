@@ -209,8 +209,143 @@
         [columns]="currentColumns()"
         [selectedItem]="drillItem()"
         [emptyLabel]="'No records in ' + activeLabel().toLowerCase() + '.'"
-        (open)="drillItem.set($event)"
-      />
+        [hideMessages]="supportTicketAssignmentHistoryVisible() && activeEntity() === 'supportTicketConversationsSupport'"
+        (open)="onDrill($event)"
+      >
+        <div detailActions class="inline-actions">
+          @if (drillItem(); as item) {
+            @if (activeEntity() === 'supportTicketConversationsSupport') {
+              <button type="button" class="ghost" (click)="showSupportTicketAssignmentHistory(item)" [disabled]="supportTicketAssignmentHistoryLoading()">
+                <i [class]="supportTicketAssignmentHistoryLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-history'" aria-hidden="true"></i>
+                <span>{{ supportTicketAssignmentHistoryVisible() ? 'Hide assignment history' : 'View assignment history' }}</span>
+              </button>
+            }
+          }
+        </div>
+      </app-entity-collection>
+
+      @if (supportTicketAssignmentHistoryVisible() && activeEntity() === 'supportTicketConversationsSupport' && drillItem()) {
+        <section class="audit-section is-wide support-ticket-history">
+          <header class="audit-section-head">
+            <h3><i class="pi pi-history" aria-hidden="true"></i> Ticket assignment history</h3>
+            <button type="button" class="ghost" (click)="onSupportTicketAssignmentHistoryPage({ first: 0, rows: supportTicketAssignmentHistoryPageSize() })" [disabled]="supportTicketAssignmentHistoryLoading()">
+              <i [class]="supportTicketAssignmentHistoryLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
+              <span>Refresh</span>
+            </button>
+          </header>
+
+          @if (supportTicketAssignmentHistoryError()) {
+            <div class="dialog-placeholder is-error">
+              <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              <span>{{ supportTicketAssignmentHistoryError() }}</span>
+            </div>
+          } @else {
+            <p-table
+              [value]="supportTicketAssignmentHistory()"
+              [loading]="supportTicketAssignmentHistoryLoading()"
+              [lazy]="true"
+              (onLazyLoad)="onSupportTicketAssignmentHistoryPage($event)"
+              [paginator]="supportTicketAssignmentHistoryTotal() > supportTicketAssignmentHistoryPageSize()"
+              [rows]="supportTicketAssignmentHistoryPageSize()"
+              [first]="(supportTicketAssignmentHistoryPage() - 1) * supportTicketAssignmentHistoryPageSize()"
+              [totalRecords]="supportTicketAssignmentHistoryTotal()"
+              [rowsPerPageOptions]="[10, 25, 50]"
+              [showCurrentPageReport]="supportTicketAssignmentHistoryTotal() > 0"
+              currentPageReportTemplate="{first}-{last} of {totalRecords}"
+              [tableStyle]="{ 'min-width': '48rem' }"
+            >
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Date</th>
+                  <th>Previous support</th>
+                  <th>New support</th>
+                  <th>Reassigned by</th>
+                  <th>Reason</th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-history>
+                <tr
+                  class="audit-history-row"
+                  [class.active]="selectedSupportTicketAssignmentHistory()?.id === history.id"
+                  (click)="openSupportTicketAssignmentHistoryDetail(history)"
+                >
+                  <td>{{ format(history.createdAt) }}</td>
+                  <td>{{ supportUserLabel(history.previousSupportUser) }}</td>
+                  <td>{{ supportUserLabel(history.newSupportUser) }}</td>
+                  <td>{{ supportUserLabel(history.reassignedByUser) }}</td>
+                  <td>{{ format(history.reason) }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="5" class="doc-empty">
+                    {{ supportTicketAssignmentHistoryLoading() ? 'Loading assignment history...' : 'No reassignments have been recorded for this ticket yet.' }}
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+        </section>
+
+        @if (selectedSupportTicketAssignmentHistory(); as history) {
+          <section class="audit-section is-wide">
+            <header class="audit-section-head">
+              <h3><i class="pi pi-file" aria-hidden="true"></i> Ticket reassignment detail</h3>
+              <button type="button" class="ghost" (click)="closeSupportTicketAssignmentHistoryDetail()">
+                <i class="pi pi-times" aria-hidden="true"></i>
+                <span>Close</span>
+              </button>
+            </header>
+
+            @if (supportTicketAssignmentHistoryDetailLoading()) {
+              <div class="dialog-placeholder">
+                <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                <span>Loading reassignment detail...</span>
+              </div>
+            } @else if (supportTicketAssignmentHistoryDetailError()) {
+              <div class="dialog-placeholder is-error">
+                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                <span>{{ supportTicketAssignmentHistoryDetailError() }}</span>
+              </div>
+            } @else {
+              <dl class="audit-grid">
+                <div>
+                  <dt>History ID</dt>
+                  <dd class="mono">{{ format(history.id) }}</dd>
+                </div>
+                <div>
+                  <dt>Ticket ID</dt>
+                  <dd class="mono">{{ format(history.ticket?.id) }}</dd>
+                </div>
+                <div>
+                  <dt>Ticket</dt>
+                  <dd>{{ format(history.ticket?.subject) }}</dd>
+                </div>
+                <div>
+                  <dt>Reassigned at</dt>
+                  <dd>{{ format(history.createdAt) }}</dd>
+                </div>
+                <div>
+                  <dt>Previous support</dt>
+                  <dd>{{ supportUserLabel(history.previousSupportUser) }}</dd>
+                </div>
+                <div>
+                  <dt>New support</dt>
+                  <dd>{{ supportUserLabel(history.newSupportUser) }}</dd>
+                </div>
+                <div>
+                  <dt>Reassigned by</dt>
+                  <dd>{{ supportUserLabel(history.reassignedByUser) }}</dd>
+                </div>
+                <div class="is-wide">
+                  <dt>Reason</dt>
+                  <dd>{{ format(history.reason) }}</dd>
+                </div>
+              </dl>
+            }
+          </section>
+        }
+      }
     }
   </div>
 }

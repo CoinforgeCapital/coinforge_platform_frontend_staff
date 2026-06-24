@@ -57,7 +57,7 @@
       }
     </dl>
 
-    @if (detail().messages.length) {
+    @if (!hideMessages() && detail().messages.length) {
       <section class="thread">
         <h4 class="thread-title">
           <i class="pi pi-comments" aria-hidden="true"></i>

@@ -82,6 +82,7 @@ export class EntityCollectionComponent {
   readonly columns = input<EntityColumn[]>([]);
   readonly selectedItem = input<Record<string, unknown> | null>(null);
   readonly emptyLabel = input<string>('No records.');
+  readonly hideMessages = input(false);
 
   readonly open = output<Record<string, unknown>>();
 

@@ -76,6 +76,7 @@
               <span>{{ t.supportUser ? 'Reassign to' : 'Assign to' }}</span>
               <app-user-autocomplete
                 type="staff"
+                [allowedRoles]="assignSupportRoles"
                 placeholder="Search a support agent…"
                 (selected)="onAssignPick($event)"
               />
@@ -167,9 +168,44 @@
       <i class="pi pi-flag" aria-hidden="true"></i>
       <span>Unassigned</span>
     </button>
+    @if (isSupportOfficer) {
+      <button
+        type="button"
+        class="tab"
+        [class.active]="view() === 'pendingReassignment'"
+        (click)="showPendingReassignment()"
+      >
+        <i class="pi pi-user-exclamation" aria-hidden="true"></i>
+        <span>Pending reassignment</span>
+      </button>
+    }
   </nav>
 
-  @if (view() === 'unassigned') {
+  @if (view() === 'pendingReassignment') {
+    <section class="list-panel">
+      @if (loading()) {
+        <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>
+      } @else {
+        @for (t of pendingReassignmentList(); track t.id) {
+          <button type="button" class="ticket warning-ticket" (click)="selectTicket(t)">
+            <span class="ticket-main">
+              <strong>{{ t.subject }}</strong>
+              <small>{{ shortId(t) }} · {{ customerLabel(t) }} · blocked support: {{ assignedLabel(t) }} · {{ formatDate(t.updatedAt ?? t.createdAt) }}</small>
+            </span>
+            <span class="ticket-side">
+              <span class="cf-badge cf-badge--danger">Needs reassignment</span>
+              <span [class]="priorityBadgeClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+            </span>
+          </button>
+        } @empty {
+          <div class="list-empty">
+            <i class="pi pi-check-circle" aria-hidden="true"></i>
+            <span>No tickets pending reassignment.</span>
+          </div>
+        }
+      }
+    </section>
+  } @else if (view() === 'unassigned') {
     <section class="list-panel">
       @if (loading()) {
         <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>

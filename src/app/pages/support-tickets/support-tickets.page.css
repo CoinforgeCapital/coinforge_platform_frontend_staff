@@ -130,6 +130,12 @@ h1 {
 .ticket:not(.static):hover {
   background: var(--cf-surface-2);
 }
+.warning-ticket {
+  background: rgba(239, 68, 68, 0.06);
+}
+.warning-ticket:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
 .ticket-main {
   display: grid;
   gap: 3px;

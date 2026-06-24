@@ -12,8 +12,9 @@ import {
 import { SessionService } from '../../services/session.service';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 import { assertUploadFilesWithinLimit, uploadFileSizeError } from '../../shared/upload-file-size';
+import { STAFF_ROLES } from '../../core/staff-permissions';
 
-type View = 'mine' | 'unassigned' | 'detail';
+type View = 'mine' | 'unassigned' | 'pendingReassignment' | 'detail';
 type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed';
 
 interface StatusOption {
@@ -47,10 +48,12 @@ export class SupportTicketsPage implements OnInit {
 
   readonly myId = this.session.userId();
   readonly isSupportOfficer = this.session.role() === 'SUPPORT_OFFICER';
+  readonly assignSupportRoles = [STAFF_ROLES.support, STAFF_ROLES.supportOfficer] as const;
   readonly statusOptions = STATUS_OPTIONS;
 
   readonly mine = signal<SupportTicket[]>([]);
   readonly unassigned = signal<SupportTicket[]>([]);
+  readonly pendingReassignment = signal<SupportTicket[]>([]);
   readonly selectedTicket = signal<SupportTicket | null>(null);
 
   readonly loading = signal(false);
@@ -71,6 +74,7 @@ export class SupportTicketsPage implements OnInit {
 
   readonly mineList = computed(() => this.sortByDate(this.mine()));
   readonly unassignedList = computed(() => this.sortByDate(this.unassigned()));
+  readonly pendingReassignmentList = computed(() => this.sortByDate(this.pendingReassignment()));
 
   readonly selectedMessages = computed(() => {
     const t = this.selectedTicket();
@@ -95,8 +99,12 @@ export class SupportTicketsPage implements OnInit {
         this.api.listSupportTickets(),
         this.api.listUnassignedSupportTickets(),
       ]);
+      const pendingRes = this.isSupportOfficer
+        ? await this.api.listPendingReassignmentSupportTickets()
+        : { tickets: [] };
       this.mine.set(mineRes.tickets ?? []);
       this.unassigned.set(unassignedRes.tickets ?? []);
+      this.pendingReassignment.set(pendingRes.tickets ?? []);
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
@@ -109,6 +117,9 @@ export class SupportTicketsPage implements OnInit {
   }
   showUnassigned(): void {
     this.view.set('unassigned');
+  }
+  showPendingReassignment(): void {
+    this.view.set('pendingReassignment');
   }
 
   async selectTicket(ticket: SupportTicket): Promise<void> {
@@ -213,6 +224,14 @@ export class SupportTicketsPage implements OnInit {
   onAssignPick(user: StaffUser): void {
     const ticket = this.selectedTicket();
     if (!ticket) return;
+    if (
+      (user.role !== STAFF_ROLES.support && user.role !== STAFF_ROLES.supportOfficer) ||
+      user.state !== 'approved'
+    ) {
+      this.toast('error', 'Invalid assignee', 'Tickets can only be assigned to approved support users.');
+      this.assignPicker()?.reset();
+      return;
+    }
 
     const reassign = !!ticket.supportUser;
     this.confirm.confirm({

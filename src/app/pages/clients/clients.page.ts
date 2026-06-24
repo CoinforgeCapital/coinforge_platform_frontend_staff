@@ -20,6 +20,7 @@ import {
   SettableTransactionState,
   StaffKycHistoryItem,
   StaffUser,
+  SupportTicketAssignmentHistory,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
@@ -555,6 +556,19 @@ export class ClientsPage implements OnInit {
   readonly assignmentHistoryDetailError = signal('');
   private assignmentHistoryRequestSeq = 0;
 
+  // ---- Support tickets (histórico de reasignaciones del ticket seleccionado) ----
+  readonly supportTicketAssignmentHistoryVisible = signal(false);
+  readonly supportTicketAssignmentHistory = signal<SupportTicketAssignmentHistory[]>([]);
+  readonly supportTicketAssignmentHistoryTotal = signal(0);
+  readonly supportTicketAssignmentHistoryPage = signal(1);
+  readonly supportTicketAssignmentHistoryPageSize = signal(10);
+  readonly supportTicketAssignmentHistoryLoading = signal(false);
+  readonly supportTicketAssignmentHistoryError = signal('');
+  readonly selectedSupportTicketAssignmentHistory = signal<SupportTicketAssignmentHistory | null>(null);
+  readonly supportTicketAssignmentHistoryDetailLoading = signal(false);
+  readonly supportTicketAssignmentHistoryDetailError = signal('');
+  private supportTicketAssignmentHistoryRequestSeq = 0;
+
   // ---- Documentos asociados al item (bank account / transaction) ----
   readonly showItemDocs = signal(false);
   readonly itemDocs = computed<Record<string, unknown>[]>(() => {
@@ -740,6 +754,7 @@ export class ClientsPage implements OnInit {
     this.walletAuditHistoryVisible.set(false);
     this.resetKycHistory();
     this.resetAssignmentHistory();
+    this.resetSupportTicketAssignmentHistory();
     this.view.set('detail');
 
     if (!clientId) return;
@@ -764,6 +779,7 @@ export class ClientsPage implements OnInit {
   onDrill(item: Record<string, unknown>): void {
     this.showItemDocs.set(false);
     this.walletAuditHistoryVisible.set(false);
+    this.resetSupportTicketAssignmentHistory();
     this.drillItem.set(item);
   }
 
@@ -779,6 +795,7 @@ export class ClientsPage implements OnInit {
     this.walletAuditHistoryVisible.set(false);
     this.resetKycHistory();
     this.resetAssignmentHistory();
+    this.resetSupportTicketAssignmentHistory();
   }
 
   selectEntity(key: string): void {
@@ -788,6 +805,7 @@ export class ClientsPage implements OnInit {
     this.showItemDocs.set(false);
     this.reqFormOpen.set(false);
     this.walletAuditHistoryVisible.set(false);
+    this.resetSupportTicketAssignmentHistory();
     if (key === DOCUMENTS_KEY) this.activeDocTab.set(DOCUMENT_TABS[0].key);
     if (key === ACCOUNT_SETTINGS_KEY) {
       this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
@@ -808,6 +826,7 @@ export class ClientsPage implements OnInit {
     this.txTarget = '';
     this.showItemDocs.set(false);
     this.walletAuditHistoryVisible.set(false);
+    this.resetSupportTicketAssignmentHistory();
   }
 
   // ---- Categoría: risk profile (detalle embebido reutilizable) ----
@@ -971,6 +990,96 @@ export class ClientsPage implements OnInit {
     this.assignmentHistoryDetailError.set('');
     this.assignmentHistoryDetailLoading.set(false);
     this.resetReassignmentForm();
+  }
+
+  showSupportTicketAssignmentHistory(item: Record<string, unknown>): void {
+    if (this.activeEntity() !== 'supportTicketConversationsCustomer') return;
+    this.drillItem.set(item);
+
+    if (this.supportTicketAssignmentHistoryVisible()) {
+      this.resetSupportTicketAssignmentHistory();
+      return;
+    }
+
+    this.supportTicketAssignmentHistoryVisible.set(true);
+    void this.loadSupportTicketAssignmentHistory(1, this.supportTicketAssignmentHistoryPageSize());
+  }
+
+  onSupportTicketAssignmentHistoryPage(event: { first?: number | null; rows?: number | null }): void {
+    const pageSize = Number(event.rows ?? this.supportTicketAssignmentHistoryPageSize());
+    const first = Number(event.first ?? 0);
+    const page = Math.floor(first / pageSize) + 1;
+    void this.loadSupportTicketAssignmentHistory(page, pageSize);
+  }
+
+  async openSupportTicketAssignmentHistoryDetail(history: SupportTicketAssignmentHistory): Promise<void> {
+    this.selectedSupportTicketAssignmentHistory.set(history);
+    this.supportTicketAssignmentHistoryDetailError.set('');
+    this.supportTicketAssignmentHistoryDetailLoading.set(true);
+
+    try {
+      const res = await this.api.getSupportTicketAssignmentHistory(history.id);
+      if (this.selectedSupportTicketAssignmentHistory()?.id !== history.id) return;
+      this.selectedSupportTicketAssignmentHistory.set(res.history);
+    } catch (err) {
+      if (this.selectedSupportTicketAssignmentHistory()?.id !== history.id) return;
+      this.supportTicketAssignmentHistoryDetailError.set(this.errorOf(err));
+    } finally {
+      if (this.selectedSupportTicketAssignmentHistory()?.id === history.id) {
+        this.supportTicketAssignmentHistoryDetailLoading.set(false);
+      }
+    }
+  }
+
+  closeSupportTicketAssignmentHistoryDetail(): void {
+    this.selectedSupportTicketAssignmentHistory.set(null);
+    this.supportTicketAssignmentHistoryDetailError.set('');
+    this.supportTicketAssignmentHistoryDetailLoading.set(false);
+  }
+
+  supportUserLabel(user: StaffUser | null | undefined): string {
+    return this.assignmentUserLabel(user);
+  }
+
+  private async loadSupportTicketAssignmentHistory(page: number, pageSize: number): Promise<void> {
+    const ticketId = this.drillItem()?.['id'] as string | undefined;
+    if (!ticketId) return;
+
+    const requestSeq = ++this.supportTicketAssignmentHistoryRequestSeq;
+    this.supportTicketAssignmentHistoryLoading.set(true);
+    this.supportTicketAssignmentHistoryError.set('');
+
+    try {
+      const res = await this.api.listSupportTicketAssignmentHistory(ticketId, { page, pageSize });
+      if (requestSeq !== this.supportTicketAssignmentHistoryRequestSeq) return;
+      this.supportTicketAssignmentHistory.set(res.history ?? []);
+      this.supportTicketAssignmentHistoryTotal.set(res.total ?? 0);
+      this.supportTicketAssignmentHistoryPage.set(res.page ?? page);
+      this.supportTicketAssignmentHistoryPageSize.set(res.pageSize ?? pageSize);
+      this.selectedSupportTicketAssignmentHistory.set(null);
+    } catch (err) {
+      if (requestSeq !== this.supportTicketAssignmentHistoryRequestSeq) return;
+      this.supportTicketAssignmentHistory.set([]);
+      this.supportTicketAssignmentHistoryTotal.set(0);
+      this.supportTicketAssignmentHistoryError.set(this.errorOf(err));
+    } finally {
+      if (requestSeq === this.supportTicketAssignmentHistoryRequestSeq) {
+        this.supportTicketAssignmentHistoryLoading.set(false);
+      }
+    }
+  }
+
+  private resetSupportTicketAssignmentHistory(): void {
+    this.supportTicketAssignmentHistoryRequestSeq++;
+    this.supportTicketAssignmentHistoryVisible.set(false);
+    this.supportTicketAssignmentHistory.set([]);
+    this.supportTicketAssignmentHistoryTotal.set(0);
+    this.supportTicketAssignmentHistoryPage.set(1);
+    this.supportTicketAssignmentHistoryError.set('');
+    this.supportTicketAssignmentHistoryLoading.set(false);
+    this.selectedSupportTicketAssignmentHistory.set(null);
+    this.supportTicketAssignmentHistoryDetailError.set('');
+    this.supportTicketAssignmentHistoryDetailLoading.set(false);
   }
 
   // ---- Categoría: Account state (cambiar estado del cliente) ----

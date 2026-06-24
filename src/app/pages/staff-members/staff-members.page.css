@@ -349,6 +349,117 @@ button.crumb:hover {
   color: var(--cf-teal-600);
 }
 
+.inline-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audit-section {
+  margin-top: 18px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  padding: 16px;
+}
+
+.audit-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.audit-section-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--cf-text);
+  font-size: 1rem;
+}
+
+.audit-section-head h3 i {
+  color: var(--cf-teal-600);
+}
+
+.audit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 18px;
+  margin: 0;
+}
+
+.audit-grid > div {
+  min-width: 0;
+}
+
+.audit-grid > div.is-wide {
+  grid-column: 1 / -1;
+}
+
+.audit-grid dt {
+  color: var(--cf-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.audit-grid dd {
+  margin: 5px 0 0;
+  color: var(--cf-text);
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.audit-history-row {
+  cursor: pointer;
+}
+
+.audit-history-row.active {
+  background: rgba(0, 184, 150, 0.08);
+}
+
+.dialog-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 96px;
+  color: var(--cf-text-muted);
+  font-weight: 700;
+}
+
+.dialog-placeholder i {
+  color: var(--cf-teal-600);
+}
+
+.dialog-placeholder.is-error {
+  justify-content: flex-start;
+  min-height: auto;
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  border-radius: var(--cf-radius-sm);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+  padding: 12px;
+}
+
+.dialog-placeholder.is-error i {
+  color: #dc2626;
+}
+
+.doc-empty {
+  padding: 24px 12px;
+  color: var(--cf-text-muted);
+  text-align: center;
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .page-header {
     align-items: stretch;
