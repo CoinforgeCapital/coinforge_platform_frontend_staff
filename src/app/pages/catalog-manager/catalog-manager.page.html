@@ -32,7 +32,21 @@
           <label class="field">
             <span>{{ f.label }}</span>
 
-            @if (f.type === 'select') {
+            @if (f.type === 'client') {
+              <app-user-autocomplete
+                type="client"
+                placeholder="Search a client by email…"
+                (selected)="onClientPicked($event)"
+              />
+              @if (selectedClientLabel()) {
+                <small class="picked-client">
+                  Selected: {{ selectedClientLabel() }}
+                  <button type="button" class="link-btn" (click)="clearClient()">Clear</button>
+                </small>
+              } @else if (!isOperator) {
+                <small>Leave empty to create a general account (no client).</small>
+              }
+            } @else if (f.type === 'select') {
               <select [formControlName]="f.key">
                 <option value="" disabled>Select a blockchain…</option>
                 @for (b of blockchains(); track b.id) {

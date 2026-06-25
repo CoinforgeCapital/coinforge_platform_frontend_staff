@@ -3,14 +3,17 @@ import { ActivatedRoute } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { ApiService, CatalogItem } from '../../services/api.service';
+import { ApiService, CatalogItem, StaffUser } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
+import { STAFF_ROLES } from '../../core/staff-permissions';
+import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 
 type CatalogKey = 'blockchains' | 'fiat-currencies' | 'crypto-currencies' | 'bank-data';
 
 interface CatalogField {
   key: string;
   label: string;
-  type: 'text' | 'select';
+  type: 'text' | 'select' | 'client';
   placeholder?: string;
   maxLength?: number;
   uppercase?: boolean;
@@ -107,6 +110,7 @@ const CATALOG_CONFIGS: Record<CatalogKey, CatalogConfig> = {
     entityLabel: 'bank account',
     columns: [
       { field: 'name', label: 'Name' },
+      { field: 'clientLabel', label: 'Client' },
       { field: 'owner', label: 'Owner' },
       { field: 'iban', label: 'IBAN' },
       { field: 'swiftBic', label: 'SWIFT/BIC' },
@@ -114,6 +118,7 @@ const CATALOG_CONFIGS: Record<CatalogKey, CatalogConfig> = {
       { field: 'createdAt', label: 'Created' },
     ],
     fields: [
+      { key: 'client', label: 'Client', type: 'client', editable: false },
       { key: 'name', label: 'Name', type: 'text', placeholder: 'Account alias', maxLength: 255 },
       { key: 'iban', label: 'IBAN', type: 'text', placeholder: 'ES91…', maxLength: 50, uppercase: true, editable: false },
       { key: 'owner', label: 'Owner', type: 'text', placeholder: 'Account holder', maxLength: 255 },
@@ -130,7 +135,7 @@ const CATALOG_CONFIGS: Record<CatalogKey, CatalogConfig> = {
 @Component({
   selector: 'app-catalog-manager-page',
   standalone: true,
-  imports: [ReactiveFormsModule, TableModule],
+  imports: [ReactiveFormsModule, TableModule, UserAutocompleteComponent],
   templateUrl: './catalog-manager.page.html',
   styleUrl: './catalog-manager.page.css',
 })
@@ -139,6 +144,12 @@ export class CatalogManagerPage implements OnInit {
   private readonly api = inject(ApiService);
   private readonly messages = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly auth = inject(AuthService);
+
+  /** El operador solo puede crear cuentas asociadas a cliente; el admin también generales. */
+  readonly isOperator = this.auth.currentRole() === STAFF_ROLES.operator;
+  /** Email del cliente elegido en el autocomplete al crear una cuenta de bank-data. */
+  readonly selectedClientLabel = signal<string>('');
 
   readonly config = signal<CatalogConfig>(CATALOG_CONFIGS.blockchains);
   readonly rows = signal<Record<string, unknown>[]>([]);
@@ -179,7 +190,12 @@ export class CatalogManagerPage implements OnInit {
     this.loading.set(true);
     try {
       const items = await this.listRequest();
-      this.rows.set(this.config().key === 'crypto-currencies' ? this.withBlockchainNames(items) : items);
+      const key = this.config().key;
+      this.rows.set(
+        key === 'crypto-currencies' ? this.withBlockchainNames(items)
+          : key === 'bank-data' ? this.withClientLabel(items)
+          : items,
+      );
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
@@ -197,12 +213,14 @@ export class CatalogManagerPage implements OnInit {
 
   openCreate(): void {
     this.editingId.set(null);
+    this.selectedClientLabel.set('');
     this.buildForm();
     this.formOpen.set(true);
   }
 
   openEdit(row: Record<string, unknown>): void {
     this.editingId.set(String(row['id'] ?? ''));
+    this.selectedClientLabel.set('');
     this.buildForm(row);
     this.formOpen.set(true);
   }
@@ -210,6 +228,18 @@ export class CatalogManagerPage implements OnInit {
   cancel(): void {
     this.formOpen.set(false);
     this.editingId.set(null);
+    this.selectedClientLabel.set('');
+  }
+
+  /** Autocomplete de cliente (solo en alta de bank-data): guarda el id en el formulario. */
+  onClientPicked(user: StaffUser): void {
+    this.form.controls['client']?.setValue(user.id);
+    this.selectedClientLabel.set(user.email ?? user.id);
+  }
+
+  clearClient(): void {
+    this.form.controls['client']?.setValue('');
+    this.selectedClientLabel.set('');
   }
 
   async submit(): Promise<void> {
@@ -298,7 +328,10 @@ export class CatalogManagerPage implements OnInit {
   private buildForm(values?: Record<string, unknown>): void {
     const group: Record<string, FormControl<string>> = {};
     for (const field of this.visibleFields()) {
-      const validators = [Validators.required];
+      // El cliente solo es obligatorio para el operador (el admin puede crear cuentas generales).
+      const validators = field.type === 'client'
+        ? (this.isOperator ? [Validators.required] : [])
+        : [Validators.required];
       if (field.maxLength) validators.push(Validators.maxLength(field.maxLength));
       group[field.key] = new FormControl(String(values?.[field.key] ?? ''), {
         nonNullable: true,
@@ -319,6 +352,20 @@ export class CatalogManagerPage implements OnInit {
         blockchainName = bc.name ?? map.get(bc.id ?? '') ?? '-';
       }
       return { ...row, blockchainName };
+    });
+  }
+
+  /** Etiqueta de cliente para la tabla de bank-data: email de la cuenta dedicada o "General". */
+  private withClientLabel(items: Record<string, unknown>[]): Record<string, unknown>[] {
+    return items.map((row) => {
+      const client = row['client'] as { email?: string } | string | null | undefined;
+      let clientLabel = 'General';
+      if (typeof client === 'string') {
+        clientLabel = client;
+      } else if (client) {
+        clientLabel = client.email ?? 'Assigned';
+      }
+      return { ...row, clientLabel };
     });
   }
 
@@ -367,6 +414,7 @@ export class CatalogManagerPage implements OnInit {
           owner: payload['owner'],
           swiftBic: payload['swiftBic'],
           referenceCode: payload['referenceCode'],
+          client: payload['client'] || undefined,
         });
     }
   }

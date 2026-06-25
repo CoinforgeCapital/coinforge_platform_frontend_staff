@@ -634,6 +634,8 @@ export interface BankData {
   swiftBic?: string;
   referenceCode?: string;
   createdAt?: string;
+  /** Cliente asociado (cuenta dedicada). null/ausente = cuenta general. */
+  client?: StaffUser | null;
 }
 
 export interface CreateBlockchainRequest { name: string; }
@@ -645,6 +647,8 @@ export interface CreateBankDataRequest {
   owner: string;
   swiftBic: string;
   referenceCode: string;
+  /** Cliente al que se asocia la cuenta. Obligatorio para operator; opcional (general) para admin. */
+  client?: string;
 }
 export interface UpdateBankDataRequest {
   name?: string;

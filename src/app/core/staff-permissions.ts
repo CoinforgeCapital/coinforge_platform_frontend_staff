@@ -72,6 +72,12 @@ export const STAFF_PERMISSIONS = {
   adminCatalogs: [
     STAFF_ROLES.admin,
   ],
+  // GET/POST/PATCH/DELETE /api/coinforge-bank-account: admin gestiona todas las cuentas;
+  // operator solo las que tienen cliente asociado (el backend acota por rol).
+  bankDataManage: [
+    STAFF_ROLES.admin,
+    STAFF_ROLES.operator,
+  ],
 
   // ---- Capacidades finas (espejo EXACTO de las listas de roles del backend) ----
   // Úsalas para mostrar/ocultar acciones y pestañas sin provocar 403.
@@ -200,7 +206,7 @@ export const STAFF_NAV_ITEMS: readonly StaffNavItem[] = [
   { path: '/blockchains', label: 'Blockchains', icon: 'pi pi-sitemap', group: 'Administration', roles: STAFF_PERMISSIONS.adminCatalogs },
   { path: '/fiat-currencies', label: 'Fiat currencies', icon: 'pi pi-dollar', group: 'Administration', roles: STAFF_PERMISSIONS.adminCatalogs },
   { path: '/crypto-currencies', label: 'Crypto currencies', icon: 'pi pi-bitcoin', group: 'Administration', roles: STAFF_PERMISSIONS.adminCatalogs },
-  { path: '/bank-data', label: 'Bank data', icon: 'pi pi-building-columns', group: 'Administration', roles: STAFF_PERMISSIONS.adminCatalogs },
+  { path: '/bank-data', label: 'Bank data', icon: 'pi pi-building-columns', group: 'Administration', roles: STAFF_PERMISSIONS.bankDataManage },
   { path: '/parameters', label: 'Parameters', icon: 'pi pi-sliders-h', group: 'Administration', roles: STAFF_PERMISSIONS.parameters },
 
   // Ajustes de la propia cuenta: visible para todo el staff (sin restricción de rol).

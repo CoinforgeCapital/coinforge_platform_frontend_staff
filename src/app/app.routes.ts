@@ -152,7 +152,7 @@ export const routes: Routes = [
       {
         path: 'bank-data',
         canMatch: [roleMatchGuard],
-        data: { roles: STAFF_PERMISSIONS.adminCatalogs, sectionKey: 'bank-data' },
+        data: { roles: STAFF_PERMISSIONS.bankDataManage, sectionKey: 'bank-data' },
         loadComponent: catalogPage,
       },
       {
