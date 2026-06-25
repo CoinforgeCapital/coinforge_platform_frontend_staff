@@ -12,7 +12,7 @@
             <span>{{ resetting() ? 'Resetting…' : 'Reset password' }}</span>
           </button>
         }
-        @if (!u.isSelf) {
+        @if (!u.isSelf && !u.isStaff) {
           <button type="button" class="ghost danger" (click)="onDelete()" [disabled]="deleting()">
             <i class="pi pi-trash" aria-hidden="true"></i>
             <span>{{ deleting() ? 'Deleting…' : 'Delete' }}</span>
@@ -25,7 +25,7 @@
         <span>
           Role is fixed at creation.
           @if (u.isStaff) { “Reset password” emails the user a secure link to set a new password. }
-          Deleting marks the account as deleted (kept for audit, cannot sign in).
+          @if (!u.isStaff) { Deleting marks the account as deleted (kept for audit, cannot sign in). }
         </span>
       </p>
     } @else {
