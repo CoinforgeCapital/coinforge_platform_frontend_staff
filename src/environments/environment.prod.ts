@@ -1,5 +1,5 @@
 export const environment = {
-  backendUrl: 'https://coinforge-api.vrowisniper.top',
+  backendUrl: 'https://api.coinforgecapital.com',
   staffHomePath: '/dashboard',
   roles: {
     inactive: 'INACTIVE',
