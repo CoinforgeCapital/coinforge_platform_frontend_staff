@@ -106,7 +106,7 @@ const CATALOG_CONFIGS: Record<CatalogKey, CatalogConfig> = {
     key: 'bank-data',
     kicker: 'Treasury',
     title: 'Bank data',
-    description: 'Manage the CoinForge bank accounts used to receive payments.',
+    description: 'Manage the Axora Fintech bank accounts used to receive payments.',
     entityLabel: 'bank account',
     columns: [
       { field: 'name', label: 'Name' },

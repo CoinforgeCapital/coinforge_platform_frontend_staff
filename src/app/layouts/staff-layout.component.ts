@@ -52,10 +52,10 @@ import { RealtimeService, UserStateChangedEvent } from '../services/realtime.ser
               aria-label="Toggle navigation"
               title="Toggle navigation"
             >
-              <img src="/favicon.png" alt="CoinForge" />
+              <img src="/favicon.png" alt="Axora Fintech" />
             </button>
             <div class="topbar-title">
-              <span>CoinForge Platform</span>
+              <span>Axora Fintech Platform</span>
               <strong>Operations workspace</strong>
             </div>
           </div>

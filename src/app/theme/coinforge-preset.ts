@@ -2,7 +2,7 @@ import { definePreset } from '@primeng/themes';
 import Aura from '@primeng/themes/aura';
 
 /**
- * Preset de marca CoinForge sobre Aura (PrimeNG).
+ * Preset de marca Axora Fintech sobre Aura (PrimeNG).
  * - `primary`: rampa teal anclada en el acento de la landing (#00d4aa / #00b896),
  *   para que botones, focus, enlaces, tags y estados activos salgan de marca.
  * - Esquema CLARO forzado en el contenido (el modo oscuro queda opt-in con `.cf-dark`,

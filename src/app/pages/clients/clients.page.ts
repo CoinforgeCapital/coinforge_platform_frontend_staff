@@ -1529,7 +1529,7 @@ export class ClientsPage implements OnInit {
     this.downloadingAllTxPdf.set(true);
     try {
       const blob = await this.api.downloadClientTransactionsListPdf(clientId);
-      this.saveBlob(blob, `coinforge-transactions-${clientId}.pdf`);
+      this.saveBlob(blob, `axora-fintech-transactions-${clientId}.pdf`);
     } catch (err: unknown) {
       this.toast('error', 'Could not generate PDF', this.downloadErrorMessage(err));
     } finally {
@@ -1545,7 +1545,7 @@ export class ClientsPage implements OnInit {
     this.downloadingTxPdfId.set(txId);
     try {
       const blob = await this.api.downloadClientTransactionPdf(clientId, txId);
-      this.saveBlob(blob, `coinforge-transaction-${txId}.pdf`);
+      this.saveBlob(blob, `axora-fintech-transaction-${txId}.pdf`);
     } catch (err: unknown) {
       this.toast('error', 'Could not generate PDF', this.downloadErrorMessage(err));
     } finally {

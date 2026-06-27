@@ -176,7 +176,7 @@ const SECTION_CONFIGS: Record<SectionKey, SectionConfig> = {
     key: 'bank-data',
     kicker: 'Treasury',
     title: 'Bank data',
-    description: 'Manage CoinForge bank account data. Write actions are admin-only in the backend.',
+    description: 'Manage Axora Fintech bank account data. Write actions are admin-only in the backend.',
     columns: [
       { field: 'owner', label: 'Owner' },
       { field: 'iban', label: 'IBAN' },

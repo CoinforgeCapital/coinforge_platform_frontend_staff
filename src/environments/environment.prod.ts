@@ -1,5 +1,5 @@
 export const environment = {
-  backendUrl: 'https://api.coinforgecapital.com',
+  backendUrl: 'https://api.axorafintech.org',
   staffHomePath: '/dashboard',
   roles: {
     inactive: 'INACTIVE',
