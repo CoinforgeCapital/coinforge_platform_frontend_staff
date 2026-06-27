@@ -126,7 +126,6 @@ export interface InactiveUser {
   role: 'INACTIVE';
   state: UserState;
   type?: string;
-  activationCode?: string | null;
   createdAt?: string;
   updatedAt?: string;
   clientMetadata?: StaffClientMetadata | null;

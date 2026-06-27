@@ -46,7 +46,6 @@
       <ng-template pTemplate="header">
         <tr>
           <th>Email</th>
-          <th>Activation code</th>
           <th>State</th>
           <th>Type</th>
           <th>Created</th>
@@ -58,7 +57,6 @@
             <span class="email">{{ u.email }}</span>
             <small class="muted mono">{{ u.id }}</small>
           </td>
-          <td class="mono">{{ u.activationCode || '-' }}</td>
           <td><span [class]="stateBadgeClass(u.state)">{{ stateLabel(u.state) }}</span></td>
           <td>{{ u.type ?? '-' }}</td>
           <td>{{ u.createdAt ? (u.createdAt | date:'short') : '-' }}</td>
@@ -66,7 +64,7 @@
       </ng-template>
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="5" class="empty">
+          <td colspan="4" class="empty">
             <i class="pi pi-user-minus" aria-hidden="true"></i>
             <span>{{ search() ? 'No inactive users match that search.' : 'No inactive users found.' }}</span>
           </td>

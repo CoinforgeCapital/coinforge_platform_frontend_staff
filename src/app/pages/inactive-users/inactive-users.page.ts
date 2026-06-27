@@ -43,7 +43,6 @@ export class InactiveUsersPage {
 
     return [
       { label: 'Email', value: user.email },
-      { label: 'Activation code', value: user.activationCode || '-', mono: true },
       { label: 'Role', value: this.roleLabel(user.role) },
       { label: 'State', value: this.stateLabel(user.state) },
       { label: 'Type', value: String(user.type ?? '-') },
