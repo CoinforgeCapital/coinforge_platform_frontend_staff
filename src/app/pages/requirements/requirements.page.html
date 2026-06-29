@@ -453,6 +453,44 @@
 
 <!-- ===== LIST ===== -->
 @else {
+  <section class="list-toolbar">
+    <label class="search-field">
+      <span>Search</span>
+      <div class="search-box">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          type="search"
+          placeholder="Search by client email, type, title or description..."
+          [value]="search()"
+          (input)="onSearch($event)"
+        />
+        @if (search()) {
+          <button type="button" class="search-clear" (click)="clearSearch()" aria-label="Clear search">
+            <i class="pi pi-times" aria-hidden="true"></i>
+          </button>
+        }
+      </div>
+    </label>
+
+    <label class="sort-field">
+      <span>Sort by</span>
+      <select [value]="sortBy()" (change)="onSortChange($event)">
+        <option value="createdAt">Created</option>
+        <option value="updatedAt">Updated</option>
+        <option value="closedDate">Closed date</option>
+        <option value="name">Name</option>
+        <option value="documentType">Document type</option>
+        <option value="clientEmail">Client email</option>
+        <option value="staffEmail">Staff email</option>
+      </select>
+    </label>
+
+    <button type="button" class="ghost sort-dir" (click)="toggleSortDir()" [attr.aria-label]="sortDir() === 'asc' ? 'Sort descending' : 'Sort ascending'">
+      <i [class]="sortDir() === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down'" aria-hidden="true"></i>
+      <span>{{ sortDir() === 'asc' ? 'Asc' : 'Desc' }}</span>
+    </button>
+  </section>
+
   <nav class="tabs" aria-label="Requirement types">
     @for (t of tabs; track t.key) {
       <button type="button" class="tab" [class.active]="activeTab() === t.key" (click)="setTab(t.key)">
@@ -478,8 +516,19 @@
       } @empty {
         <div class="list-empty">
           <i class="pi pi-verified" aria-hidden="true"></i>
-          <span>No requirements in this tab.</span>
+          <span>{{ search().trim() ? 'No requirements match this search.' : 'No requirements in this tab.' }}</span>
         </div>
+      }
+      @if (total() > 0) {
+        <p-paginator
+          [rows]="pageSize()"
+          [totalRecords]="total()"
+          [first]="(page() - 1) * pageSize()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="{first}–{last} of {totalRecords}"
+          (onPageChange)="onPageChange($event)"
+        />
       }
     }
   </section>

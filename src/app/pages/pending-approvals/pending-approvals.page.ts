@@ -53,8 +53,8 @@ interface ConfirmRunOptions {
 /**
  * Cola de elementos pendientes de aprobación (wallets, cuentas, transacciones, KYC).
  * Cada pestaña trae la lista completa de pendientes que el rol puede ver (el backend
- * acota: CO/operator/admin = todos; compliance = asignados) y se pagina en el cliente
- * (20 por página). Al pulsar una fila se abre un diálogo con las acciones disponibles.
+ * acota: CO/operator/admin = todos; compliance = asignados) y se pagina en el cliente.
+ * Al pulsar una fila se abre un diálogo con las acciones disponibles.
  */
 @Component({
   selector: 'app-pending-approvals-page',
@@ -72,7 +72,8 @@ export class PendingApprovalsPage {
   private readonly requirementWarnings = inject(ApprovalRequirementWarningService);
 
   /** Filas por página (paginación en cliente). */
-  readonly pageSize = 20;
+  readonly pageSize = 10;
+  readonly rowsPerPageOptions = [10, 25, 50];
 
   // ---- Permisos (espejo del backend) ----
   readonly canFinancials = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientFinancials);

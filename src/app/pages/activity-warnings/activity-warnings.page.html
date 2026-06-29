@@ -20,7 +20,7 @@
     }
   </div>
 
-  <button type="button" class="ghost" (click)="load()" [disabled]="loading()">
+  <button type="button" class="ghost" (click)="refresh()" [disabled]="loading()">
     <i [class]="loading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
     <span>{{ loading() ? 'Loading...' : 'Refresh' }}</span>
   </button>
@@ -31,12 +31,12 @@
     <p-tab value="active">
       <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
       <span class="tab-label">Active</span>
-      <span class="tab-count">{{ activeWarnings().length }}</span>
+      <span class="tab-count">{{ tabCount('active') }}</span>
     </p-tab>
     <p-tab value="solved">
       <i class="pi pi-check-circle" aria-hidden="true"></i>
       <span class="tab-label">Solved</span>
-      <span class="tab-count">{{ solvedWarnings().length }}</span>
+      <span class="tab-count">{{ tabCount('solved') }}</span>
     </p-tab>
   </p-tablist>
 
@@ -46,9 +46,17 @@
         <p-table
           [value]="activeWarnings()"
           [loading]="loading()"
-          [paginator]="activeWarnings().length > pageSize"
-          [rows]="pageSize"
-          [rowsPerPageOptions]="[20, 50, 100]"
+          [lazy]="true"
+          [paginator]="total() > 0"
+          [rows]="pageSize()"
+          [first]="(page() - 1) * pageSize()"
+          [totalRecords]="total()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="{first}–{last} of {totalRecords}"
+          [sortField]="sortBy() === 'clientEmail' ? 'client.email' : sortBy()"
+          [sortOrder]="sortDir() === 'asc' ? 1 : -1"
+          (onLazyLoad)="onLazyLoad($event)"
           styleClass="cf-table"
         >
           <ng-template pTemplate="header">
@@ -97,9 +105,17 @@
         <p-table
           [value]="solvedWarnings()"
           [loading]="loading()"
-          [paginator]="solvedWarnings().length > pageSize"
-          [rows]="pageSize"
-          [rowsPerPageOptions]="[20, 50, 100]"
+          [lazy]="true"
+          [paginator]="total() > 0"
+          [rows]="pageSize()"
+          [first]="(page() - 1) * pageSize()"
+          [totalRecords]="total()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="{first}–{last} of {totalRecords}"
+          [sortField]="sortBy() === 'clientEmail' ? 'client.email' : (sortBy() === 'reviewedByEmail' ? 'reviewedBy.email' : sortBy())"
+          [sortOrder]="sortDir() === 'asc' ? 1 : -1"
+          (onLazyLoad)="onLazyLoad($event)"
           styleClass="cf-table"
         >
           <ng-template pTemplate="header">

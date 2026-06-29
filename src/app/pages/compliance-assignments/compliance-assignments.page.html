@@ -77,6 +77,7 @@
       <app-user-autocomplete
         type="staff"
         [allowedRoles]="reassignableComplianceRoles"
+        [excludeBlocked]="true"
         placeholder="Search compliance or compliance officer by email…"
         (selected)="onPickReassignmentCompliance($event)"
       />
@@ -160,6 +161,17 @@
         <span>{{ userSearch().trim() ? 'No compliance assignments match this search.' : 'No compliance assignments yet.' }}</span>
       </div>
     }
+    @if (!loading() && assignmentsTotal() > 0) {
+      <p-paginator
+        [rows]="assignmentsPageSize()"
+        [totalRecords]="assignmentsTotal()"
+        [first]="(assignmentsPage() - 1) * assignmentsPageSize()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        (onPageChange)="onAssignmentsPage($event)"
+      />
+    }
   </section>
 }
 
@@ -195,6 +207,7 @@
               <app-user-autocomplete
                 type="staff"
                 [allowedRoles]="assignableComplianceRoles"
+                [excludeBlocked]="true"
                 placeholder="Search a compliance user by email…"
                 (selected)="onPickCompliance($event)"
               />
@@ -229,7 +242,7 @@
     @if (loadingClients()) {
       <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading clients…</span></div>
     } @else {
-      <p-table [value]="filteredUnassignedClients()" [paginator]="filteredUnassignedClients().length > 10" [rows]="10" styleClass="cf-pick-table">
+      <p-table [value]="filteredUnassignedClients()" styleClass="cf-pick-table">
         <ng-template pTemplate="header">
           <tr>
             <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
@@ -255,6 +268,17 @@
           <tr><td colspan="4" class="pick-empty">{{ userSearch().trim() ? 'No clients match this search.' : 'No clients awaiting assignment.' }}</td></tr>
         </ng-template>
       </p-table>
+      @if (unassignedTotal() > 0) {
+        <p-paginator
+          [rows]="unassignedPageSize()"
+          [totalRecords]="unassignedTotal()"
+          [first]="(unassignedPage() - 1) * unassignedPageSize()"
+          [rowsPerPageOptions]="rowsPerPageOptions"
+          [showCurrentPageReport]="true"
+          currentPageReportTemplate="{first}–{last} of {totalRecords}"
+          (onPageChange)="onUnassignedPage($event)"
+        />
+      }
     }
   </section>
 }
@@ -313,6 +337,17 @@
         <span>{{ userSearch().trim() ? 'No clients to reassign match this search.' : 'No clients require compliance reassignment.' }}</span>
       </div>
     }
+    @if (!loadingPendingReassignment() && pendingTotal() > 0) {
+      <p-paginator
+        [rows]="pendingPageSize()"
+        [totalRecords]="pendingTotal()"
+        [first]="(pendingPage() - 1) * pendingPageSize()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        (onPageChange)="onPendingPage($event)"
+      />
+    }
   </section>
 }
 
@@ -335,7 +370,7 @@
       @if (loadingBy()) {
         <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading assignments…</span></div>
       } @else {
-        <p-table [value]="filteredByAssignments()" [paginator]="filteredByAssignments().length > 10" [rows]="10" styleClass="cf-pick-table">
+        <p-table [value]="filteredByAssignments()" styleClass="cf-pick-table">
           <ng-template pTemplate="header">
             <tr>
               <th pSortableColumn="clientUser.email">Client <p-sortIcon field="clientUser.email" /></th>
@@ -359,6 +394,17 @@
             <tr><td colspan="3" class="pick-empty">{{ userSearch().trim() ? 'No assigned clients match this search.' : 'This compliance user has no assigned clients.' }}</td></tr>
           </ng-template>
         </p-table>
+        @if (byTotal() > 0) {
+          <p-paginator
+            [rows]="byPageSize()"
+            [totalRecords]="byTotal()"
+            [first]="(byPage() - 1) * byPageSize()"
+            [rowsPerPageOptions]="rowsPerPageOptions"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="{first}–{last} of {totalRecords}"
+            (onPageChange)="onByPage($event)"
+          />
+        }
       }
     </section>
   } @else {

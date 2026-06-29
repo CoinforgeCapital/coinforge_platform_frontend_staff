@@ -17,8 +17,14 @@ export interface ListInactiveUsersResponse {
   pageSize: number;
 }
 export interface InactiveUserDetailResponse { ok: boolean; user: InactiveUser; }
-export interface ListRequirementsResponse { requirements: Requirement[]; }
-export interface ListSupportTicketsResponse { tickets: SupportTicket[]; }
+export interface ListRequirementsResponse {
+  requirements: Requirement[];
+  total: number;
+  page: number;
+  pageSize: number;
+  countsByState?: Partial<Record<RequirementState, number>>;
+}
+export interface ListSupportTicketsResponse { tickets: SupportTicket[]; total: number; page: number; pageSize: number; }
 export interface ListInternalConversationsResponse { conversations: InternalConversation[]; }
 export interface ListActionRequestsResponse { conversations: ActionRequest[]; actionRequests?: ActionRequest[]; }
 export interface ListBlockchainsResponse { blockchains: CatalogItem[]; }
@@ -26,6 +32,15 @@ export interface ListFiatCurrenciesResponse { fiatCurrencies: CatalogItem[]; }
 export interface ListCryptoCurrenciesResponse { cryptoCurrencies: CatalogItem[]; }
 export interface ListBankDataResponse { bankAccounts: BankData[]; }
 export interface CurrentUserStateResponse { id: string; role: UserRole; state: UserState; email?: string; }
+export type PlatformTutorialLanguage = 'en' | 'es' | 'lt';
+export interface PlatformTutorialManual {
+  title: string;
+  audience: string;
+  roleGroup: 'admin' | 'operator' | 'compliance' | 'support';
+  language: PlatformTutorialLanguage;
+  availableLanguages: PlatformTutorialLanguage[];
+  markdown: string;
+}
 
 export type StaffRole =
   | 'SUPPORT'
@@ -261,8 +276,18 @@ export interface ComplianceAssignment {
   complianceUser?: StaffUser;
   assignedByUser?: StaffUser | null;
 }
-export interface ListComplianceAssignmentsResponse { assignments: ComplianceAssignment[]; }
-export interface ListUnassignedClientsResponse { clients: StaffUser[]; }
+export interface ListComplianceAssignmentsResponse {
+  assignments: ComplianceAssignment[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+export interface ListUnassignedClientsResponse {
+  clients: StaffUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
 export interface CreateComplianceAssignmentRequest {
   clientUserId: string;
   /** Solo lo envía el compliance officer; el compliance "raso" se asigna a sí mismo. */
@@ -462,6 +487,10 @@ export interface ActivityWarning {
 
 export interface ListActivityWarningsResponse {
   warnings: ActivityWarning[];
+  total: number;
+  page: number;
+  pageSize: number;
+  countsByState?: Partial<Record<ActivityWarningState, number>>;
 }
 
 export interface TransactionWarningLimit {
@@ -896,8 +925,17 @@ export class ApiService {
     );
   }
 
-  listRequirements(): Promise<ListRequirementsResponse> {
-    return this.request.get<ListRequirementsResponse>('/api/requirement');
+  listRequirements(query?: {
+    page?: number;
+    pageSize?: number;
+    state?: RequirementState;
+    q?: string;
+    sortBy?: 'createdAt' | 'updatedAt' | 'closedDate' | 'name' | 'documentType' | 'state' | 'clientEmail' | 'staffEmail';
+    sortDir?: 'asc' | 'desc';
+  }): Promise<ListRequirementsResponse> {
+    return this.request.get<ListRequirementsResponse>('/api/requirement', {
+      params: query,
+    });
   }
 
   getRequirement(requirementId: string): Promise<{ requirement: Requirement }> {
@@ -1024,22 +1062,35 @@ export class ApiService {
 
   // ---- Compliance assignments ----
 
-  listComplianceAssignments(): Promise<ListComplianceAssignmentsResponse> {
-    return this.request.get<ListComplianceAssignmentsResponse>('/api/compliance-assignment');
+  listComplianceAssignments(page = 1, pageSize = 10, q?: string): Promise<ListComplianceAssignmentsResponse> {
+    return this.request.get<ListComplianceAssignmentsResponse>('/api/compliance-assignment', {
+      params: { page, pageSize, q },
+    });
   }
 
-  listUnassignedClients(): Promise<ListUnassignedClientsResponse> {
-    return this.request.get<ListUnassignedClientsResponse>('/api/compliance-assignment/not-assigned');
+  listUnassignedClients(page = 1, pageSize = 10, q?: string): Promise<ListUnassignedClientsResponse> {
+    return this.request.get<ListUnassignedClientsResponse>('/api/compliance-assignment/not-assigned', {
+      params: { page, pageSize, q },
+    });
   }
 
   /** Clientes asignados a compliance staff bloqueado y pendientes de reasignación (CO). */
-  listComplianceAssignmentsPendingReassignment(): Promise<ListComplianceAssignmentsResponse> {
-    return this.request.get<ListComplianceAssignmentsResponse>('/api/compliance-assignment/pending-reassignment');
+  listComplianceAssignmentsPendingReassignment(page = 1, pageSize = 10, q?: string): Promise<ListComplianceAssignmentsResponse> {
+    return this.request.get<ListComplianceAssignmentsResponse>('/api/compliance-assignment/pending-reassignment', {
+      params: { page, pageSize, q },
+    });
   }
 
   /** Asignaciones de un compliance concreto (admin / CO / operator). */
-  listComplianceAssignmentsByComplianceUser(complianceUserId: string): Promise<ListComplianceAssignmentsResponse> {
-    return this.request.get<ListComplianceAssignmentsResponse>(`/api/compliance-assignment/${complianceUserId}`);
+  listComplianceAssignmentsByComplianceUser(
+    complianceUserId: string,
+    page = 1,
+    pageSize = 10,
+    q?: string,
+  ): Promise<ListComplianceAssignmentsResponse> {
+    return this.request.get<ListComplianceAssignmentsResponse>(`/api/compliance-assignment/${complianceUserId}`, {
+      params: { page, pageSize, q },
+    });
   }
 
   createComplianceAssignment(body: CreateComplianceAssignmentRequest): Promise<StandardMessageResponse> {
@@ -1152,12 +1203,35 @@ export class ApiService {
 
   // ---- Activity warnings ----
 
-  listActivityWarnings(): Promise<ListActivityWarningsResponse> {
-    return this.request.get<ListActivityWarningsResponse>('/api/activity-warning/staff');
+  listActivityWarnings(query?: {
+    page?: number;
+    pageSize?: number;
+    state?: ActivityWarningState;
+    type?: ActivityWarningType;
+    q?: string;
+    sortBy?: 'createdAt' | 'updatedAt' | 'reviewedAt' | 'type' | 'state' | 'clientEmail' | 'reviewedByEmail' | 'triggerAmountEur' | 'totalAmountEur' | 'thresholdAmountEur';
+    sortDir?: 'asc' | 'desc';
+  }): Promise<ListActivityWarningsResponse> {
+    return this.request.get<ListActivityWarningsResponse>('/api/activity-warning/staff', {
+      params: query,
+    });
   }
 
-  listClientActivityWarnings(clientId: string): Promise<ListActivityWarningsResponse> {
-    return this.request.get<ListActivityWarningsResponse>(`/api/activity-warning/staff/client/${clientId}`);
+  listClientActivityWarnings(
+    clientId: string,
+    query?: {
+      page?: number;
+      pageSize?: number;
+      state?: ActivityWarningState;
+      type?: ActivityWarningType;
+      q?: string;
+      sortBy?: 'createdAt' | 'updatedAt' | 'reviewedAt' | 'type' | 'state' | 'clientEmail' | 'reviewedByEmail' | 'triggerAmountEur' | 'totalAmountEur' | 'thresholdAmountEur';
+      sortDir?: 'asc' | 'desc';
+    },
+  ): Promise<ListActivityWarningsResponse> {
+    return this.request.get<ListActivityWarningsResponse>(`/api/activity-warning/staff/client/${clientId}`, {
+      params: query,
+    });
   }
 
   getClientTransactionWarningLimit(clientId: string): Promise<TransactionWarningLimitResponse> {
@@ -1271,16 +1345,16 @@ export class ApiService {
     return this.request.patch<StandardDataResponse<ActionRequest>>(`/api/action-request/close/${actionRequestId}`);
   }
 
-  listSupportTickets(): Promise<ListSupportTicketsResponse> {
-    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket');
+  listSupportTickets(page = 1, pageSize = 20): Promise<ListSupportTicketsResponse> {
+    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket', { params: { page, pageSize } });
   }
 
-  listUnassignedSupportTickets(): Promise<ListSupportTicketsResponse> {
-    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket/unassigned');
+  listUnassignedSupportTickets(page = 1, pageSize = 20): Promise<ListSupportTicketsResponse> {
+    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket/unassigned', { params: { page, pageSize } });
   }
 
-  listPendingReassignmentSupportTickets(): Promise<ListSupportTicketsResponse> {
-    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket/pending-reassignment');
+  listPendingReassignmentSupportTickets(page = 1, pageSize = 20): Promise<ListSupportTicketsResponse> {
+    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket/pending-reassignment', { params: { page, pageSize } });
   }
 
   getSupportTicket(ticketId: string): Promise<{ ticket: SupportTicket }> {
@@ -1330,6 +1404,15 @@ export class ApiService {
 
   downloadSupportTicketDocument(documentId: string): Promise<Blob> {
     return this.request.download(`/api/support-ticket/download/${documentId}/file`);
+  }
+
+  // ---- Platform tutorial — manual privado por rol ----
+  getPlatformTutorialManual(
+    lang: PlatformTutorialLanguage = 'en',
+  ): Promise<StandardDataResponse<PlatformTutorialManual>> {
+    return this.request.get<StandardDataResponse<PlatformTutorialManual>>('/api/platform-tutorial/manual', {
+      params: { lang },
+    });
   }
 
   // ---- Platform parameters — solo admin ----

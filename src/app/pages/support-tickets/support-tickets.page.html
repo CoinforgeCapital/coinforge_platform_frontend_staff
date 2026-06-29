@@ -77,6 +77,7 @@
               <app-user-autocomplete
                 type="staff"
                 [allowedRoles]="assignSupportRoles"
+                [excludeBlocked]="true"
                 placeholder="Search a support agent…"
                 (selected)="onAssignPick($event)"
               />
@@ -203,6 +204,17 @@
             <span>No tickets pending reassignment.</span>
           </div>
         }
+        @if (pendingTotal() > 0) {
+          <p-paginator
+            [rows]="pendingPageSize()"
+            [totalRecords]="pendingTotal()"
+            [first]="(pendingPage() - 1) * pendingPageSize()"
+            [rowsPerPageOptions]="rowsPerPageOptions"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="{first}–{last} of {totalRecords}"
+            (onPageChange)="onPendingPage($event)"
+          />
+        }
       }
     </section>
   } @else if (view() === 'unassigned') {
@@ -218,6 +230,12 @@
             </span>
             <span class="ticket-side">
               <span [class]="priorityBadgeClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+              @if (isSupportOfficer) {
+                <button type="button" class="ghost sm" (click)="startAssignOther(t)" [disabled]="assignBusy()">
+                  <i class="pi pi-user-plus" aria-hidden="true"></i>
+                  <span>Assign to…</span>
+                </button>
+              }
               <button type="button" class="primary sm" (click)="onClaim(t.id)" [disabled]="claimingId() === t.id">
                 {{ claimingId() === t.id ? 'Claiming…' : 'Claim' }}
               </button>
@@ -225,6 +243,17 @@
           </div>
         } @empty {
           <div class="list-empty"><i class="pi pi-check-circle" aria-hidden="true"></i><span>No unassigned tickets.</span></div>
+        }
+        @if (unassignedTotal() > 0) {
+          <p-paginator
+            [rows]="unassignedPageSize()"
+            [totalRecords]="unassignedTotal()"
+            [first]="(unassignedPage() - 1) * unassignedPageSize()"
+            [rowsPerPageOptions]="rowsPerPageOptions"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="{first}–{last} of {totalRecords}"
+            (onPageChange)="onUnassignedPage($event)"
+          />
         }
       }
     </section>
@@ -250,7 +279,45 @@
             <span>{{ isSupportOfficer ? 'No tickets yet.' : 'No tickets assigned to you.' }}</span>
           </div>
         }
+        @if (mineTotal() > 0) {
+          <p-paginator
+            [rows]="minePageSize()"
+            [totalRecords]="mineTotal()"
+            [first]="(minePage() - 1) * minePageSize()"
+            [rowsPerPageOptions]="rowsPerPageOptions"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="{first}–{last} of {totalRecords}"
+            (onPageChange)="onMinePage($event)"
+          />
+        }
       }
     </section>
   }
 }
+
+<!-- ===== Diálogo: asignar un ticket sin asignar a otro support (officer) ===== -->
+<p-dialog
+  [visible]="assignOpen()"
+  (visibleChange)="assignOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '460px' }"
+  [contentStyle]="{ overflow: 'visible' }"
+  header="Assign ticket"
+  (onHide)="afterAssignDialogHide()"
+>
+  <div class="assign-dialog">
+    <p class="assign-dialog-hint">Assign this ticket to a support agent.</p>
+    <app-user-autocomplete
+      type="staff"
+      [allowedRoles]="assignSupportRoles"
+      [excludeBlocked]="true"
+      placeholder="Search a support agent…"
+      (selected)="onAssignOtherPick($event)"
+    />
+    <div class="assign-dialog-actions">
+      <button type="button" class="ghost" (click)="cancelAssignOther()">Cancel</button>
+    </div>
+  </div>
+</p-dialog>

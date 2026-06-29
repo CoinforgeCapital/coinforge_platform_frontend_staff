@@ -209,7 +209,8 @@ export const STAFF_NAV_ITEMS: readonly StaffNavItem[] = [
   { path: '/bank-data', label: 'Bank data', icon: 'pi pi-building-columns', group: 'Administration', roles: STAFF_PERMISSIONS.bankDataManage },
   { path: '/parameters', label: 'Parameters', icon: 'pi pi-sliders-h', group: 'Administration', roles: STAFF_PERMISSIONS.parameters },
 
-  // Ajustes de la propia cuenta: visible para todo el staff (sin restricción de rol).
+  // Tutorial y ajustes propios: visibles para todo el staff autenticado (sin restricción de rol).
+  { path: '/platform-tutorial', label: 'Platform tutorial', icon: 'pi pi-book', group: 'Account' },
   { path: '/account-settings', label: 'Account settings', icon: 'pi pi-cog', group: 'Account' },
 ];
 

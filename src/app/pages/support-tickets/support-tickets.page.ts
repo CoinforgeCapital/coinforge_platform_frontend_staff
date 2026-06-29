@@ -1,6 +1,8 @@
 import { Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { DialogModule } from 'primeng/dialog';
+import { PaginatorModule } from 'primeng/paginator';
 
 import {
   ApiService,
@@ -32,7 +34,7 @@ const STATUS_OPTIONS: readonly StatusOption[] = [
 @Component({
   selector: 'app-support-tickets-page',
   standalone: true,
-  imports: [ReactiveFormsModule, UserAutocompleteComponent],
+  imports: [ReactiveFormsModule, UserAutocompleteComponent, DialogModule, PaginatorModule],
   templateUrl: './support-tickets.page.html',
   styleUrl: './support-tickets.page.css',
 })
@@ -56,12 +58,28 @@ export class SupportTicketsPage implements OnInit {
   readonly pendingReassignment = signal<SupportTicket[]>([]);
   readonly selectedTicket = signal<SupportTicket | null>(null);
 
+  /** Paginación server-side: página + tamaño por pestaña (mismo estilo que clients/staff). */
+  readonly rowsPerPageOptions = [10, 25, 50];
+  readonly minePage = signal(1);
+  readonly minePageSize = signal(10);
+  readonly mineTotal = signal(0);
+  readonly unassignedPage = signal(1);
+  readonly unassignedPageSize = signal(10);
+  readonly unassignedTotal = signal(0);
+  readonly pendingPage = signal(1);
+  readonly pendingPageSize = signal(10);
+  readonly pendingTotal = signal(0);
+
   readonly loading = signal(false);
   readonly detailLoading = signal(false);
   readonly replyLoading = signal(false);
   readonly claimingId = signal<string | null>(null);
   readonly statusBusy = signal(false);
   readonly assignBusy = signal(false);
+  /** Ticket sin asignar (de la pestaña "Unassigned") para el que el officer abrió el selector. */
+  readonly assignTargetId = signal<string | null>(null);
+  /** Visibilidad del diálogo de "asignar a otro support". */
+  readonly assignOpen = signal(false);
   readonly downloadingDocId = signal<string | null>(null);
 
   readonly view = signal<View>('mine');
@@ -72,9 +90,10 @@ export class SupportTicketsPage implements OnInit {
     body: ['', [Validators.required, Validators.maxLength(10000)]],
   });
 
-  readonly mineList = computed(() => this.sortByDate(this.mine()));
-  readonly unassignedList = computed(() => this.sortByDate(this.unassigned()));
-  readonly pendingReassignmentList = computed(() => this.sortByDate(this.pendingReassignment()));
+  // El backend ya devuelve cada página ordenada; no reordenamos en cliente para no romper el orden entre páginas.
+  readonly mineList = computed(() => this.mine());
+  readonly unassignedList = computed(() => this.unassigned());
+  readonly pendingReassignmentList = computed(() => this.pendingReassignment());
 
   readonly selectedMessages = computed(() => {
     const t = this.selectedTicket();
@@ -96,20 +115,80 @@ export class SupportTicketsPage implements OnInit {
     if (showLoading) this.loading.set(true);
     try {
       const [mineRes, unassignedRes] = await Promise.all([
-        this.api.listSupportTickets(),
-        this.api.listUnassignedSupportTickets(),
+        this.api.listSupportTickets(this.minePage(), this.minePageSize()),
+        this.api.listUnassignedSupportTickets(this.unassignedPage(), this.unassignedPageSize()),
       ]);
       const pendingRes = this.isSupportOfficer
-        ? await this.api.listPendingReassignmentSupportTickets()
-        : { tickets: [] };
+        ? await this.api.listPendingReassignmentSupportTickets(this.pendingPage(), this.pendingPageSize())
+        : { tickets: [], total: 0, page: 1, pageSize: this.pendingPageSize() };
       this.mine.set(mineRes.tickets ?? []);
+      this.mineTotal.set(mineRes.total ?? 0);
       this.unassigned.set(unassignedRes.tickets ?? []);
+      this.unassignedTotal.set(unassignedRes.total ?? 0);
       this.pendingReassignment.set(pendingRes.tickets ?? []);
+      this.pendingTotal.set(pendingRes.total ?? 0);
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private async loadMine(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const res = await this.api.listSupportTickets(this.minePage(), this.minePageSize());
+      this.mine.set(res.tickets ?? []);
+      this.mineTotal.set(res.total ?? 0);
+    } catch {
+      /* el interceptor ya muestra el aviso */
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  private async loadUnassigned(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const res = await this.api.listUnassignedSupportTickets(this.unassignedPage(), this.unassignedPageSize());
+      this.unassigned.set(res.tickets ?? []);
+      this.unassignedTotal.set(res.total ?? 0);
+    } catch {
+      /* el interceptor ya muestra el aviso */
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  private async loadPending(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const res = await this.api.listPendingReassignmentSupportTickets(this.pendingPage(), this.pendingPageSize());
+      this.pendingReassignment.set(res.tickets ?? []);
+      this.pendingTotal.set(res.total ?? 0);
+    } catch {
+      /* el interceptor ya muestra el aviso */
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  onMinePage(event: { page?: number; rows?: number }): void {
+    this.minePageSize.set(event.rows ?? this.minePageSize());
+    this.minePage.set((event.page ?? 0) + 1);
+    void this.loadMine();
+  }
+
+  onUnassignedPage(event: { page?: number; rows?: number }): void {
+    this.unassignedPageSize.set(event.rows ?? this.unassignedPageSize());
+    this.unassignedPage.set((event.page ?? 0) + 1);
+    void this.loadUnassigned();
+  }
+
+  onPendingPage(event: { page?: number; rows?: number }): void {
+    this.pendingPageSize.set(event.rows ?? this.pendingPageSize());
+    this.pendingPage.set((event.page ?? 0) + 1);
+    void this.loadPending();
   }
 
   showMine(): void {
@@ -221,8 +300,34 @@ export class SupportTicketsPage implements OnInit {
     }
   }
 
+  /** Selección desde el detalle del ticket. */
   onAssignPick(user: StaffUser): void {
-    const ticket = this.selectedTicket();
+    this.requestAssign(this.selectedTicket(), user);
+  }
+
+  /** Abre el diálogo de asignación para un ticket sin asignar (pestaña "Unassigned", solo officer). */
+  startAssignOther(ticket: SupportTicket): void {
+    this.assignTargetId.set(ticket.id);
+    this.assignOpen.set(true);
+  }
+
+  cancelAssignOther(): void {
+    this.assignOpen.set(false);
+  }
+
+  /** Limpieza al cerrarse el diálogo (X, máscara o tras asignar). */
+  afterAssignDialogHide(): void {
+    this.assignTargetId.set(null);
+    this.assignPicker()?.reset();
+  }
+
+  /** Selección desde la fila de un ticket sin asignar. */
+  onAssignOtherPick(user: StaffUser): void {
+    const ticket = this.unassigned().find((t) => t.id === this.assignTargetId()) ?? null;
+    this.requestAssign(ticket, user);
+  }
+
+  private requestAssign(ticket: SupportTicket | null, user: StaffUser): void {
     if (!ticket) return;
     if (
       (user.role !== STAFF_ROLES.support && user.role !== STAFF_ROLES.supportOfficer) ||
@@ -250,13 +355,15 @@ export class SupportTicketsPage implements OnInit {
     this.assignBusy.set(true);
     try {
       const res = await this.api.assignSupportTicket(ticketId, user.id);
-      await this.loadDetail(ticketId);
+      if (this.view() === 'detail') await this.loadDetail(ticketId);
       await this.load(false);
       this.toast('success', 'Ticket assigned', res.message);
     } catch (err: unknown) {
       this.toast('error', 'Could not assign', this.errorOf(err));
     } finally {
       this.assignBusy.set(false);
+      this.assignOpen.set(false);
+      this.assignTargetId.set(null);
       this.assignPicker()?.reset();
     }
   }
@@ -351,9 +458,6 @@ export class SupportTicketsPage implements OnInit {
     this.statusValue.set((event.target as HTMLSelectElement).value as TicketStatus);
   }
 
-  private sortByDate(list: SupportTicket[]): SupportTicket[] {
-    return [...list].sort((a, b) => this.time(b.updatedAt ?? b.createdAt) - this.time(a.updatedAt ?? a.createdAt));
-  }
   private time(value?: string | Date | null): number {
     if (!value) return 0;
     const date = new Date(value);

@@ -646,6 +646,7 @@
               <app-user-autocomplete
                 [type]="'staff'"
                 [allowedRoles]="reassignComplianceRoles"
+                [excludeBlocked]="true"
                 [placeholder]="'Search compliance by email or name...'"
                 (selected)="pickReassignTarget($event)"
               />

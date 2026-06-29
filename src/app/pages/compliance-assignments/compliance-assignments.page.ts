@@ -2,19 +2,19 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
+import { PaginatorModule } from 'primeng/paginator';
 
 import { ApiService, ComplianceAssignment, StaffUser } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
-import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 type Tab = 'assignments' | 'unassigned' | 'pending-reassignment' | 'by-compliance';
 
 @Component({
   selector: 'app-compliance-assignments-page',
   standalone: true,
-  imports: [TableModule, UserAutocompleteComponent],
+  imports: [TableModule, PaginatorModule, UserAutocompleteComponent],
   templateUrl: './compliance-assignments.page.html',
   styleUrl: './compliance-assignments.page.css',
 })
@@ -37,18 +37,33 @@ export class ComplianceAssignmentsPage implements OnInit {
   readonly unassignedClients = signal<StaffUser[]>([]);
   readonly pendingReassignmentAssignments = signal<ComplianceAssignment[]>([]);
   readonly userSearch = signal('');
-  readonly filteredAssignments = computed(() => this.filterAssignments(this.assignments()));
-  readonly filteredUnassignedClients = computed(() => this.filterClients(this.unassignedClients()));
-  readonly filteredPendingReassignmentAssignments = computed(() =>
-    this.filterAssignments(this.pendingReassignmentAssignments()),
-  );
-  readonly filteredByAssignments = computed(() => this.filterAssignments(this.byAssignments()));
+  // Listas paginadas en servidor: las "filtered*" se mantienen por compatibilidad de plantilla,
+  // pero ya no filtran en cliente (la búsqueda va al backend vía `q`).
+  readonly filteredAssignments = computed(() => this.assignments());
+  readonly filteredUnassignedClients = computed(() => this.unassignedClients());
+  readonly filteredPendingReassignmentAssignments = computed(() => this.pendingReassignmentAssignments());
+  readonly filteredByAssignments = computed(() => this.byAssignments());
   readonly loading = signal(false);
   readonly loadingClients = signal(false);
   readonly loadingPendingReassignment = signal(false);
-  readonly unassignedLoaded = signal(false);
   readonly creating = signal(false);
   readonly reassigningId = signal<string | null>(null);
+
+  // ---- Paginación server-side (página + tamaño + total por pestaña) ----
+  readonly rowsPerPageOptions = [10, 25, 50];
+  readonly assignmentsPage = signal(1);
+  readonly assignmentsPageSize = signal(10);
+  readonly assignmentsTotal = signal(0);
+  readonly unassignedPage = signal(1);
+  readonly unassignedPageSize = signal(10);
+  readonly unassignedTotal = signal(0);
+  readonly pendingPage = signal(1);
+  readonly pendingPageSize = signal(10);
+  readonly pendingTotal = signal(0);
+  readonly byPage = signal(1);
+  readonly byPageSize = signal(10);
+  readonly byTotal = signal(0);
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly tab = signal<Tab>('assignments');
   readonly selectedClient = signal<StaffUser | null>(null);
@@ -72,16 +87,17 @@ export class ComplianceAssignmentsPage implements OnInit {
 
   setTab(tab: Tab): void {
     this.tab.set(tab);
-    if (tab === 'unassigned') {
-      this.cancelReassignment();
+    this.cancelReassignment();
+    if (tab === 'assignments') {
+      void this.loadAssignments();
+    } else if (tab === 'unassigned') {
       this.resetSelection();
-      if (!this.unassignedLoaded()) void this.loadUnassignedClients();
+      void this.loadUnassignedClients();
     } else if (tab === 'pending-reassignment') {
-      this.cancelReassignment();
       void this.loadPendingReassignments();
     } else if (tab === 'by-compliance') {
-      this.cancelReassignment();
       if (!this.complianceUsersLoaded()) void this.loadComplianceUsers();
+      if (this.byFilterId()) void this.loadByCompliance(this.byFilterId());
     }
   }
 
@@ -94,10 +110,59 @@ export class ComplianceAssignmentsPage implements OnInit {
 
   onUserSearchInput(event: Event): void {
     this.userSearch.set((event.target as HTMLInputElement).value);
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.applySearch(), 300);
   }
 
   clearUserSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
     this.userSearch.set('');
+    this.applySearch();
+  }
+
+  /** La búsqueda se resuelve en servidor (`q`): reinicia la página y recarga la pestaña activa. */
+  private applySearch(): void {
+    if (this.tab() === 'assignments') {
+      this.assignmentsPage.set(1);
+      void this.loadAssignments();
+    } else if (this.tab() === 'unassigned') {
+      this.unassignedPage.set(1);
+      void this.loadUnassignedClients();
+    } else if (this.tab() === 'pending-reassignment') {
+      this.pendingPage.set(1);
+      void this.loadPendingReassignments();
+    } else if (this.tab() === 'by-compliance' && this.byFilterId()) {
+      this.byPage.set(1);
+      void this.loadByCompliance(this.byFilterId());
+    }
+  }
+
+  private searchTerm(): string | undefined {
+    return this.userSearch().trim() || undefined;
+  }
+
+  onAssignmentsPage(event: { page?: number; rows?: number }): void {
+    this.assignmentsPageSize.set(event.rows ?? this.assignmentsPageSize());
+    this.assignmentsPage.set((event.page ?? 0) + 1);
+    void this.loadAssignments();
+  }
+
+  onUnassignedPage(event: { page?: number; rows?: number }): void {
+    this.unassignedPageSize.set(event.rows ?? this.unassignedPageSize());
+    this.unassignedPage.set((event.page ?? 0) + 1);
+    void this.loadUnassignedClients();
+  }
+
+  onPendingPage(event: { page?: number; rows?: number }): void {
+    this.pendingPageSize.set(event.rows ?? this.pendingPageSize());
+    this.pendingPage.set((event.page ?? 0) + 1);
+    void this.loadPendingReassignments();
+  }
+
+  onByPage(event: { page?: number; rows?: number }): void {
+    this.byPageSize.set(event.rows ?? this.byPageSize());
+    this.byPage.set((event.page ?? 0) + 1);
+    if (this.byFilterId()) void this.loadByCompliance(this.byFilterId());
   }
 
   /** Abre el detalle del cliente (misma página que Clients) a partir de una asignación. */
@@ -109,8 +174,9 @@ export class ComplianceAssignmentsPage implements OnInit {
   async loadAssignments(): Promise<void> {
     this.loading.set(true);
     try {
-      const res = await this.api.listComplianceAssignments();
+      const res = await this.api.listComplianceAssignments(this.assignmentsPage(), this.assignmentsPageSize(), this.searchTerm());
       this.assignments.set(res.assignments ?? []);
+      this.assignmentsTotal.set(res.total ?? 0);
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
@@ -121,9 +187,9 @@ export class ComplianceAssignmentsPage implements OnInit {
   async loadUnassignedClients(): Promise<void> {
     this.loadingClients.set(true);
     try {
-      const res = await this.api.listUnassignedClients();
+      const res = await this.api.listUnassignedClients(this.unassignedPage(), this.unassignedPageSize(), this.searchTerm());
       this.unassignedClients.set(res.clients ?? []);
-      this.unassignedLoaded.set(true);
+      this.unassignedTotal.set(res.total ?? 0);
     } catch (err: unknown) {
       this.toast('error', 'Could not load clients', this.errorOf(err));
     } finally {
@@ -136,8 +202,9 @@ export class ComplianceAssignmentsPage implements OnInit {
 
     this.loadingPendingReassignment.set(true);
     try {
-      const res = await this.api.listComplianceAssignmentsPendingReassignment();
+      const res = await this.api.listComplianceAssignmentsPendingReassignment(this.pendingPage(), this.pendingPageSize(), this.searchTerm());
       this.pendingReassignmentAssignments.set(res.assignments ?? []);
+      this.pendingTotal.set(res.total ?? 0);
     } catch (err: unknown) {
       this.toast('error', 'Could not load clients to reassign', this.errorOf(err));
     } finally {
@@ -168,15 +235,20 @@ export class ComplianceAssignmentsPage implements OnInit {
   onFilterCompliance(event: Event): void {
     const id = (event.target as HTMLSelectElement).value;
     this.byFilterId.set(id);
+    this.byPage.set(1);
     if (id) void this.loadByCompliance(id);
-    else this.byAssignments.set([]);
+    else {
+      this.byAssignments.set([]);
+      this.byTotal.set(0);
+    }
   }
 
   async loadByCompliance(complianceUserId: string): Promise<void> {
     this.loadingBy.set(true);
     try {
-      const res = await this.api.listComplianceAssignmentsByComplianceUser(complianceUserId);
+      const res = await this.api.listComplianceAssignmentsByComplianceUser(complianceUserId, this.byPage(), this.byPageSize(), this.searchTerm());
       this.byAssignments.set(res.assignments ?? []);
+      this.byTotal.set(res.total ?? 0);
     } catch (err: unknown) {
       this.toast('error', 'Could not load assignments', this.errorOf(err));
     } finally {
@@ -203,6 +275,10 @@ export class ComplianceAssignmentsPage implements OnInit {
   onPickCompliance(user: StaffUser): void {
     if (user.role !== 'COMPLIANCE') {
       this.toast('error', 'Invalid user', 'Pick a compliance user (role COMPLIANCE).');
+      return;
+    }
+    if (user.state !== 'approved') {
+      this.toast('error', 'Invalid user', 'The compliance user must be approved (not blocked).');
       return;
     }
     this.selectedCompliance.set(user);
@@ -382,27 +458,4 @@ export class ComplianceAssignmentsPage implements OnInit {
     return 'The request could not be completed.';
   }
 
-  private filterAssignments(assignments: ComplianceAssignment[]): ComplianceAssignment[] {
-    const term = this.userSearch().trim();
-    if (!term) return assignments;
-
-    return assignments.filter((assignment) => this.clientMatchesSearch(assignment.clientUser, term));
-  }
-
-  private filterClients(clients: StaffUser[]): StaffUser[] {
-    const term = this.userSearch().trim();
-    if (!term) return clients;
-
-    return clients.filter((client) => this.clientMatchesSearch(client, term));
-  }
-
-  private clientMatchesSearch(client: StaffUser | null | undefined, term: string): boolean {
-    if (!client) return false;
-    const normalizedTerm = term.toLowerCase();
-    return (
-      matchesClientIdentity(client, normalizedTerm) ||
-      String(client.id ?? '').toLowerCase().includes(normalizedTerm) ||
-      String(client.nickname ?? '').toLowerCase().includes(normalizedTerm)
-    );
-  }
 }

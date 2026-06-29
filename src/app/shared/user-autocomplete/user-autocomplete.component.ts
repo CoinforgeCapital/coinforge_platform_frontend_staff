@@ -106,6 +106,8 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
 
   readonly type = input<'client' | 'staff' | undefined>(undefined);
   readonly allowedRoles = input<readonly string[] | null>(null);
+  /** Si es true, oculta del resultado los usuarios de staff bloqueados (state !== 'approved'). */
+  readonly excludeBlocked = input<boolean>(false);
   readonly placeholder = input<string>('Search by email or id…');
   readonly selected = output<StaffUser>();
 
@@ -133,7 +135,7 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
           const request =
             this.type() === 'client'
               ? this.searchClientsLocally(q)
-              : this.api.searchUsers(q, this.type()).then((r) => this.filterByAllowedRoles(r.users ?? []));
+              : this.api.searchUsers(q, this.type()).then((r) => this.filterCandidates(r.users ?? []));
           return from(request).pipe(
             catchError(() => of<StaffUser[]>([])),
           );
@@ -193,11 +195,20 @@ export class UserAutocompleteComponent implements OnInit, OnDestroy {
       .slice(0, 20);
   }
 
-  private filterByAllowedRoles(users: StaffUser[]): StaffUser[] {
-    const roles = this.allowedRoles();
-    if (!roles || roles.length === 0) return users;
+  private filterCandidates(users: StaffUser[]): StaffUser[] {
+    let candidates = users;
 
-    return users.filter((user) => roles.includes(user.role));
+    const roles = this.allowedRoles();
+    if (roles && roles.length > 0) {
+      candidates = candidates.filter((user) => roles.includes(user.role));
+    }
+
+    // Para asignaciones no deben ofrecerse usuarios de staff bloqueados.
+    if (this.excludeBlocked()) {
+      candidates = candidates.filter((user) => user.state === 'approved');
+    }
+
+    return candidates;
   }
 
   userSecondaryLabel(user: StaffUser): string {

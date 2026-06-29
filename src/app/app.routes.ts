@@ -164,6 +164,14 @@ export const routes: Routes = [
       },
       {
         // Disponible para cualquier miembro del staff autenticado (sin roleMatchGuard).
+        path: 'platform-tutorial',
+        loadComponent: () =>
+          import('./pages/platform-tutorial/platform-tutorial.page').then(
+            (m) => m.PlatformTutorialPage,
+          ),
+      },
+      {
+        // Disponible para cualquier miembro del staff autenticado (sin roleMatchGuard).
         path: 'account-settings',
         loadComponent: () =>
           import('./pages/account-settings/account-settings.page').then((m) => m.AccountSettingsPage),

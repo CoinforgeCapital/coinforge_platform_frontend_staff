@@ -156,6 +156,22 @@ h1 {
   white-space: nowrap;
 }
 
+/* Diálogo: asignar un ticket sin asignar a otro support. */
+.assign-dialog {
+  display: grid;
+  gap: 12px;
+  min-height: 120px;
+}
+.assign-dialog-hint {
+  margin: 0;
+  color: var(--cf-text-muted);
+  font-size: 0.88rem;
+}
+.assign-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .list-empty {
   display: grid;
   justify-items: center;

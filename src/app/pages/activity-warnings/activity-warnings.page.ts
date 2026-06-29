@@ -3,17 +3,28 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { DialogModule } from 'primeng/dialog';
-import { TableModule } from 'primeng/table';
+import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 
-import { ActivityWarning, ActivityWarningState, ApiService, StaffUser } from '../../services/api.service';
+import { ActivityWarning, ActivityWarningState, ApiService } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
 import { formatFiatAmount } from '../../shared/amount-format';
-import { matchesClientIdentity } from '../../shared/client-identity-search';
 
 type WarningTab = 'active' | 'solved';
+type ActivityWarningSortBy =
+  | 'createdAt'
+  | 'updatedAt'
+  | 'reviewedAt'
+  | 'type'
+  | 'state'
+  | 'clientEmail'
+  | 'reviewedByEmail'
+  | 'triggerAmountEur'
+  | 'totalAmountEur'
+  | 'thresholdAmountEur';
+type SortDir = 'asc' | 'desc';
 
 @Component({
   selector: 'app-activity-warnings-page',
@@ -30,50 +41,57 @@ export class ActivityWarningsPage {
   private readonly confirm = inject(ConfirmationService);
   private readonly router = inject(Router);
 
-  readonly pageSize = 20;
+  readonly rowsPerPageOptions = [10, 25, 50];
   readonly canManage = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningsManage);
   readonly canEscalate = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningEscalationCreate);
   readonly activeTab = signal<WarningTab>('active');
   readonly warnings = signal<ActivityWarning[]>([]);
+  readonly total = signal(0);
+  readonly countsByState = signal<Partial<Record<ActivityWarningState, number>>>({});
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+  readonly sortBy = signal<ActivityWarningSortBy>('createdAt');
+  readonly sortDir = signal<SortDir>('desc');
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly escalationLoading = signal(false);
   readonly escalationOpen = signal(false);
   readonly search = signal('');
-  readonly clientSearchIndex = signal<Map<string, StaffUser>>(new Map());
   readonly selected = signal<ActivityWarning | null>(null);
   readonly detailVisible = signal(false);
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly escalationForm = this.fb.nonNullable.group({
     body: ['', [Validators.required, Validators.maxLength(8000)]],
   });
 
-  readonly activeWarnings = computed(() => this.filterWarnings('pending'));
-  readonly solvedWarnings = computed(() => this.filterWarnings('solved'));
+  readonly activeWarnings = computed(() => this.warnings());
+  readonly solvedWarnings = computed(() => this.warnings());
 
   get escalationBody() {
     return this.escalationForm.controls.body;
   }
 
   constructor() {
-    void this.loadClientSearchIndex();
     void this.load();
   }
 
-  private async loadClientSearchIndex(): Promise<void> {
-    try {
-      const res = await this.api.listClients();
-      this.clientSearchIndex.set(new Map((res.users ?? []).map((client) => [client.id, client])));
-    } catch {
-      this.clientSearchIndex.set(new Map());
+  async load(showLoading = true): Promise<void> {
+    if (showLoading) {
+      this.loading.set(true);
     }
-  }
-
-  async load(): Promise<void> {
-    this.loading.set(true);
     try {
-      const res = await this.api.listActivityWarnings();
+      const res = await this.api.listActivityWarnings({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        state: this.warningStateForTab(this.activeTab()),
+        q: this.searchTerm(),
+        sortBy: this.sortBy(),
+        sortDir: this.sortDir(),
+      });
       this.warnings.set(res.warnings ?? []);
+      this.total.set(res.total ?? 0);
+      this.countsByState.set(res.countsByState ?? {});
     } catch (err) {
       this.toast('error', 'Could not load warnings', this.errorOf(err));
     } finally {
@@ -81,16 +99,73 @@ export class ActivityWarningsPage {
     }
   }
 
+  refresh(): void {
+    void this.load();
+  }
+
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    const rows = event.rows ?? this.pageSize();
+    const first = event.first ?? 0;
+    this.pageSize.set(rows);
+    this.page.set(Math.floor(first / rows) + 1);
+    this.sortBy.set(this.sortFieldForBackend(event.sortField));
+    this.sortDir.set(event.sortOrder === 1 ? 'asc' : 'desc');
+    void this.load();
+  }
+
+  private searchTerm(): string | undefined {
+    return this.search().trim() || undefined;
+  }
+
+  private warningStateForTab(tab: WarningTab): ActivityWarningState {
+    return tab === 'solved' ? 'solved' : 'pending';
+  }
+
+  private sortFieldForBackend(field: string | string[] | undefined | null): ActivityWarningSortBy {
+    const value = Array.isArray(field) ? field[0] : field;
+    switch (value) {
+      case 'client.email':
+        return 'clientEmail';
+      case 'reviewedBy.email':
+        return 'reviewedByEmail';
+      case 'reviewedAt':
+      case 'type':
+      case 'state':
+      case 'triggerAmountEur':
+      case 'totalAmountEur':
+      case 'thresholdAmountEur':
+      case 'updatedAt':
+      case 'createdAt':
+        return value;
+      default:
+        return 'createdAt';
+    }
+  }
+
+  tabCount(tab: WarningTab): number {
+    return this.countsByState()[this.warningStateForTab(tab)] ?? 0;
+  }
+
   onTabChange(key: string | number | undefined): void {
     this.activeTab.set((key as WarningTab) ?? 'active');
+    this.page.set(1);
+    void this.load();
   }
 
   onSearch(event: Event): void {
     this.search.set((event.target as HTMLInputElement).value);
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.page.set(1);
+      void this.load();
+    }, 300);
   }
 
   clearSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
     this.search.set('');
+    this.page.set(1);
+    void this.load();
   }
 
   openWarning(warning: ActivityWarning): void {
@@ -128,6 +203,8 @@ export class ActivityWarningsPage {
             this.patchWarning(res.warning);
             this.selected.set(res.warning);
             this.activeTab.set('solved');
+            this.page.set(1);
+            void this.load(false);
             this.toast('success', 'Warning resolved', res.message ?? 'The warning was updated.');
           })
           .catch((err) => this.toast('error', 'Could not update warning', this.errorOf(err)))
@@ -181,29 +258,6 @@ export class ActivityWarningsPage {
 
   private patchWarning(updated: ActivityWarning): void {
     this.warnings.update((list) => list.map((w) => (w.id === updated.id ? updated : w)));
-  }
-
-  private filterWarnings(state: ActivityWarningState): ActivityWarning[] {
-    const query = this.search().trim().toLowerCase();
-    return this.warnings().filter((warning) => {
-      if (warning.state !== state) return false;
-      if (!query) return true;
-      const indexedClient = warning.client?.id ? this.clientSearchIndex().get(warning.client.id) : undefined;
-      const searchableClient = indexedClient
-        ? { ...indexedClient, email: warning.client?.email }
-        : { email: warning.client?.email };
-      const clientMatches = matchesClientIdentity(searchableClient, query);
-      if (clientMatches) return true;
-      return [
-        warning.client?.email,
-        warning.type,
-        warning.kycaidRiskReason,
-        warning.wallet?.publicAddress,
-        warning.transaction?.id,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
   }
 
   private escalationBodyFor(warning: ActivityWarning, message: string): string {

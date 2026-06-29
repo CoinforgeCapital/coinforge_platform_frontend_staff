@@ -141,7 +141,9 @@ export class AccountSettingsPage {
 
     this.passwordConfirmLoading.set(true);
     try {
-      const response = await this.api.endChangePassword(this.passwordConfirmForm.getRawValue());
+      const response = await this.api.endChangePassword({
+        token: this.passwordToken.value.trim(),
+      });
       this.passwordConfirmMessage.set(response.message);
       this.passwordConfirmForm.reset();
     } catch (err: unknown) {
@@ -161,7 +163,9 @@ export class AccountSettingsPage {
 
     this.emailStartLoading.set(true);
     try {
-      const response = await this.api.startChangeEmail(this.emailStartForm.getRawValue());
+      const response = await this.api.startChangeEmail({
+        newEmail: this.newEmail.value.trim().toLowerCase(),
+      });
       this.emailStartMessage.set(response.message);
       this.emailStartForm.reset();
     } catch (err: unknown) {
@@ -182,7 +186,9 @@ export class AccountSettingsPage {
 
     this.emailConfirmLoading.set(true);
     try {
-      const response = await this.api.endChangeEmail(this.emailConfirmForm.getRawValue());
+      const response = await this.api.endChangeEmail({
+        token: this.emailToken.value.trim(),
+      });
       this.emailConfirmMessage.set(response.message);
       this.emailConfirmForm.reset();
     } catch (err: unknown) {

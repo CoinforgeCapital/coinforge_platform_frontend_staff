@@ -1,0 +1,69 @@
+<section class="tutorial-shell platform-tutorial-scope">
+  <div class="tutorial-layout">
+    <header class="tutorial-header">
+      <div>
+        <p class="eyebrow">Account</p>
+        <h1>Platform tutorial</h1>
+        <p>Role-based operating guide for the staff console.</p>
+      </div>
+
+      @if (manual(); as currentManual) {
+        <aside class="manual-summary" aria-label="Current manual">
+          <span>Current manual</span>
+          <strong>{{ currentManual.audience }}</strong>
+        </aside>
+      }
+    </header>
+
+    <section class="language-switcher" aria-label="Tutorial language">
+      <span>Language</span>
+      <div class="language-actions">
+        @for (option of languages; track option.value) {
+          <button
+            type="button"
+            [class.is-active]="language() === option.value"
+            [disabled]="loading()"
+            (click)="changeLanguage(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+    </section>
+
+    @if (loading()) {
+      <section class="state-panel">
+        <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+        <p>Loading tutorial...</p>
+      </section>
+    } @else if (errorMessage()) {
+      <section class="state-panel is-error">
+        <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+        <p>{{ errorMessage() }}</p>
+        <button type="button" class="secondary-btn" (click)="loadManual()">Retry</button>
+      </section>
+    } @else if (manual()) {
+      <div class="reader-grid">
+        <aside class="manual-outline" aria-label="Manual sections">
+          <span class="outline-label">In this manual</span>
+          <nav>
+            @for (item of tableOfContents(); track item.id) {
+              <button
+                type="button"
+                class="outline-link"
+                [class.is-child]="item.level === 3"
+                (click)="scrollToSection(item.id)"
+              >
+                {{ item.title }}
+              </button>
+            }
+          </nav>
+        </aside>
+
+        <article class="manual-document">
+          <div class="manual-content" [innerHTML]="manualHtml()"></div>
+        </article>
+      </div>
+    }
+  </div>
+</section>

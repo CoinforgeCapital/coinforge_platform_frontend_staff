@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { TableModule } from 'primeng/table';
+import { PaginatorModule } from 'primeng/paginator';
 
 import {
   ApiService,
@@ -22,6 +23,8 @@ import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format
 import { uploadFileSizeError } from '../../shared/upload-file-size';
 
 type View = 'list' | 'detail' | 'create';
+type RequirementSortBy = 'createdAt' | 'updatedAt' | 'closedDate' | 'name' | 'documentType' | 'state' | 'clientEmail' | 'staffEmail';
+type SortDir = 'asc' | 'desc';
 
 interface DocTypeOption {
   label: string;
@@ -66,7 +69,7 @@ const STATE_TABS: readonly StateTab[] = [
 @Component({
   selector: 'app-requirements-page',
   standalone: true,
-  imports: [ReactiveFormsModule, TableModule, UserAutocompleteComponent],
+  imports: [ReactiveFormsModule, TableModule, PaginatorModule, UserAutocompleteComponent],
   templateUrl: './requirements.page.html',
   styleUrl: './requirements.page.css',
 })
@@ -85,9 +88,19 @@ export class RequirementsPage implements OnInit {
   readonly activeTab = signal<RequirementState>('pending');
 
   readonly requirements = signal<Requirement[]>([]);
+  readonly total = signal(0);
+  readonly countsByState = signal<Partial<Record<RequirementState, number>>>({});
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+  readonly rowsPerPageOptions = [10, 25, 50];
+  readonly search = signal('');
+  readonly sortBy = signal<RequirementSortBy>('createdAt');
+  readonly sortDir = signal<SortDir>('desc');
   readonly loading = signal(false);
   readonly view = signal<View>('list');
   readonly selectedId = signal<string | null>(null);
+  readonly selectedRequirement = signal<Requirement | null>(null);
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly editing = signal(false);
   readonly createLoading = signal(false);
@@ -128,15 +141,12 @@ export class RequirementsPage implements OnInit {
     description: ['', [Validators.required, Validators.maxLength(10000)]],
   });
 
-  readonly list = computed(() =>
-    [...this.requirements()].sort((a, b) => this.time(b.createdAt) - this.time(a.createdAt)),
-  );
-
-  readonly filteredList = computed(() => this.list().filter((r) => r.state === this.activeTab()));
+  readonly list = computed(() => this.requirements());
+  readonly filteredList = computed(() => this.requirements());
 
   readonly selected = computed<Requirement | null>(() => {
     const id = this.selectedId();
-    return id ? this.requirements().find((r) => r.id === id) ?? null : null;
+    return this.selectedRequirement() ?? (id ? this.requirements().find((r) => r.id === id) ?? null : null);
   });
 
   get createCustomer() {
@@ -165,11 +175,20 @@ export class RequirementsPage implements OnInit {
   async load(showLoading = true): Promise<void> {
     if (showLoading) this.loading.set(true);
     try {
-      const res = await this.api.listRequirements();
+      const res = await this.api.listRequirements({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        state: this.activeTab(),
+        q: this.searchTerm(),
+        sortBy: this.sortBy(),
+        sortDir: this.sortDir(),
+      });
       this.requirements.set(res.requirements ?? []);
+      this.total.set(res.total ?? 0);
+      this.countsByState.set(res.countsByState ?? {});
 
       const id = this.selectedId();
-      if (id && !this.requirements().some((r) => r.id === id)) {
+      if (id && !this.selectedRequirement() && !this.requirements().some((r) => r.id === id)) {
         this.selectedId.set(null);
         if (this.view() === 'detail') this.view.set('list');
       }
@@ -186,10 +205,50 @@ export class RequirementsPage implements OnInit {
 
   setTab(key: RequirementState): void {
     this.activeTab.set(key);
+    this.page.set(1);
+    void this.load();
   }
 
   tabCount(key: RequirementState): number {
-    return this.list().filter((r) => r.state === key).length;
+    return this.countsByState()[key] ?? 0;
+  }
+
+  onSearch(event: Event): void {
+    this.search.set((event.target as HTMLInputElement).value);
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.page.set(1);
+      void this.load();
+    }, 300);
+  }
+
+  clearSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.search.set('');
+    this.page.set(1);
+    void this.load();
+  }
+
+  onSortChange(event: Event): void {
+    this.sortBy.set((event.target as HTMLSelectElement).value as RequirementSortBy);
+    this.page.set(1);
+    void this.load();
+  }
+
+  toggleSortDir(): void {
+    this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+    this.page.set(1);
+    void this.load();
+  }
+
+  onPageChange(event: { page?: number; rows?: number }): void {
+    this.pageSize.set(event.rows ?? this.pageSize());
+    this.page.set((event.page ?? 0) + 1);
+    void this.load();
+  }
+
+  private searchTerm(): string | undefined {
+    return this.search().trim() || undefined;
   }
 
   showCreate(): void {
@@ -203,6 +262,7 @@ export class RequirementsPage implements OnInit {
 
   openDetail(requirement: Requirement): void {
     this.selectedId.set(requirement.id);
+    this.selectedRequirement.set(requirement);
     this.editing.set(false);
     this.view.set('detail');
     this.prepareArchivedDocuments(requirement);
@@ -210,6 +270,7 @@ export class RequirementsPage implements OnInit {
 
   back(): void {
     this.selectedId.set(null);
+    this.selectedRequirement.set(null);
     this.editing.set(false);
     this.view.set('list');
     this.clearArchivedDocuments();
@@ -414,6 +475,7 @@ export class RequirementsPage implements OnInit {
         files: this.editFiles(),
         deleteFileIds: this.editDeleteFileIds(),
       });
+      this.selectedRequirement.set(res.data);
       this.editing.set(false);
       this.editDeleteFileIds.set([]);
       this.editFiles.set([]);
@@ -466,12 +528,15 @@ export class RequirementsPage implements OnInit {
 
   private async runAction(
     id: string,
-    action: () => Promise<{ ok: boolean; message: string }>,
+    action: () => Promise<{ ok: boolean; message: string; data?: Requirement }>,
     successSummary: string,
   ): Promise<void> {
     this.actionBusyId.set(id);
     try {
       const res = await action();
+      if (res && 'data' in res) {
+        this.selectedRequirement.set(res.data as Requirement);
+      }
       await this.load(false);
       const current = this.selected();
       if (this.view() === 'detail' && current?.id === id) {
