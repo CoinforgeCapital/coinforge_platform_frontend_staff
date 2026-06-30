@@ -72,8 +72,8 @@ export const STAFF_PERMISSIONS = {
   adminCatalogs: [
     STAFF_ROLES.admin,
   ],
-  // GET/POST/PATCH/DELETE /api/coinforge-bank-account: admin gestiona todas las cuentas;
-  // operator solo las que tienen cliente asociado (el backend acota por rol).
+  // GET/POST/PATCH/DELETE /api/coinforge-bank-account: admin gestiona globales y dedicadas;
+  // operator puede ver ambas pestañas, pero solo crear/editar/borrar cuentas asociadas a cliente.
   bankDataManage: [
     STAFF_ROLES.admin,
     STAFF_ROLES.operator,

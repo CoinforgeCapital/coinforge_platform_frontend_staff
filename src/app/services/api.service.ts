@@ -157,6 +157,8 @@ export interface StaffUser {
   clientMetadata?: StaffClientMetadata | null;
   personalData?: StaffPersonalData | null;
   kycDocuments?: StaffClientDocument[];
+  /** Bank-data de CoinForge dedicadas a este cliente. Las globales no se incluyen aquí. */
+  coinforgeAccounts?: BankData[];
   [key: string]: unknown;
 }
 

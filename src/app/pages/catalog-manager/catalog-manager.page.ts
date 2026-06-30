@@ -9,6 +9,7 @@ import { STAFF_ROLES } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 
 type CatalogKey = 'blockchains' | 'fiat-currencies' | 'crypto-currencies' | 'bank-data';
+type BankDataTab = 'global' | 'clients';
 
 interface CatalogField {
   key: string;
@@ -125,8 +126,8 @@ const CATALOG_CONFIGS: Record<CatalogKey, CatalogConfig> = {
       { key: 'swiftBic', label: 'SWIFT/BIC', type: 'text', placeholder: 'ABCDESMM', maxLength: 50 },
       { key: 'referenceCode', label: 'Reference code', type: 'text', placeholder: 'Payment reference', maxLength: 100 },
     ],
-    searchFields: ['iban'],
-    searchPlaceholder: 'Search by IBAN…',
+    searchFields: ['name', 'owner', 'iban', 'swiftBic', 'referenceCode', 'clientLabel', 'clientEmail', 'clientName'],
+    searchPlaceholder: 'Search by IBAN, name, owner or client…',
     canEdit: true,
     needsBlockchains: false,
   },
@@ -154,6 +155,7 @@ export class CatalogManagerPage implements OnInit {
   readonly config = signal<CatalogConfig>(CATALOG_CONFIGS.blockchains);
   readonly rows = signal<Record<string, unknown>[]>([]);
   readonly search = signal('');
+  readonly activeBankDataTab = signal<BankDataTab>('global');
   readonly blockchains = signal<CatalogItem[]>([]);
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -168,12 +170,26 @@ export class CatalogManagerPage implements OnInit {
     return this.config().fields.filter((f) => !editing || f.editable !== false);
   });
 
+  readonly isBankData = computed<boolean>(() => this.config().key === 'bank-data');
+
+  readonly visibleColumns = computed<CatalogColumn[]>(() => {
+    const columns = this.config().columns;
+    if (!this.isBankData() || this.activeBankDataTab() !== 'global') return columns;
+    return columns.filter((column) => column.field !== 'clientLabel');
+  });
+
   /** Filas filtradas por el buscador (según searchFields de cada catálogo). */
   readonly filteredRows = computed<Record<string, unknown>[]>(() => {
+    let rows = this.rows();
+    if (this.isBankData()) {
+      const clientsTab = this.activeBankDataTab() === 'clients';
+      rows = rows.filter((row) => this.isClientBankData(row) === clientsTab);
+    }
+
     const query = this.search().trim().toLowerCase();
-    if (!query) return this.rows();
+    if (!query) return rows;
     const fields = this.config().searchFields;
-    return this.rows().filter((row) =>
+    return rows.filter((row) =>
       fields.some((field) => String(row[field] ?? '').toLowerCase().includes(query)),
     );
   });
@@ -181,6 +197,7 @@ export class CatalogManagerPage implements OnInit {
   ngOnInit(): void {
     const key = (this.route.snapshot.data['sectionKey'] as CatalogKey) ?? 'blockchains';
     this.config.set(CATALOG_CONFIGS[key]);
+    if (key === 'bank-data') this.activeBankDataTab.set('global');
 
     if (this.config().needsBlockchains) void this.loadBlockchains();
     void this.load();
@@ -209,6 +226,23 @@ export class CatalogManagerPage implements OnInit {
 
   clearSearch(): void {
     this.search.set('');
+  }
+
+  setBankDataTab(tab: BankDataTab): void {
+    this.activeBankDataTab.set(tab);
+    this.search.set('');
+  }
+
+  bankDataTabCount(tab: BankDataTab): number {
+    const clientsTab = tab === 'clients';
+    return this.rows().filter((row) => this.isClientBankData(row) === clientsTab).length;
+  }
+
+  searchPlaceholder(): string {
+    if (!this.isBankData()) return this.config().searchPlaceholder;
+    return this.activeBankDataTab() === 'global'
+      ? 'Search global accounts by IBAN, name, owner or reference…'
+      : 'Search client accounts by IBAN, client email or client name…';
   }
 
   openCreate(): void {
@@ -299,6 +333,15 @@ export class CatalogManagerPage implements OnInit {
     });
   }
 
+  canEditRow(row: Record<string, unknown>): boolean {
+    if (!this.config().canEdit) return false;
+    return !(this.isOperator && this.isBankData() && !this.isClientBankData(row));
+  }
+
+  canDeleteRow(row: Record<string, unknown>): boolean {
+    return !(this.isOperator && this.isBankData() && !this.isClientBankData(row));
+  }
+
   private async performDelete(id: string): Promise<void> {
     try {
       await this.deleteRequest(id);
@@ -358,15 +401,34 @@ export class CatalogManagerPage implements OnInit {
   /** Etiqueta de cliente para la tabla de bank-data: email de la cuenta dedicada o "General". */
   private withClientLabel(items: Record<string, unknown>[]): Record<string, unknown>[] {
     return items.map((row) => {
-      const client = row['client'] as { email?: string } | string | null | undefined;
+      const client = row['client'] as { email?: string; personalData?: { name?: string; surname?: string } | null } | string | null | undefined;
+      let clientEmail = '';
+      let clientName = '';
       let clientLabel = 'General';
       if (typeof client === 'string') {
+        clientEmail = client;
         clientLabel = client;
       } else if (client) {
-        clientLabel = client.email ?? 'Assigned';
+        clientEmail = client.email ?? '';
+        clientName = this.clientFullName(client);
+        clientLabel = clientName ? `${clientName} · ${clientEmail || 'Assigned'}` : clientEmail || 'Assigned';
       }
-      return { ...row, clientLabel };
+      return { ...row, clientEmail, clientName, clientLabel };
     });
+  }
+
+  private clientFullName(client: { personalData?: { name?: string; surname?: string } | null }): string {
+    return [
+      client.personalData?.name,
+      client.personalData?.surname,
+    ]
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  private isClientBankData(row: Record<string, unknown>): boolean {
+    return !!row['client'];
   }
 
   private async loadBlockchains(): Promise<void> {

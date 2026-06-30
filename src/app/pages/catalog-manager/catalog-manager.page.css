@@ -167,6 +167,53 @@ button:disabled {
   padding: 0 18px 18px;
 }
 
+/* ---- Pestañas bank-data ---- */
+.catalog-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.catalog-tab {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--cf-border);
+  border-radius: 999px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.catalog-tab i {
+  color: var(--cf-teal-600);
+}
+
+.catalog-tab strong {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--cf-surface-2);
+  color: var(--cf-text-muted);
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+.catalog-tab:hover,
+.catalog-tab.active {
+  border-color: rgba(0, 184, 150, 0.5);
+  background: rgba(0, 184, 150, 0.1);
+  color: var(--cf-teal-600);
+}
+
+.catalog-tab.active strong {
+  background: var(--cf-teal-500);
+  color: #04221c;
+}
+
 /* ---- Tabla ---- */
 .data-panel {
   border: 1px solid var(--cf-border);

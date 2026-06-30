@@ -95,6 +95,7 @@ const PROFILE_KEY = 'profile';
 const DOCUMENTS_KEY = 'documents';
 const WALLET_KEY = 'wallets';
 const BANK_KEY = 'clientBankAccounts';
+const PAYMENT_ACCOUNTS_KEY = 'coinforgeAccounts';
 const TX_KEY = 'transactions';
 /** Categorías sintéticas del detalle (no son colecciones embebidas del cliente). */
 const RISK_PROFILE_KEY = 'riskProfileCategory';
@@ -177,6 +178,19 @@ const ENTITY_GROUPS: readonly EntityGroup[] = [
       { field: 'bankInstitution', label: 'Bank' },
       { field: 'country', label: 'Country' },
       { field: 'state', label: 'State' },
+      { field: 'createdAt', label: 'Created' },
+    ],
+  },
+  {
+    key: PAYMENT_ACCOUNTS_KEY,
+    label: 'Payment accounts',
+    icon: 'pi pi-building',
+    columns: [
+      { field: 'name', label: 'Name' },
+      { field: 'owner', label: 'Owner' },
+      { field: 'iban', label: 'IBAN' },
+      { field: 'swiftBic', label: 'SWIFT/BIC' },
+      { field: 'referenceCode', label: 'Reference' },
       { field: 'createdAt', label: 'Created' },
     ],
   },
@@ -295,6 +309,7 @@ export class ClientsPage implements OnInit {
   readonly pendingKey = PENDING_KEY;
   readonly activityAlertsKey = ACTIVITY_ALERTS_KEY;
   readonly complianceAssignmentsKey = COMPLIANCE_ASSIGNMENTS_KEY;
+  readonly paymentAccountsKey = PAYMENT_ACCOUNTS_KEY;
   readonly walletKey = WALLET_KEY;
   readonly documentTabs = DOCUMENT_TABS;
   readonly txStateOptions = TX_STATE_OPTIONS;
@@ -328,6 +343,9 @@ export class ClientsPage implements OnInit {
   readonly entityGroups = computed<EntityGroup[]>(() => {
     const out: EntityGroup[] = [];
     for (const group of ENTITY_GROUPS) {
+      if (group.key === PAYMENT_ACCOUNTS_KEY && !this.canFinancials) {
+        continue;
+      }
       out.push(group);
       if (group.key === PROFILE_KEY) {
         out.push({ key: RISK_PROFILE_KEY, label: 'Risk profile', icon: 'pi pi-shield', columns: [] });

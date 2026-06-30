@@ -35,7 +35,7 @@
             @if (f.type === 'client') {
               <app-user-autocomplete
                 type="client"
-                placeholder="Search a client by email…"
+                placeholder="Search a client by email or name…"
                 (selected)="onClientPicked($event)"
               />
               @if (selectedClientLabel()) {
@@ -80,12 +80,37 @@
   </section>
 }
 
+@if (isBankData()) {
+  <nav class="catalog-tabs" aria-label="Bank data views">
+    <button
+      type="button"
+      class="catalog-tab"
+      [class.active]="activeBankDataTab() === 'global'"
+      (click)="setBankDataTab('global')"
+    >
+      <i class="pi pi-globe" aria-hidden="true"></i>
+      <span>Global</span>
+      <strong>{{ bankDataTabCount('global') }}</strong>
+    </button>
+    <button
+      type="button"
+      class="catalog-tab"
+      [class.active]="activeBankDataTab() === 'clients'"
+      (click)="setBankDataTab('clients')"
+    >
+      <i class="pi pi-users" aria-hidden="true"></i>
+      <span>Bank accounts of clients</span>
+      <strong>{{ bankDataTabCount('clients') }}</strong>
+    </button>
+  </nav>
+}
+
 <section class="toolbar">
   <div class="search">
     <i class="pi pi-search" aria-hidden="true"></i>
     <input
       type="search"
-      [placeholder]="config().searchPlaceholder"
+      [placeholder]="searchPlaceholder()"
       [value]="search()"
       (input)="onSearch($event)"
     />
@@ -110,7 +135,7 @@
   >
     <ng-template pTemplate="header">
       <tr>
-        @for (column of config().columns; track column.field) {
+        @for (column of visibleColumns(); track column.field) {
           <th [pSortableColumn]="column.field">
             {{ column.label }}
             <p-sortIcon [field]="column.field" />
@@ -122,25 +147,27 @@
 
     <ng-template pTemplate="body" let-row>
       <tr>
-        @for (column of config().columns; track column.field) {
+        @for (column of visibleColumns(); track column.field) {
           <td>{{ value(row, column.field) }}</td>
         }
         <td class="actions-cell">
-          @if (config().canEdit) {
+          @if (canEditRow(row)) {
             <button type="button" class="row-btn" (click)="openEdit(row)" title="Edit">
               <i class="pi pi-pencil" aria-hidden="true"></i>
             </button>
           }
-          <button type="button" class="row-btn danger" (click)="remove(row)" title="Delete">
-            <i class="pi pi-trash" aria-hidden="true"></i>
-          </button>
+          @if (canDeleteRow(row)) {
+            <button type="button" class="row-btn danger" (click)="remove(row)" title="Delete">
+              <i class="pi pi-trash" aria-hidden="true"></i>
+            </button>
+          }
         </td>
       </tr>
     </ng-template>
 
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td [attr.colspan]="config().columns.length + 1" class="empty-cell">
+        <td [attr.colspan]="visibleColumns().length + 1" class="empty-cell">
           <i class="pi pi-inbox" aria-hidden="true"></i>
           <span>{{ loading() ? 'Loading…' : (search() ? 'No ' + config().entityLabel + 's match your search.' : 'No ' + config().entityLabel + 's yet.') }}</span>
         </td>
