@@ -54,12 +54,18 @@
     <p-table
       [value]="filtered()"
       [loading]="loading()"
-      [paginator]="filtered().length > 0"
-      [rows]="10"
-      [rowsPerPageOptions]="[10, 25, 50]"
+      [lazy]="true"
+      [paginator]="total() > 0"
+      [rows]="pageSize()"
+      [first]="(page() - 1) * pageSize()"
+      [totalRecords]="total()"
+      [rowsPerPageOptions]="rowsPerPageOptions"
       [showCurrentPageReport]="true"
       currentPageReportTemplate="{first}–{last} of {totalRecords}"
+      [sortField]="sortBy() === 'kycState' ? 'kyc.kycState' : sortBy()"
+      [sortOrder]="sortDir() === 'asc' ? 1 : -1"
       [tableStyle]="{ 'min-width': '48rem' }"
+      (onLazyLoad)="onLazyLoad($event)"
     >
       <ng-template pTemplate="header">
         <tr>

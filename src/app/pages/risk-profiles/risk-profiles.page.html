@@ -42,12 +42,18 @@
       <p-table
         [value]="filtered()"
         [loading]="loadingClients()"
-        [paginator]="filtered().length > 0"
-        [rows]="pageSize"
-        [rowsPerPageOptions]="[10, 25, 50]"
+        [lazy]="true"
+        [paginator]="total() > 0"
+        [rows]="pageSize()"
+        [first]="(page() - 1) * pageSize()"
+        [totalRecords]="total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [sortField]="sortBy() === 'level' ? 'riskProfile.level' : (sortBy() === 'flag' ? 'riskProfile.flag' : sortBy())"
+        [sortOrder]="sortDir() === 'asc' ? 1 : -1"
         [tableStyle]="{ 'min-width': '44rem' }"
+        (onLazyLoad)="onLazyLoad($event)"
       >
         <ng-template pTemplate="header">
           <tr>
@@ -138,12 +144,18 @@
       <p-table
         [value]="clientsNoProfile()"
         [loading]="loadingClients()"
-        [paginator]="clientsNoProfile().length > 0"
-        [rows]="pageSize"
-        [rowsPerPageOptions]="[10, 25, 50]"
+        [lazy]="true"
+        [paginator]="total() > 0"
+        [rows]="pageSize()"
+        [first]="(page() - 1) * pageSize()"
+        [totalRecords]="total()"
+        [rowsPerPageOptions]="rowsPerPageOptions"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [sortField]="sortBy()"
+        [sortOrder]="sortDir() === 'asc' ? 1 : -1"
         [tableStyle]="{ 'min-width': '40rem' }"
+        (onLazyLoad)="onLazyLoad($event)"
       >
         <ng-template pTemplate="header">
           <tr>

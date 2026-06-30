@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { TableModule } from 'primeng/table';
+import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -41,7 +41,6 @@ import { ClientProfileOverviewComponent } from '../../shared/client-profile-over
 import { ClientRequirementsComponent } from '../../shared/client-requirements/client-requirements.component';
 import { formatAmountByField } from '../../shared/amount-format';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
-import { matchesClientIdentity } from '../../shared/client-identity-search';
 import { uploadFileSizeError } from '../../shared/upload-file-size';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 
@@ -68,6 +67,8 @@ interface FieldGroup {
 }
 
 type WalletAuditDialogMode = 'latest' | 'detail';
+type ClientListSortBy = 'email' | 'type' | 'state' | 'kycState' | 'createdAt' | 'updatedAt';
+type SortDir = 'asc' | 'desc';
 
 interface DocumentTab {
   key: string;
@@ -437,6 +438,12 @@ export class ClientsPage implements OnInit {
 
   readonly loading = signal(false);
   readonly all = signal<Record<string, unknown>[]>([]);
+  readonly total = signal(0);
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+  readonly sortBy = signal<ClientListSortBy>('createdAt');
+  readonly sortDir = signal<SortDir>('desc');
+  readonly rowsPerPageOptions = [10, 25, 50];
   readonly search = signal('');
   readonly view = signal<'list' | 'detail'>('list');
   /** true = se muestra el formulario de alta de usuario en lugar del listado. */
@@ -448,6 +455,7 @@ export class ClientsPage implements OnInit {
   readonly activeEntity = signal<string>(PROFILE_KEY);
   /** Elemento concreto en el que se ha hecho drill-down (null = se ve la tabla). */
   readonly drillItem = signal<Record<string, unknown> | null>(null);
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 
   // ---- Documents ----
@@ -600,9 +608,7 @@ export class ClientsPage implements OnInit {
   private walletAuditsRequestSeq = 0;
 
   readonly filtered = computed(() => {
-    const query = this.search().trim().toLowerCase();
-    if (!query) return this.all();
-    return this.all().filter((u) => matchesClientIdentity(u, query));
+    return this.all();
   });
 
   readonly accountSettingsGroups = computed<FieldGroup[]>(() => {
@@ -687,21 +693,29 @@ export class ClientsPage implements OnInit {
   );
 
   ngOnInit(): void {
-    void this.load().then(() => {
-      // Deep-link: /clients?client=<id> abre el detalle directamente (p. ej. desde
-      // compliance assignments). Si el cliente no es visible para el rol, se ignora.
-      const clientId = this.route.snapshot.queryParamMap.get('client');
-      if (!clientId) return;
-      const found = this.all().find((u) => u['id'] === clientId);
-      if (found) this.openDetail(found);
-    });
+    const clientId = this.route.snapshot.queryParamMap.get('client');
+    if (clientId) {
+      void this.load(false);
+      void this.openDetailById(clientId);
+      return;
+    }
+    void this.load();
   }
 
-  async load(): Promise<void> {
-    this.loading.set(true);
+  async load(showLoading = true): Promise<void> {
+    if (showLoading) {
+      this.loading.set(true);
+    }
     try {
-      const res = await this.api.listClients();
+      const res = await this.api.listClientsPage({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        q: this.searchTerm(),
+        sortBy: this.sortBy(),
+        sortDir: this.sortDir(),
+      });
       this.all.set((res.users ?? []) as unknown as Record<string, unknown>[]);
+      this.total.set(res.total ?? 0);
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
@@ -709,12 +723,50 @@ export class ClientsPage implements OnInit {
     }
   }
 
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    const rows = event.rows ?? this.pageSize();
+    const first = event.first ?? 0;
+    this.pageSize.set(rows);
+    this.page.set(Math.floor(first / rows) + 1);
+    this.sortBy.set(this.sortFieldForBackend(event.sortField));
+    this.sortDir.set(event.sortOrder === 1 ? 'asc' : 'desc');
+    void this.load();
+  }
+
   onSearch(event: Event): void {
     this.search.set((event.target as HTMLInputElement).value);
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.page.set(1);
+      void this.load();
+    }, 300);
   }
 
   clearSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
     this.search.set('');
+    this.page.set(1);
+    void this.load();
+  }
+
+  private searchTerm(): string | undefined {
+    return this.search().trim() || undefined;
+  }
+
+  private sortFieldForBackend(field: string | string[] | undefined | null): ClientListSortBy {
+    const value = Array.isArray(field) ? field[0] : field;
+    switch (value) {
+      case 'email':
+      case 'type':
+      case 'state':
+      case 'createdAt':
+      case 'updatedAt':
+        return value;
+      case 'kyc.kycState':
+        return 'kycState';
+      default:
+        return 'createdAt';
+    }
   }
 
   // ---- Alta de usuario (formulario compartido, en lugar del listado) ----
@@ -774,6 +826,34 @@ export class ClientsPage implements OnInit {
           this.detailLoading.set(false);
         }
       });
+  }
+
+  private async openDetailById(clientId: string): Promise<void> {
+    this.detailLoading.set(true);
+    try {
+      const client = await this.api.getUser(clientId);
+      const detail = client as unknown as Record<string, unknown>;
+      this.selected.set(detail);
+      this.activeEntity.set(PROFILE_KEY);
+      this.drillItem.set(null);
+      this.showItemDocs.set(false);
+      this.walletAuditHistoryVisible.set(false);
+      this.resetKycHistory();
+      this.resetAssignmentHistory();
+      this.resetSupportTicketAssignmentHistory();
+      this.view.set('detail');
+      this.all.update((clients) => {
+        const exists = clients.some((item) => item['id'] === clientId);
+        if (exists) {
+          return clients.map((item) => item['id'] === clientId ? { ...item, ...detail } : item);
+        }
+        return [detail, ...clients];
+      });
+    } catch (err) {
+      this.toast('error', 'Could not load client detail', this.errorOf(err));
+    } finally {
+      this.detailLoading.set(false);
+    }
   }
 
   onDrill(item: Record<string, unknown>): void {

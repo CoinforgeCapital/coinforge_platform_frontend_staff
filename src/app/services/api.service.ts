@@ -7,6 +7,31 @@ import { assertUploadFilesWithinLimit } from '../shared/upload-file-size';
 export interface StandardMessageResponse { ok: boolean; message: string; }
 export interface StandardDataResponse<T = unknown> { ok: boolean; message: string; data: T; }
 export interface ListUsersResponse { users: StaffUser[]; }
+export type ListSortDir = 'asc' | 'desc';
+export interface ListUsersPageResponse extends ListUsersResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+export interface ListClientsQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  state?: UserState;
+  kycState?: string;
+  hasRiskProfile?: boolean;
+  sortBy?: 'email' | 'type' | 'state' | 'kycState' | 'createdAt' | 'updatedAt';
+  sortDir?: ListSortDir;
+}
+export interface ListStaffMembersQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  role?: StaffRole;
+  state?: UserState;
+  sortBy?: 'email' | 'nickname' | 'role' | 'state' | 'lastLoginAt' | 'createdAt' | 'updatedAt';
+  sortDir?: ListSortDir;
+}
 /** Detalle completo (poblado) de un usuario borrado. Solo admin. */
 export interface DeletedUserDetailResponse { user: StaffUser; }
 export interface ListInactiveUsersResponse {
@@ -546,6 +571,27 @@ export interface RiskProfile {
   updatedAt?: string;
 }
 
+export interface RiskProfileListItem extends RiskProfile {
+  user: StaffUser;
+}
+
+export interface ListRiskProfilesQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  level?: RiskLevel;
+  flag?: RiskFlag;
+  sortBy?: 'email' | 'state' | 'level' | 'flag' | 'createdAt' | 'updatedAt';
+  sortDir?: ListSortDir;
+}
+
+export interface ListRiskProfilesResponse {
+  riskProfiles: RiskProfileListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface CreateRiskProfileRequest { userId: string; level: RiskLevel; flag: RiskFlag; }
 export interface UpdateRiskProfileRequest { level?: RiskLevel; flag?: RiskFlag; }
 export interface CreateRiskNoteRequest { riskProfileId: string; title: string; description: string; }
@@ -859,6 +905,26 @@ export class ApiService {
       .then((response) => this.normalizeListUsersResponse(response));
   }
 
+  listClientsPage(query: ListClientsQuery = {}): Promise<ListUsersPageResponse> {
+    return this.request
+      .get<ListUsersPageResponse>('/api/user/clients', {
+        params: {
+          page: query.page,
+          pageSize: query.pageSize,
+          q: query.q?.trim() || undefined,
+          state: query.state,
+          kycState: query.kycState,
+          hasRiskProfile: query.hasRiskProfile,
+          sortBy: query.sortBy,
+          sortDir: query.sortDir,
+        },
+      })
+      .then((response) => ({
+        ...response,
+        ...this.normalizeListUsersResponse(response),
+      }));
+  }
+
   /** Búsqueda de usuarios para selectores escalables (autocomplete). */
   searchUsers(q: string, type?: 'client' | 'staff', limit = 20): Promise<ListUsersResponse> {
     return this.request.get<ListUsersResponse>('/api/user/search', { params: { q, type, limit } });
@@ -866,6 +932,31 @@ export class ApiService {
 
   listStaffMembers(): Promise<ListUsersResponse> {
     return this.request.get<ListUsersResponse>('/api/user/staff/list');
+  }
+
+  listStaffMembersPage(query: ListStaffMembersQuery = {}): Promise<ListUsersPageResponse> {
+    return this.request
+      .get<ListUsersPageResponse>('/api/user/staff-members', {
+        params: {
+          page: query.page,
+          pageSize: query.pageSize,
+          q: query.q?.trim() || undefined,
+          role: query.role,
+          state: query.state,
+          sortBy: query.sortBy,
+          sortDir: query.sortDir,
+        },
+      })
+      .then((response) => ({
+        ...response,
+        ...this.normalizeListUsersResponse(response),
+      }));
+  }
+
+  getStaffMember(id: string): Promise<StaffUser> {
+    return this.request
+      .get<StaffUser>(`/api/user/staff-members/${id}`)
+      .then((user) => this.normalizeStaffUser(user));
   }
 
   listDeletedUsers(): Promise<ListUsersResponse> {
@@ -1294,6 +1385,28 @@ export class ApiService {
     return this.request.get<{ riskProfile: RiskProfile }>(`/api/risk-profile/user/${userId}`, {
       context: new HttpContext().set(SILENT_AUTH_ERROR, true),
     });
+  }
+
+  listRiskProfiles(query: ListRiskProfilesQuery = {}): Promise<ListRiskProfilesResponse> {
+    return this.request
+      .get<ListRiskProfilesResponse>('/api/risk-profile', {
+        params: {
+          page: query.page,
+          pageSize: query.pageSize,
+          q: query.q?.trim() || undefined,
+          level: query.level,
+          flag: query.flag,
+          sortBy: query.sortBy,
+          sortDir: query.sortDir,
+        },
+      })
+      .then((response) => ({
+        ...response,
+        riskProfiles: (response.riskProfiles ?? []).map((profile) => ({
+          ...profile,
+          user: this.normalizeStaffUser(profile.user),
+        })),
+      }));
   }
 
   createRiskProfile(body: CreateRiskProfileRequest): Promise<StandardMessageResponse> {

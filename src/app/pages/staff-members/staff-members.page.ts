@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { TableModule } from 'primeng/table';
+import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import {
   ApiService,
   StaffUser,
@@ -25,6 +25,9 @@ interface EntityGroup {
   icon: string;
   columns: EntityColumn[];
 }
+
+type StaffListSortBy = 'email' | 'nickname' | 'role' | 'state' | 'lastLoginAt' | 'createdAt' | 'updatedAt';
+type SortDir = 'asc' | 'desc';
 
 /** Categorías sintéticas del detalle (no son colecciones embebidas del staff). */
 const STATE_KEY = 'accountStateCategory';
@@ -161,6 +164,12 @@ export class StaffMembersPage implements OnInit {
 
   readonly loading = signal(false);
   readonly all = signal<Record<string, unknown>[]>([]);
+  readonly total = signal(0);
+  readonly page = signal(1);
+  readonly pageSize = signal(10);
+  readonly sortBy = signal<StaffListSortBy>('createdAt');
+  readonly sortDir = signal<SortDir>('desc');
+  readonly rowsPerPageOptions = [10, 25, 50];
   readonly search = signal('');
   readonly view = signal<'list' | 'detail'>('list');
   /** true = se muestra el formulario de alta de usuario en lugar del listado. */
@@ -182,6 +191,7 @@ export class StaffMembersPage implements OnInit {
   readonly supportTicketAssignmentHistoryDetailLoading = signal(false);
   readonly supportTicketAssignmentHistoryDetailError = signal('');
   private supportTicketAssignmentHistoryRequestSeq = 0;
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---- Cambiar estado de la cuenta de staff (categoría "Account state") ----
   stateTarget: StaffState | '' = '';
@@ -223,13 +233,7 @@ export class StaffMembersPage implements OnInit {
   });
 
   readonly filtered = computed(() => {
-    const query = this.search().trim().toLowerCase();
-    if (!query) return this.all();
-    return this.all().filter(
-      (u) =>
-        String(u['email'] ?? '').toLowerCase().includes(query) ||
-        String(u['nickname'] ?? '').toLowerCase().includes(query),
-    );
+    return this.all();
   });
 
   readonly entityItems = computed<Record<string, unknown>[]>(() => {
@@ -252,11 +256,20 @@ export class StaffMembersPage implements OnInit {
     void this.load();
   }
 
-  async load(): Promise<void> {
-    this.loading.set(true);
+  async load(showLoading = true): Promise<void> {
+    if (showLoading) {
+      this.loading.set(true);
+    }
     try {
-      const res = await this.api.listStaffMembers();
+      const res = await this.api.listStaffMembersPage({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        q: this.searchTerm(),
+        sortBy: this.sortBy(),
+        sortDir: this.sortDir(),
+      });
       this.all.set((res.users ?? []) as unknown as Record<string, unknown>[]);
+      this.total.set(res.total ?? 0);
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
@@ -264,12 +277,50 @@ export class StaffMembersPage implements OnInit {
     }
   }
 
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    const rows = event.rows ?? this.pageSize();
+    const first = event.first ?? 0;
+    this.pageSize.set(rows);
+    this.page.set(Math.floor(first / rows) + 1);
+    this.sortBy.set(this.sortFieldForBackend(event.sortField));
+    this.sortDir.set(event.sortOrder === 1 ? 'asc' : 'desc');
+    void this.load();
+  }
+
   onSearch(event: Event): void {
     this.search.set((event.target as HTMLInputElement).value);
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.page.set(1);
+      void this.load();
+    }, 300);
   }
 
   clearSearch(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
     this.search.set('');
+    this.page.set(1);
+    void this.load();
+  }
+
+  private searchTerm(): string | undefined {
+    return this.search().trim() || undefined;
+  }
+
+  private sortFieldForBackend(field: string | string[] | undefined | null): StaffListSortBy {
+    const value = Array.isArray(field) ? field[0] : field;
+    switch (value) {
+      case 'email':
+      case 'nickname':
+      case 'role':
+      case 'state':
+      case 'lastLoginAt':
+      case 'createdAt':
+      case 'updatedAt':
+        return value;
+      default:
+        return 'createdAt';
+    }
   }
 
   openDetail(row: Record<string, unknown>): void {
@@ -280,6 +331,26 @@ export class StaffMembersPage implements OnInit {
     this.drillItem.set(null);
     this.resetSupportTicketAssignmentHistory();
     this.view.set('detail');
+
+    const staffId = String(row['id'] ?? '');
+    if (!staffId) return;
+
+    this.loading.set(true);
+    this.api.getStaffMember(staffId)
+      .then((staff) => {
+        const detail = staff as unknown as Record<string, unknown>;
+        if (this.selected()?.['id'] !== staffId) return;
+        this.selected.set(detail);
+        const firstWithItems = ENTITY_GROUPS.find((g) => this.countFor(detail, g.key) > 0);
+        this.activeEntity.set((firstWithItems ?? ENTITY_GROUPS[0]).key);
+        this.all.update((list) =>
+          list.map((item) => item['id'] === staffId ? { ...item, ...detail } : item),
+        );
+      })
+      .catch((err) => this.toast('error', 'Could not load staff detail', this.errorOf(err)))
+      .finally(() => {
+        this.loading.set(false);
+      });
   }
 
   backToList(): void {
