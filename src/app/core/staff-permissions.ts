@@ -123,6 +123,8 @@ export const STAFF_PERMISSIONS = {
   walletKycaidAuditCreate: [STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
   // PATCH /api/transaction-order/staff/change-state/:id
   transactionStateChange: [STAFF_ROLES.admin, STAFF_ROLES.operator],
+  // GET /api/transaction-order/staff/reports/completed?from=&to=
+  transactionReports: [STAFF_ROLES.complianceOfficer],
   // POST /api/compliance-conversation (+messages, +close)
   complianceConversations: [STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
   // GET /api/compliance-conversation/:userId (ver conversaciones de un cliente)
@@ -197,6 +199,7 @@ export const STAFF_NAV_ITEMS: readonly StaffNavItem[] = [
   { path: '/compliance-assignments', label: 'Compliance assignments', icon: 'pi pi-link', group: 'Compliance', roles: STAFF_PERMISSIONS.complianceAssignmentView },
   { path: '/pending-approvals', label: 'Pending approvals', icon: 'pi pi-inbox', group: 'Compliance', roles: STAFF_PERMISSIONS.clientFinancials },
   { path: '/activity-warnings', label: 'Activity warnings', icon: 'pi pi-exclamation-triangle', group: 'Compliance', roles: STAFF_PERMISSIONS.activityWarningsView },
+  { path: '/transactions-reports', label: 'Transactions reports', icon: 'pi pi-file-pdf', group: 'Compliance', roles: STAFF_PERMISSIONS.transactionReports },
 
   { path: '/internal-messages', label: 'Internal messages', icon: 'pi pi-comments', group: 'Communications', roles: STAFF_PERMISSIONS.complianceConversations },
   { path: '/action-requests', label: 'Action requests', icon: 'pi pi-send', group: 'Communications', roles: STAFF_PERMISSIONS.actionRequests },

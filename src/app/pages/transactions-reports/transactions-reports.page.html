@@ -1,0 +1,66 @@
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Compliance</p>
+    <h1>Transactions reports</h1>
+    <p>Completed transaction reports grouped by client.</p>
+  </div>
+</section>
+
+<section class="report-panel">
+  <header class="panel-head">
+    <div>
+      <p class="eyebrow">PDF report</p>
+      <h2>Completed transactions</h2>
+    </div>
+    <span class="scope">
+      <i class="pi pi-shield" aria-hidden="true"></i>
+      Compliance officer
+    </span>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="generateReport()" novalidate>
+    <div class="form-grid">
+      <label class="field">
+        <span>From</span>
+        <input type="date" formControlName="from" />
+        @if (from.touched && from.invalid) {
+          <small class="err">Select a start date.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>To</span>
+        <input type="date" formControlName="to" />
+        @if (to.touched && to.invalid) {
+          <small class="err">Select an end date.</small>
+        }
+      </label>
+    </div>
+
+    @if (rangeInvalid()) {
+      <p class="alert error" role="alert">The start date must be before or equal to the end date.</p>
+    }
+
+    <dl class="report-summary">
+      <div>
+        <dt>Included state</dt>
+        <dd>Completed</dd>
+      </div>
+      <div>
+        <dt>Grouping</dt>
+        <dd>Client blocks</dd>
+      </div>
+      <div>
+        <dt>Format</dt>
+        <dd>PDF</dd>
+      </div>
+    </dl>
+
+    <div class="form-actions">
+      <button type="submit" class="primary" [disabled]="!canGenerate()">
+        <i [class]="generating() ? 'pi pi-spin pi-spinner' : 'pi pi-file-pdf'" aria-hidden="true"></i>
+        <span>{{ generating() ? 'Generating…' : 'Download report' }}</span>
+      </button>
+    </div>
+  </form>
+</section>

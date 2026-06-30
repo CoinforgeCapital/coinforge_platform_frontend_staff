@@ -1148,6 +1148,13 @@ export class ApiService {
     );
   }
 
+  /** PDF global de transacciones completed agrupadas por cliente (compliance officer). */
+  downloadCompletedTransactionsReportPdf(from: string, to: string): Promise<Blob> {
+    return this.request.download('/api/transaction-order/staff/reports/completed', {
+      params: { from, to },
+    });
+  }
+
   /** Obtiene un documento de cliente para previsualizarlo en el navegador (inline). */
   viewClientDocument(documentType: RequirementDocumentType, documentId: string): Promise<Blob> {
     return this.clientDocumentBlob(documentType, documentId, 'inline');

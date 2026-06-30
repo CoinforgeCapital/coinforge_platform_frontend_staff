@@ -104,6 +104,15 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'transactions-reports',
+        canMatch: [roleMatchGuard],
+        data: { roles: STAFF_PERMISSIONS.transactionReports },
+        loadComponent: () =>
+          import('./pages/transactions-reports/transactions-reports.page').then(
+            (m) => m.TransactionsReportsPage,
+          ),
+      },
+      {
         path: 'action-requests',
         canMatch: [roleMatchGuard],
         data: { roles: STAFF_PERMISSIONS.actionRequests },
