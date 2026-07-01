@@ -9,10 +9,11 @@ import {
   RiskFlag,
   RiskLevel,
   RiskProfile,
+  RiskProfileStaffScope,
   StaffUser,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
-import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { RiskProfileDetailComponent } from '../../shared/risk-profile-detail/risk-profile-detail.component';
 
 interface LevelOption {
@@ -80,6 +81,8 @@ export class RiskProfilesPage implements OnInit {
 
   /** Pestaña: gestionar perfiles existentes o crear uno nuevo (solo canWrite). */
   readonly mode = signal<'manage' | 'create'>('manage');
+  readonly activeStaffScope = signal<RiskProfileStaffScope>('mine');
+  readonly showStaffScopeTabs = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
   /** Cliente elegido en la pestaña "Create" para crearle el perfil. */
   readonly creatingFor = signal<ClientRow | null>(null);
 
@@ -122,6 +125,7 @@ export class RiskProfilesPage implements OnInit {
           page: this.page(),
           pageSize: this.pageSize(),
           q: this.searchTerm(),
+          staffScope: this.showStaffScopeTabs() ? this.activeStaffScope() : undefined,
           sortBy: this.riskSortFieldForBackend(this.sortBy()),
           sortDir: this.sortDir(),
         });
@@ -190,6 +194,18 @@ export class RiskProfilesPage implements OnInit {
       this.view.set('list');
       this.selectedClient.set(null);
     }
+    void this.loadClients();
+  }
+
+  setStaffScope(scope: RiskProfileStaffScope): void {
+    this.mode.set('manage');
+    this.activeStaffScope.set(scope);
+    this.creatingFor.set(null);
+    this.view.set('list');
+    this.selectedClient.set(null);
+    this.page.set(1);
+    this.sortBy.set('createdAt');
+    this.sortDir.set('desc');
     void this.loadClients();
   }
 

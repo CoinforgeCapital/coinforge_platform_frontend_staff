@@ -10,13 +10,15 @@ import {
   SupportTicket,
   SupportTicketDocument,
   SupportTicketMessage,
+  SupportTicketScope,
 } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 import { assertUploadFilesWithinLimit, uploadFileSizeError } from '../../shared/upload-file-size';
 import { STAFF_ROLES } from '../../core/staff-permissions';
 
-type View = 'mine' | 'unassigned' | 'pendingReassignment' | 'detail';
+type View = 'mine' | 'others' | 'unassigned' | 'pendingReassignment' | 'detail';
+type ListView = Exclude<View, 'detail'>;
 type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed';
 
 interface StatusOption {
@@ -54,6 +56,7 @@ export class SupportTicketsPage implements OnInit {
   readonly statusOptions = STATUS_OPTIONS;
 
   readonly mine = signal<SupportTicket[]>([]);
+  readonly others = signal<SupportTicket[]>([]);
   readonly unassigned = signal<SupportTicket[]>([]);
   readonly pendingReassignment = signal<SupportTicket[]>([]);
   readonly selectedTicket = signal<SupportTicket | null>(null);
@@ -63,6 +66,9 @@ export class SupportTicketsPage implements OnInit {
   readonly minePage = signal(1);
   readonly minePageSize = signal(10);
   readonly mineTotal = signal(0);
+  readonly othersPage = signal(1);
+  readonly othersPageSize = signal(10);
+  readonly othersTotal = signal(0);
   readonly unassignedPage = signal(1);
   readonly unassignedPageSize = signal(10);
   readonly unassignedTotal = signal(0);
@@ -83,6 +89,7 @@ export class SupportTicketsPage implements OnInit {
   readonly downloadingDocId = signal<string | null>(null);
 
   readonly view = signal<View>('mine');
+  readonly returnView = signal<ListView>('mine');
   readonly statusValue = signal<TicketStatus>('open');
   readonly replyFiles = signal<File[]>([]);
 
@@ -92,6 +99,7 @@ export class SupportTicketsPage implements OnInit {
 
   // El backend ya devuelve cada página ordenada; no reordenamos en cliente para no romper el orden entre páginas.
   readonly mineList = computed(() => this.mine());
+  readonly othersList = computed(() => this.others());
   readonly unassignedList = computed(() => this.unassigned());
   readonly pendingReassignmentList = computed(() => this.pendingReassignment());
 
@@ -114,8 +122,11 @@ export class SupportTicketsPage implements OnInit {
   async load(showLoading = true): Promise<void> {
     if (showLoading) this.loading.set(true);
     try {
-      const [mineRes, unassignedRes] = await Promise.all([
-        this.api.listSupportTickets(this.minePage(), this.minePageSize()),
+      const [mineRes, othersRes, unassignedRes] = await Promise.all([
+        this.api.listSupportTickets(this.minePage(), this.minePageSize(), this.supportScope('mine')),
+        this.isSupportOfficer
+          ? this.api.listSupportTickets(this.othersPage(), this.othersPageSize(), 'others')
+          : Promise.resolve({ tickets: [], total: 0, page: 1, pageSize: this.othersPageSize() }),
         this.api.listUnassignedSupportTickets(this.unassignedPage(), this.unassignedPageSize()),
       ]);
       const pendingRes = this.isSupportOfficer
@@ -123,6 +134,8 @@ export class SupportTicketsPage implements OnInit {
         : { tickets: [], total: 0, page: 1, pageSize: this.pendingPageSize() };
       this.mine.set(mineRes.tickets ?? []);
       this.mineTotal.set(mineRes.total ?? 0);
+      this.others.set(othersRes.tickets ?? []);
+      this.othersTotal.set(othersRes.total ?? 0);
       this.unassigned.set(unassignedRes.tickets ?? []);
       this.unassignedTotal.set(unassignedRes.total ?? 0);
       this.pendingReassignment.set(pendingRes.tickets ?? []);
@@ -137,9 +150,23 @@ export class SupportTicketsPage implements OnInit {
   private async loadMine(): Promise<void> {
     this.loading.set(true);
     try {
-      const res = await this.api.listSupportTickets(this.minePage(), this.minePageSize());
+      const res = await this.api.listSupportTickets(this.minePage(), this.minePageSize(), this.supportScope('mine'));
       this.mine.set(res.tickets ?? []);
       this.mineTotal.set(res.total ?? 0);
+    } catch {
+      /* el interceptor ya muestra el aviso */
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  private async loadOthers(): Promise<void> {
+    if (!this.isSupportOfficer) return;
+    this.loading.set(true);
+    try {
+      const res = await this.api.listSupportTickets(this.othersPage(), this.othersPageSize(), 'others');
+      this.others.set(res.tickets ?? []);
+      this.othersTotal.set(res.total ?? 0);
     } catch {
       /* el interceptor ya muestra el aviso */
     } finally {
@@ -179,6 +206,12 @@ export class SupportTicketsPage implements OnInit {
     void this.loadMine();
   }
 
+  onOthersPage(event: { page?: number; rows?: number }): void {
+    this.othersPageSize.set(event.rows ?? this.othersPageSize());
+    this.othersPage.set((event.page ?? 0) + 1);
+    void this.loadOthers();
+  }
+
   onUnassignedPage(event: { page?: number; rows?: number }): void {
     this.unassignedPageSize.set(event.rows ?? this.unassignedPageSize());
     this.unassignedPage.set((event.page ?? 0) + 1);
@@ -194,6 +227,9 @@ export class SupportTicketsPage implements OnInit {
   showMine(): void {
     this.view.set('mine');
   }
+  showOthers(): void {
+    this.view.set('others');
+  }
   showUnassigned(): void {
     this.view.set('unassigned');
   }
@@ -202,6 +238,10 @@ export class SupportTicketsPage implements OnInit {
   }
 
   async selectTicket(ticket: SupportTicket): Promise<void> {
+    const currentView = this.view();
+    if (currentView !== 'detail') {
+      this.returnView.set(currentView);
+    }
     this.view.set('detail');
     this.replyForm.reset({ body: '' });
     this.replyFiles.set([]);
@@ -216,7 +256,7 @@ export class SupportTicketsPage implements OnInit {
       this.statusValue.set((res.ticket.status as TicketStatus) ?? 'open');
     } catch (err: unknown) {
       this.toast('error', 'Could not load ticket', this.errorOf(err));
-      this.view.set('mine');
+      this.view.set(this.returnView());
     } finally {
       this.detailLoading.set(false);
     }
@@ -224,7 +264,7 @@ export class SupportTicketsPage implements OnInit {
 
   back(): void {
     this.selectedTicket.set(null);
-    this.view.set('mine');
+    this.view.set(this.returnView());
   }
 
   onReplyFilesSelected(event: Event): void {
@@ -399,6 +439,10 @@ export class SupportTicketsPage implements OnInit {
   }
   canClaim(t: SupportTicket): boolean {
     return !t.supportUser && t.status !== 'closed';
+  }
+
+  private supportScope(scope: SupportTicketScope): SupportTicketScope | undefined {
+    return this.isSupportOfficer ? scope : undefined;
   }
 
   isOwn(message: SupportTicketMessage): boolean {

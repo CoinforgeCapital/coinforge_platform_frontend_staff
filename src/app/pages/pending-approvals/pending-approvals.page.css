@@ -71,6 +71,36 @@
   color: var(--cf-text);
 }
 
+/* ---- Pestañas de propiedad para compliance officer ---- */
+.scope-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--cf-border);
+}
+.scope-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.scope-tab:hover {
+  color: var(--cf-teal-600);
+}
+.scope-tab.active {
+  color: var(--cf-teal-600);
+  border-bottom-color: var(--cf-teal-500);
+}
+
 /* ---- Pestañas ---- */
 .cf-tabs {
   display: block;

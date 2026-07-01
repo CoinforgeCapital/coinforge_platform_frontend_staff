@@ -26,6 +26,17 @@
   </button>
 </div>
 
+@if (showStaffScopeTabs()) {
+  <nav class="scope-tabs" aria-label="Activity warning ownership">
+    @for (t of staffScopeTabs; track t.key) {
+      <button type="button" class="scope-tab" [class.active]="activeStaffScope() === t.key" (click)="setStaffScope(t.key)">
+        <i [class]="t.icon" aria-hidden="true"></i>
+        <span>{{ t.label }}</span>
+      </button>
+    }
+  </nav>
+}
+
 <p-tabs [value]="activeTab()" (valueChange)="onTabChange($event)" styleClass="cf-tabs">
   <p-tablist>
     <p-tab value="active">

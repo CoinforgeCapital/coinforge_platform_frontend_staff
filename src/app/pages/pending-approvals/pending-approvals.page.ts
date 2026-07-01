@@ -8,6 +8,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import {
   ApiService,
+  PendingApprovalStaffScope,
   PendingBankAccount,
   PendingKyc,
   PendingTransaction,
@@ -16,7 +17,7 @@ import {
   StaffUser,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
-import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
 import { matchesClientIdentity } from '../../shared/client-identity-search';
@@ -25,6 +26,12 @@ type TabKey = 'wallets' | 'bank-accounts' | 'transactions' | 'kyc';
 
 interface ApprovalTab {
   key: TabKey;
+  label: string;
+  icon: string;
+}
+
+interface StaffScopeTab {
+  key: PendingApprovalStaffScope;
   label: string;
   icon: string;
 }
@@ -49,6 +56,11 @@ interface ConfirmRunOptions {
   icon?: string;
   acceptLabel?: string;
 }
+
+const STAFF_SCOPE_TABS: readonly StaffScopeTab[] = [
+  { key: 'mine', label: 'My pending approvals', icon: 'pi pi-user' },
+  { key: 'others', label: 'Other compliance pending approvals', icon: 'pi pi-users' },
+];
 
 /**
  * Cola de elementos pendientes de aprobación (wallets, cuentas, transacciones, KYC).
@@ -82,6 +94,9 @@ export class PendingApprovalsPage {
 
   readonly tabs: ApprovalTab[] = this.buildTabs();
   readonly activeTab = signal<TabKey>(this.tabs[0]?.key ?? 'wallets');
+  readonly staffScopeTabs = STAFF_SCOPE_TABS;
+  readonly activeStaffScope = signal<PendingApprovalStaffScope>('mine');
+  readonly showStaffScopeTabs = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
 
   // ---- Datos por pestaña (lista completa; la tabla pagina en cliente) ----
   readonly walletRows = signal<PendingWallet[]>([]);
@@ -144,6 +159,12 @@ export class PendingApprovalsPage {
     this.ensureLoaded(tab);
   }
 
+  setStaffScope(scope: PendingApprovalStaffScope): void {
+    this.activeStaffScope.set(scope);
+    this.clearLoadedApprovals();
+    this.ensureLoaded(this.activeTab());
+  }
+
   onSearch(event: Event): void {
     this.search.set((event.target as HTMLInputElement).value);
   }
@@ -189,12 +210,24 @@ export class PendingApprovalsPage {
     }
   }
 
+  private clearLoadedApprovals(): void {
+    this.loadedTabs.clear();
+    this.walletRows.set([]);
+    this.bankRows.set([]);
+    this.txRows.set([]);
+    this.kycRows.set([]);
+  }
+
+  private pendingStaffScope(): PendingApprovalStaffScope | undefined {
+    return this.showStaffScopeTabs() ? this.activeStaffScope() : undefined;
+  }
+
   // ---- Loaders (lista completa) ----
 
   loadWallets(): void {
     this.walletLoading.set(true);
     this.api
-      .listPendingWallets()
+      .listPendingWallets({ staffScope: this.pendingStaffScope() })
       .then((r) => {
         this.walletRows.set(r.items ?? []);
         this.loadedTabs.add('wallets');
@@ -206,7 +239,7 @@ export class PendingApprovalsPage {
   loadBank(): void {
     this.bankLoading.set(true);
     this.api
-      .listPendingBankAccounts()
+      .listPendingBankAccounts({ staffScope: this.pendingStaffScope() })
       .then((r) => {
         this.bankRows.set(r.items ?? []);
         this.loadedTabs.add('bank-accounts');
@@ -218,7 +251,7 @@ export class PendingApprovalsPage {
   loadTransactions(): void {
     this.txLoading.set(true);
     this.api
-      .listPendingTransactions()
+      .listPendingTransactions({ staffScope: this.pendingStaffScope() })
       .then((r) => {
         this.txRows.set(r.items ?? []);
         this.loadedTabs.add('transactions');
@@ -230,7 +263,7 @@ export class PendingApprovalsPage {
   loadKyc(): void {
     this.kycLoading.set(true);
     this.api
-      .listPendingKyc()
+      .listPendingKyc({ staffScope: this.pendingStaffScope() })
       .then((r) => {
         this.kycRows.set(r.items ?? []);
         this.loadedTabs.add('kyc');

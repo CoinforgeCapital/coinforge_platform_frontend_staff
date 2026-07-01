@@ -13,6 +13,11 @@ export interface ListUsersPageResponse extends ListUsersResponse {
   page: number;
   pageSize: number;
 }
+export type ClientAssignmentScope =
+  | 'assigned_to_me'
+  | 'assigned_to_others'
+  | 'unassigned_kyc_send'
+  | 'kyc_pending';
 export interface ListClientsQuery {
   page?: number;
   pageSize?: number;
@@ -20,6 +25,7 @@ export interface ListClientsQuery {
   state?: UserState;
   kycState?: string;
   hasRiskProfile?: boolean;
+  assignmentScope?: ClientAssignmentScope;
   sortBy?: 'email' | 'type' | 'state' | 'kycState' | 'createdAt' | 'updatedAt';
   sortDir?: ListSortDir;
 }
@@ -50,6 +56,7 @@ export interface ListRequirementsResponse {
   countsByState?: Partial<Record<RequirementState, number>>;
 }
 export interface ListSupportTicketsResponse { tickets: SupportTicket[]; total: number; page: number; pageSize: number; }
+export type SupportTicketScope = 'mine' | 'others';
 export interface ListInternalConversationsResponse { conversations: InternalConversation[]; }
 export interface ListActionRequestsResponse { conversations: ActionRequest[]; actionRequests?: ActionRequest[]; }
 export interface ListBlockchainsResponse { blockchains: CatalogItem[]; }
@@ -183,6 +190,7 @@ export interface ListClientKycHistoryResponse {
 }
 
 export type RequirementState = 'pending' | 'under_review' | 'approved' | 'cancelled';
+export type RequirementStaffScope = 'mine' | 'others';
 export type RequirementDocumentType =
   | 'additional_evidence_transaction'
   | 'client_bank'
@@ -420,6 +428,10 @@ export interface PendingClientRef {
 export interface PendingListResponse<T> {
   items: T[];
 }
+export type PendingApprovalStaffScope = 'mine' | 'others';
+export interface PendingApprovalsQuery {
+  staffScope?: PendingApprovalStaffScope;
+}
 export interface PendingWallet {
   id: string;
   publicAddress?: string;
@@ -551,6 +563,8 @@ export interface UpdateTransactionWarningLimitResponse extends StandardMessageRe
   limit: TransactionWarningLimit;
 }
 
+export type ActivityWarningStaffScope = 'mine' | 'others';
+
 export type RiskLevel = 'pending_review' | 'low' | 'medium' | 'high';
 export type RiskFlag = 'none' | 'review' | 'high_risk' | 'suspicious';
 
@@ -577,12 +591,15 @@ export interface RiskProfileListItem extends RiskProfile {
   user: StaffUser;
 }
 
+export type RiskProfileStaffScope = 'mine' | 'others';
+
 export interface ListRiskProfilesQuery {
   page?: number;
   pageSize?: number;
   q?: string;
   level?: RiskLevel;
   flag?: RiskFlag;
+  staffScope?: RiskProfileStaffScope;
   sortBy?: 'email' | 'state' | 'level' | 'flag' | 'createdAt' | 'updatedAt';
   sortDir?: ListSortDir;
 }
@@ -917,6 +934,7 @@ export class ApiService {
           state: query.state,
           kycState: query.kycState,
           hasRiskProfile: query.hasRiskProfile,
+          assignmentScope: query.assignmentScope,
           sortBy: query.sortBy,
           sortDir: query.sortDir,
         },
@@ -1022,6 +1040,7 @@ export class ApiService {
     page?: number;
     pageSize?: number;
     state?: RequirementState;
+    staffScope?: RequirementStaffScope;
     q?: string;
     sortBy?: 'createdAt' | 'updatedAt' | 'closedDate' | 'name' | 'documentType' | 'state' | 'clientEmail' | 'staffEmail';
     sortDir?: 'asc' | 'desc';
@@ -1288,17 +1307,25 @@ export class ApiService {
 
   // ---- Cola de pendientes de aprobación (lista completa, escopada por rol en el backend) ----
 
-  listPendingWallets(): Promise<PendingListResponse<PendingWallet>> {
-    return this.request.get<PendingListResponse<PendingWallet>>('/api/wallet/staff/pending');
+  listPendingWallets(query: PendingApprovalsQuery = {}): Promise<PendingListResponse<PendingWallet>> {
+    return this.request.get<PendingListResponse<PendingWallet>>('/api/wallet/staff/pending', {
+      params: { staffScope: query.staffScope },
+    });
   }
-  listPendingBankAccounts(): Promise<PendingListResponse<PendingBankAccount>> {
-    return this.request.get<PendingListResponse<PendingBankAccount>>('/api/bank-account/staff/pending');
+  listPendingBankAccounts(query: PendingApprovalsQuery = {}): Promise<PendingListResponse<PendingBankAccount>> {
+    return this.request.get<PendingListResponse<PendingBankAccount>>('/api/bank-account/staff/pending', {
+      params: { staffScope: query.staffScope },
+    });
   }
-  listPendingTransactions(): Promise<PendingListResponse<PendingTransaction>> {
-    return this.request.get<PendingListResponse<PendingTransaction>>('/api/transaction-order/staff/pending');
+  listPendingTransactions(query: PendingApprovalsQuery = {}): Promise<PendingListResponse<PendingTransaction>> {
+    return this.request.get<PendingListResponse<PendingTransaction>>('/api/transaction-order/staff/pending', {
+      params: { staffScope: query.staffScope },
+    });
   }
-  listPendingKyc(): Promise<PendingListResponse<PendingKyc>> {
-    return this.request.get<PendingListResponse<PendingKyc>>('/api/kyc/staff/pending');
+  listPendingKyc(query: PendingApprovalsQuery = {}): Promise<PendingListResponse<PendingKyc>> {
+    return this.request.get<PendingListResponse<PendingKyc>>('/api/kyc/staff/pending', {
+      params: { staffScope: query.staffScope },
+    });
   }
 
   // ---- Activity warnings ----
@@ -1306,6 +1333,7 @@ export class ApiService {
   listActivityWarnings(query?: {
     page?: number;
     pageSize?: number;
+    staffScope?: ActivityWarningStaffScope;
     state?: ActivityWarningState;
     type?: ActivityWarningType;
     q?: string;
@@ -1405,6 +1433,7 @@ export class ApiService {
           q: query.q?.trim() || undefined,
           level: query.level,
           flag: query.flag,
+          staffScope: query.staffScope,
           sortBy: query.sortBy,
           sortDir: query.sortDir,
         },
@@ -1467,8 +1496,8 @@ export class ApiService {
     return this.request.patch<StandardDataResponse<ActionRequest>>(`/api/action-request/close/${actionRequestId}`);
   }
 
-  listSupportTickets(page = 1, pageSize = 20): Promise<ListSupportTicketsResponse> {
-    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket', { params: { page, pageSize } });
+  listSupportTickets(page = 1, pageSize = 20, supportScope?: SupportTicketScope): Promise<ListSupportTicketsResponse> {
+    return this.request.get<ListSupportTicketsResponse>('/api/support-ticket', { params: { page, pageSize, supportScope } });
   }
 
   listUnassignedSupportTickets(page = 1, pageSize = 20): Promise<ListSupportTicketsResponse> {

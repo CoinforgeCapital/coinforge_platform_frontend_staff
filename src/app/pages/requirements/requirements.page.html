@@ -491,6 +491,17 @@
     </button>
   </section>
 
+  @if (showStaffScopeTabs()) {
+    <nav class="tabs" aria-label="Requirement ownership">
+      @for (t of staffScopeTabs; track t.key) {
+        <button type="button" class="tab" [class.active]="activeStaffScope() === t.key" (click)="setStaffScope(t.key)">
+          <i [class]="t.icon" aria-hidden="true"></i>
+          <span>{{ t.label }}</span>
+        </button>
+      }
+    </nav>
+  }
+
   <nav class="tabs" aria-label="Requirement types">
     @for (t of tabs; track t.key) {
       <button type="button" class="tab" [class.active]="activeTab() === t.key" (click)="setTab(t.key)">

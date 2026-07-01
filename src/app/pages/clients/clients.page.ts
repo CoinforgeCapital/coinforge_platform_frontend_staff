@@ -8,6 +8,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import {
   ApiService,
+  ClientAssignmentScope,
   ComplianceAssignment,
   ComplianceAssignmentHistory,
   KycaidWalletAudit,
@@ -69,6 +70,11 @@ interface FieldGroup {
 type WalletAuditDialogMode = 'latest' | 'detail';
 type ClientListSortBy = 'email' | 'type' | 'state' | 'kycState' | 'createdAt' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
+
+interface ClientAssignmentScopeTab {
+  label: string;
+  value: ClientAssignmentScope;
+}
 
 interface DocumentTab {
   key: string;
@@ -263,6 +269,13 @@ const LIST_COLUMNS: readonly EntityColumn[] = [
   { field: 'createdAt', label: 'Created' },
 ];
 
+const CLIENT_ASSIGNMENT_SCOPE_TABS: readonly ClientAssignmentScopeTab[] = [
+  { label: 'Assigned to me', value: 'assigned_to_me' },
+  { label: 'Assigned to other compliance', value: 'assigned_to_others' },
+  { label: 'Unassigned clients', value: 'unassigned_kyc_send' },
+  { label: 'KYC pending', value: 'kyc_pending' },
+];
+
 const TX_STATE_OPTIONS: readonly { label: string; value: SettableTransactionState }[] = [
   { label: 'Payment received', value: 'payment_received' },
   { label: 'In progress', value: 'in_progress' },
@@ -300,6 +313,7 @@ export class ClientsPage implements OnInit {
   private readonly requirementWarnings = inject(ApprovalRequirementWarningService);
 
   readonly columns = LIST_COLUMNS;
+  readonly clientAssignmentScopeTabs = CLIENT_ASSIGNMENT_SCOPE_TABS;
   readonly profileKey = PROFILE_KEY;
   readonly documentsKey = DOCUMENTS_KEY;
   readonly riskProfileKey = RISK_PROFILE_KEY;
@@ -338,6 +352,9 @@ export class ClientsPage implements OnInit {
   readonly canViewWalletKycaidAudit = this.auth.hasAnyRole(STAFF_PERMISSIONS.walletKycaidAuditView);
   /** PATCH /api/compliance-assignment/:id/reassignment. */
   readonly canReassignComplianceAssignment = this.auth.hasAnyRole(STAFF_PERMISSIONS.complianceAssignmentReassign);
+  readonly showComplianceOfficerClientTabs = computed(
+    () => this.auth.currentRole() === STAFF_ROLES.complianceOfficer,
+  );
 
   /** Pestañas del detalle. Las categorías sintéticas muestran paneles propios, no colecciones. */
   readonly entityGroups = computed<EntityGroup[]>(() => {
@@ -461,6 +478,7 @@ export class ClientsPage implements OnInit {
   readonly pageSize = signal(10);
   readonly sortBy = signal<ClientListSortBy>('createdAt');
   readonly sortDir = signal<SortDir>('desc');
+  readonly clientAssignmentScope = signal<ClientAssignmentScope>('assigned_to_me');
   readonly rowsPerPageOptions = [10, 25, 50];
   readonly search = signal('');
   readonly view = signal<'list' | 'detail'>('list');
@@ -729,6 +747,7 @@ export class ClientsPage implements OnInit {
         page: this.page(),
         pageSize: this.pageSize(),
         q: this.searchTerm(),
+        assignmentScope: this.showComplianceOfficerClientTabs() ? this.clientAssignmentScope() : undefined,
         sortBy: this.sortBy(),
         sortDir: this.sortDir(),
       });
@@ -763,6 +782,13 @@ export class ClientsPage implements OnInit {
   clearSearch(): void {
     if (this.searchTimer) clearTimeout(this.searchTimer);
     this.search.set('');
+    this.page.set(1);
+    void this.load();
+  }
+
+  selectClientAssignmentScope(scope: ClientAssignmentScope): void {
+    if (this.clientAssignmentScope() === scope) return;
+    this.clientAssignmentScope.set(scope);
     this.page.set(1);
     void this.load();
   }

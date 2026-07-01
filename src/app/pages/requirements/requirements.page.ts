@@ -13,11 +13,12 @@ import {
   RequirementArchivedDocument,
   RequirementDocumentType,
   RequirementFile,
+  RequirementStaffScope,
   RequirementState,
   StaffUser,
 } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
-import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
 import { formatCryptoAmount, formatFiatAmount } from '../../shared/amount-format';
 import { uploadFileSizeError } from '../../shared/upload-file-size';
@@ -58,12 +59,23 @@ interface StateTab {
   icon: string;
 }
 
+interface StaffScopeTab {
+  key: RequirementStaffScope;
+  label: string;
+  icon: string;
+}
+
 /** Una pestaña por estado para filtrar fácilmente. */
 const STATE_TABS: readonly StateTab[] = [
   { key: 'pending', label: 'Pending', icon: 'pi pi-clock' },
   { key: 'under_review', label: 'Under review', icon: 'pi pi-hourglass' },
   { key: 'approved', label: 'Approved', icon: 'pi pi-check-circle' },
   { key: 'cancelled', label: 'Cancelled', icon: 'pi pi-ban' },
+];
+
+const STAFF_SCOPE_TABS: readonly StaffScopeTab[] = [
+  { key: 'mine', label: 'My requirements', icon: 'pi pi-user' },
+  { key: 'others', label: 'Other compliance requirements', icon: 'pi pi-users' },
 ];
 
 @Component({
@@ -85,6 +97,9 @@ export class RequirementsPage implements OnInit {
   readonly canWrite = this.auth.hasAnyRole(STAFF_PERMISSIONS.requirementsWrite);
   readonly docTypeOptions = ALL_DOC_TYPES;
   readonly tabs = STATE_TABS;
+  readonly staffScopeTabs = STAFF_SCOPE_TABS;
+  readonly showStaffScopeTabs = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
+  readonly activeStaffScope = signal<RequirementStaffScope>('mine');
   readonly activeTab = signal<RequirementState>('pending');
 
   readonly requirements = signal<Requirement[]>([]);
@@ -179,6 +194,7 @@ export class RequirementsPage implements OnInit {
         page: this.page(),
         pageSize: this.pageSize(),
         state: this.activeTab(),
+        staffScope: this.showStaffScopeTabs() ? this.activeStaffScope() : undefined,
         q: this.searchTerm(),
         sortBy: this.sortBy(),
         sortDir: this.sortDir(),
@@ -205,6 +221,13 @@ export class RequirementsPage implements OnInit {
 
   setTab(key: RequirementState): void {
     this.activeTab.set(key);
+    this.page.set(1);
+    void this.load();
+  }
+
+  setStaffScope(key: RequirementStaffScope): void {
+    if (this.activeStaffScope() === key) return;
+    this.activeStaffScope.set(key);
     this.page.set(1);
     void this.load();
   }

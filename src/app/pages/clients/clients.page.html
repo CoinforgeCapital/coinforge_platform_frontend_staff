@@ -50,6 +50,22 @@
     </div>
   </section>
 
+  @if (showComplianceOfficerClientTabs()) {
+    <nav class="entity-buttons" aria-label="Client assignment filters">
+      @for (tab of clientAssignmentScopeTabs; track tab.value) {
+        <button
+          type="button"
+          class="entity-btn"
+          [class.active]="clientAssignmentScope() === tab.value"
+          [attr.aria-current]="clientAssignmentScope() === tab.value ? 'page' : null"
+          (click)="selectClientAssignmentScope(tab.value)"
+        >
+          {{ tab.label }}
+        </button>
+      }
+    </nav>
+  }
+
   <section class="data-panel">
     <p-table
       [value]="filtered()"

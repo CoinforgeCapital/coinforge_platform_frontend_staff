@@ -8,10 +8,31 @@
 
 @if (canWrite) {
   <nav class="tabs" aria-label="Risk profiles views">
-    <button type="button" class="tab" [class.active]="mode() === 'manage'" (click)="setMode('manage')">
-      <i class="pi pi-shield" aria-hidden="true"></i>
-      <span>Risk profiles</span>
-    </button>
+    @if (showStaffScopeTabs()) {
+      <button
+        type="button"
+        class="tab"
+        [class.active]="mode() === 'manage' && activeStaffScope() === 'mine'"
+        (click)="setStaffScope('mine')"
+      >
+        <i class="pi pi-shield" aria-hidden="true"></i>
+        <span>My risk profiles</span>
+      </button>
+      <button
+        type="button"
+        class="tab"
+        [class.active]="mode() === 'manage' && activeStaffScope() === 'others'"
+        (click)="setStaffScope('others')"
+      >
+        <i class="pi pi-users" aria-hidden="true"></i>
+        <span>Other compliance risk profiles</span>
+      </button>
+    } @else {
+      <button type="button" class="tab" [class.active]="mode() === 'manage'" (click)="setMode('manage')">
+        <i class="pi pi-shield" aria-hidden="true"></i>
+        <span>Risk profiles</span>
+      </button>
+    }
     <button type="button" class="tab" [class.active]="mode() === 'create'" (click)="setMode('create')">
       <i class="pi pi-plus" aria-hidden="true"></i>
       <span>Create profile</span>

@@ -6,10 +6,10 @@ import { DialogModule } from 'primeng/dialog';
 import { TableLazyLoadEvent, TableModule } from 'primeng/table';
 import { TabsModule } from 'primeng/tabs';
 
-import { ActivityWarning, ActivityWarningState, ApiService } from '../../services/api.service';
+import { ActivityWarning, ActivityWarningStaffScope, ActivityWarningState, ApiService } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { AuthService } from '../../services/auth.service';
-import { STAFF_PERMISSIONS } from '../../core/staff-permissions';
+import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { formatFiatAmount } from '../../shared/amount-format';
 
 type WarningTab = 'active' | 'solved';
@@ -25,6 +25,17 @@ type ActivityWarningSortBy =
   | 'totalAmountEur'
   | 'thresholdAmountEur';
 type SortDir = 'asc' | 'desc';
+
+interface StaffScopeTab {
+  key: ActivityWarningStaffScope;
+  label: string;
+  icon: string;
+}
+
+const STAFF_SCOPE_TABS: readonly StaffScopeTab[] = [
+  { key: 'mine', label: 'My activity warnings', icon: 'pi pi-shield' },
+  { key: 'others', label: 'Other compliance activity warnings', icon: 'pi pi-users' },
+];
 
 @Component({
   selector: 'app-activity-warnings-page',
@@ -44,6 +55,9 @@ export class ActivityWarningsPage {
   readonly rowsPerPageOptions = [10, 25, 50];
   readonly canManage = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningsManage);
   readonly canEscalate = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningEscalationCreate);
+  readonly staffScopeTabs = STAFF_SCOPE_TABS;
+  readonly showStaffScopeTabs = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
+  readonly activeStaffScope = signal<ActivityWarningStaffScope>('mine');
   readonly activeTab = signal<WarningTab>('active');
   readonly warnings = signal<ActivityWarning[]>([]);
   readonly total = signal(0);
@@ -84,6 +98,7 @@ export class ActivityWarningsPage {
       const res = await this.api.listActivityWarnings({
         page: this.page(),
         pageSize: this.pageSize(),
+        staffScope: this.showStaffScopeTabs() ? this.activeStaffScope() : undefined,
         state: this.warningStateForTab(this.activeTab()),
         q: this.searchTerm(),
         sortBy: this.sortBy(),
@@ -148,6 +163,13 @@ export class ActivityWarningsPage {
 
   onTabChange(key: string | number | undefined): void {
     this.activeTab.set((key as WarningTab) ?? 'active');
+    this.page.set(1);
+    void this.load();
+  }
+
+  setStaffScope(key: ActivityWarningStaffScope): void {
+    if (this.activeStaffScope() === key) return;
+    this.activeStaffScope.set(key);
     this.page.set(1);
     void this.load();
   }

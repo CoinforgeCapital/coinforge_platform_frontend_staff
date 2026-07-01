@@ -86,6 +86,37 @@
   color: var(--cf-text);
 }
 
+.scope-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.scope-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-surface);
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.scope-tab:hover,
+.scope-tab.active {
+  border-color: var(--cf-teal-500);
+  background: rgba(0, 188, 169, 0.09);
+  color: var(--cf-teal-700);
+}
+
 .cf-tabs {
   display: block;
   border: 1px solid var(--cf-border);

@@ -163,8 +163,14 @@
   <nav class="tabs" aria-label="Support ticket views">
     <button type="button" class="tab" [class.active]="view() === 'mine'" (click)="showMine()">
       <i class="pi pi-inbox" aria-hidden="true"></i>
-      <span>{{ isSupportOfficer ? 'All tickets' : 'My tickets' }}</span>
+      <span>My tickets</span>
     </button>
+    @if (isSupportOfficer) {
+      <button type="button" class="tab" [class.active]="view() === 'others'" (click)="showOthers()">
+        <i class="pi pi-users" aria-hidden="true"></i>
+        <span>Other support tickets</span>
+      </button>
+    }
     <button type="button" class="tab" [class.active]="view() === 'unassigned'" (click)="showUnassigned()">
       <i class="pi pi-flag" aria-hidden="true"></i>
       <span>Unassigned</span>
@@ -213,6 +219,41 @@
             [showCurrentPageReport]="true"
             currentPageReportTemplate="{first}–{last} of {totalRecords}"
             (onPageChange)="onPendingPage($event)"
+          />
+        }
+      }
+    </section>
+  } @else if (view() === 'others') {
+    <section class="list-panel">
+      @if (loading()) {
+        <div class="list-empty"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span>Loading…</span></div>
+      } @else {
+        @for (t of othersList(); track t.id) {
+          <button type="button" class="ticket" (click)="selectTicket(t)">
+            <span class="ticket-main">
+              <strong>{{ t.subject }}</strong>
+              <small>{{ shortId(t) }} · {{ customerLabel(t) }} · {{ assignedLabel(t) }} · {{ formatDate(t.updatedAt ?? t.createdAt) }}</small>
+            </span>
+            <span class="ticket-side">
+              <span [class]="priorityBadgeClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+              <span [class]="statusBadgeClass(t.status)">{{ statusLabel(t.status) }}</span>
+            </span>
+          </button>
+        } @empty {
+          <div class="list-empty">
+            <i class="pi pi-users" aria-hidden="true"></i>
+            <span>No tickets assigned to other support users.</span>
+          </div>
+        }
+        @if (othersTotal() > 0) {
+          <p-paginator
+            [rows]="othersPageSize()"
+            [totalRecords]="othersTotal()"
+            [first]="(othersPage() - 1) * othersPageSize()"
+            [rowsPerPageOptions]="rowsPerPageOptions"
+            [showCurrentPageReport]="true"
+            currentPageReportTemplate="{first}–{last} of {totalRecords}"
+            (onPageChange)="onOthersPage($event)"
           />
         }
       }
@@ -276,7 +317,7 @@
         } @empty {
           <div class="list-empty">
             <i class="pi pi-inbox" aria-hidden="true"></i>
-            <span>{{ isSupportOfficer ? 'No tickets yet.' : 'No tickets assigned to you.' }}</span>
+            <span>No tickets assigned to you.</span>
           </div>
         }
         @if (mineTotal() > 0) {
