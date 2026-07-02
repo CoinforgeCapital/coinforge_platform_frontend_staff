@@ -117,6 +117,7 @@ export interface StaffClientMetadata {
   discoverySource?: string;
   understandAndContinue?: boolean;
   acknowledgesAxoraFintech?: boolean;
+  commissionPercentage?: string | number | null;
   createdAt?: string;
   updatedAt?: string;
   [key: string]: unknown;
@@ -801,6 +802,7 @@ export interface PlatformParameters {
   changeEmailCodeTtlHours: number;
   setPasswordCodeTtlHours: number;
   activationCodeTtlHours: number;
+  globalCommissionPercentage?: string | number | null;
 }
 export interface ParametersRequest {
   smtpHost: string;
@@ -813,6 +815,7 @@ export interface ParametersRequest {
   changeEmailCodeTtlHours: number;
   setPasswordCodeTtlHours: number;
   activationCodeTtlHours: number;
+  globalCommissionPercentage: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -1577,6 +1580,16 @@ export class ApiService {
 
   updateParameters(body: Partial<ParametersRequest>): Promise<PlatformParameters> {
     return this.request.patch<PlatformParameters, Partial<ParametersRequest>>('/api/parameter', body);
+  }
+
+  updateClientMetadataCommission(
+    clientId: string,
+    commissionPercentage: number | null,
+  ): Promise<StandardDataResponse<{ id: string; commissionPercentage: string | null; updatedAt?: string }>> {
+    return this.request.patch<
+      StandardDataResponse<{ id: string; commissionPercentage: string | null; updatedAt?: string }>,
+      { commissionPercentage: number | null }
+    >(`/api/user/${clientId}/client-metadata/commission`, { commissionPercentage });
   }
 
   listBlockchains(): Promise<ListBlockchainsResponse> {

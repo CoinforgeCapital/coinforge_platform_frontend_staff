@@ -37,6 +37,7 @@ export class ParametersPage implements OnInit {
     changeEmailCodeTtlHours: [1, [Validators.required, Validators.min(1), Validators.max(8760)]],
     setPasswordCodeTtlHours: [72, [Validators.required, Validators.min(1), Validators.max(8760)]],
     activationCodeTtlHours: [24, [Validators.required, Validators.min(1), Validators.max(8760)]],
+    globalCommissionPercentage: [8.5, [Validators.required, Validators.min(0), Validators.max(100)]],
   });
 
   ngOnInit(): void {
@@ -73,6 +74,9 @@ export class ParametersPage implements OnInit {
   get activationCodeTtlHours() {
     return this.form.controls.activationCodeTtlHours;
   }
+  get globalCommissionPercentage() {
+    return this.form.controls.globalCommissionPercentage;
+  }
 
   togglePassword(): void {
     this.showPassword.update((visible) => !visible);
@@ -94,6 +98,7 @@ export class ParametersPage implements OnInit {
         changeEmailCodeTtlHours: p.changeEmailCodeTtlHours,
         setPasswordCodeTtlHours: p.setPasswordCodeTtlHours,
         activationCodeTtlHours: p.activationCodeTtlHours,
+        globalCommissionPercentage: this.toPercentageNumber(p.globalCommissionPercentage, 8.5),
       });
       this.configured.set(true);
     } catch (err: unknown) {
@@ -127,6 +132,7 @@ export class ParametersPage implements OnInit {
       changeEmailCodeTtlHours: Number(value.changeEmailCodeTtlHours),
       setPasswordCodeTtlHours: Number(value.setPasswordCodeTtlHours),
       activationCodeTtlHours: Number(value.activationCodeTtlHours),
+      globalCommissionPercentage: Number(value.globalCommissionPercentage),
     };
 
     this.saving.set(true);
@@ -162,5 +168,11 @@ export class ParametersPage implements OnInit {
     if (typeof error.error?.message === 'string' && error.error.message.trim()) return error.error.message;
     if (typeof error.message === 'string' && error.message.trim()) return error.message;
     return 'The request could not be completed. Please try again.';
+  }
+
+  private toPercentageNumber(value: string | number | null | undefined, fallback: number): number {
+    if (value === null || value === undefined || value === '') return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 }

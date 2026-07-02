@@ -148,6 +148,15 @@ h1 {
 .control input {
   padding-right: 70px;
 }
+.suffix-control input {
+  padding-right: 42px;
+}
+.suffix {
+  position: absolute;
+  right: 12px;
+  color: var(--cf-text-muted);
+  font-weight: 900;
+}
 .toggle {
   position: absolute;
   right: 6px;

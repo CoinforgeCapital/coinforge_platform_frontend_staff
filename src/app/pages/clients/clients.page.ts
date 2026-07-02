@@ -346,6 +346,8 @@ export class ClientsPage implements OnInit {
   readonly canCreateUser = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientCreate);
   /** Editar datos / borrar usuario (PATCH/DELETE /api/user/:id) — solo admin. */
   readonly canAdminActions = this.auth.hasAnyRole(STAFF_PERMISSIONS.usersWrite);
+  /** Editar comisión específica de metadata del cliente — solo admin. */
+  readonly canEditClientCommission = this.auth.hasAnyRole(STAFF_PERMISSIONS.usersWrite);
   /** Ver alertas de actividad y limites AML del cliente. */
   readonly canActivityWarnings = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningsView);
   /** Ver la última auditoría KYCAID de una wallet del cliente. */
@@ -562,6 +564,8 @@ export class ClientsPage implements OnInit {
   // ---- Cambiar estado de la cuenta del cliente (categoría "Account state") ----
   stateTarget: ManualClientState | '' = '';
   readonly stateSaving = signal(false);
+  clientCommissionPercentage = '';
+  readonly clientCommissionSaving = signal(false);
   // ---- Acción sobre el KYC (misma categoría) ----
   kycTarget: KycAction | '' = '';
   readonly kycSaving = signal(false);
@@ -673,8 +677,10 @@ export class ClientsPage implements OnInit {
   });
 
   readonly metadataFields = computed<InfoField[]>(() =>
-    this.objectFields(this.asRecord(this.selected()?.['clientMetadata']), ['client']),
+    this.objectFields(this.asRecord(this.selected()?.['clientMetadata']), ['client', 'commissionPercentage']),
   );
+
+  readonly hasClientMetadata = computed(() => !!this.asRecord(this.selected()?.['clientMetadata']));
 
   readonly activeKyc = computed<StaffKycHistoryItem | null>(() => {
     const client = this.selected();
@@ -933,6 +939,7 @@ export class ClientsPage implements OnInit {
     if (key === DOCUMENTS_KEY) this.activeDocTab.set(DOCUMENT_TABS[0].key);
     if (key === ACCOUNT_SETTINGS_KEY) {
       this.stateTarget = this.manualClientStateOrEmpty(this.selected()?.['state']);
+      this.syncClientCommissionInput();
     }
     if (key === KYC_SETTINGS_KEY) {
       this.kycTarget = '';
@@ -1268,6 +1275,44 @@ export class ClientsPage implements OnInit {
     return MANUAL_CLIENT_STATE_VALUES.includes(value) ? value : '';
   }
 
+  onClientCommissionChange(value: string | number | null): void {
+    this.clientCommissionPercentage = value === null || value === undefined ? '' : String(value);
+  }
+
+  applyClientCommission(): void {
+    const clientId = this.selected()?.['id'] as string | undefined;
+    if (!clientId || this.clientCommissionSaving()) return;
+
+    const rawValue = this.clientCommissionPercentage.trim();
+    const commissionPercentage = rawValue === '' ? null : Number(rawValue);
+    if (
+      commissionPercentage !== null
+      && (!Number.isFinite(commissionPercentage) || commissionPercentage < 0 || commissionPercentage > 100)
+    ) {
+      this.toast('error', 'Invalid commission', 'Enter a percentage between 0 and 100, or leave it empty.');
+      return;
+    }
+
+    this.clientCommissionSaving.set(true);
+    this.api
+      .updateClientMetadataCommission(clientId, commissionPercentage)
+      .then(async (res) => {
+        this.toast('success', 'Client commission updated', res.message ?? 'Done.');
+        await this.reloadSelectedClient();
+      })
+      .catch((err) => this.toast('error', 'Could not update commission', this.errorOf(err)))
+      .finally(() => this.clientCommissionSaving.set(false));
+  }
+
+  private syncClientCommissionInput(): void {
+    const metadata = this.asRecord(this.selected()?.['clientMetadata']);
+    const value = metadata?.['commissionPercentage'];
+    this.clientCommissionPercentage =
+      value === null || value === undefined || value === ''
+        ? ''
+        : String(value);
+  }
+
   onKycTargetChange(value: string): void {
     this.kycTarget = value as KycAction | '';
   }
@@ -1477,6 +1522,9 @@ export class ClientsPage implements OnInit {
     this.all.update((clients) =>
       clients.map((item) => item['id'] === id ? { ...item, ...record } : item),
     );
+    if (this.activeEntity() === ACCOUNT_SETTINGS_KEY) {
+      this.syncClientCommissionInput();
+    }
   }
 
   /** Botón "Refresh" del detalle: recarga los datos del cliente abierto sin salir de la pestaña actual. */
