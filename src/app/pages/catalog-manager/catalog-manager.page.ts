@@ -58,7 +58,7 @@ const CATALOG_CONFIGS: Record<CatalogKey, CatalogConfig> = {
     fields: [{ key: 'name', label: 'Name', type: 'text', placeholder: 'e.g. Ethereum', maxLength: 255 }],
     searchFields: ['name'],
     searchPlaceholder: 'Search by name…',
-    canEdit: false,
+    canEdit: true,
     needsBlockchains: false,
   },
   'fiat-currencies': {
@@ -482,13 +482,19 @@ export class CatalogManagerPage implements OnInit {
   }
 
   private updateRequest(id: string, payload: Record<string, string>): Promise<{ ok: boolean; message?: string }> {
-    // Solo bank-data admite edición.
-    return this.api.updateBankData(id, {
-      name: payload['name'],
-      owner: payload['owner'],
-      swiftBic: payload['swiftBic'],
-      referenceCode: payload['referenceCode'],
-    });
+    switch (this.config().key) {
+      case 'blockchains':
+        return this.api.updateBlockchain(id, { name: payload['name'] });
+      case 'bank-data':
+        return this.api.updateBankData(id, {
+          name: payload['name'],
+          owner: payload['owner'],
+          swiftBic: payload['swiftBic'],
+          referenceCode: payload['referenceCode'],
+        });
+      default:
+        return Promise.resolve({ ok: false, message: 'This catalog cannot be edited.' });
+    }
   }
 
   private deleteRequest(id: string): Promise<void> {

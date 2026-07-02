@@ -41,6 +41,13 @@ import { ClientActivityAlertsComponent } from '../../shared/client-activity-aler
 import { ClientProfileOverviewComponent } from '../../shared/client-profile-overview/client-profile-overview.component';
 import { ClientRequirementsComponent } from '../../shared/client-requirements/client-requirements.component';
 import { formatAmountByField } from '../../shared/amount-format';
+import {
+  formatKycaidRiskScorePercent,
+  hasKycaidRiskScore,
+  KYCAID_RISK_LEGEND_ITEMS,
+  kycaidRiskScoreBadgeClass,
+  kycaidRiskScoreBadgeLabel,
+} from '../../shared/kycaid-risk-score';
 import { ApprovalRequirementWarningService } from '../../services/approval-requirement-warning.service';
 import { uploadFileSizeError } from '../../shared/upload-file-size';
 import { UserAutocompleteComponent } from '../../shared/user-autocomplete/user-autocomplete.component';
@@ -314,6 +321,7 @@ export class ClientsPage implements OnInit {
 
   readonly columns = LIST_COLUMNS;
   readonly clientAssignmentScopeTabs = CLIENT_ASSIGNMENT_SCOPE_TABS;
+  readonly kycaidRiskLegend = KYCAID_RISK_LEGEND_ITEMS;
   readonly profileKey = PROFILE_KEY;
   readonly documentsKey = DOCUMENTS_KEY;
   readonly riskProfileKey = RISK_PROFILE_KEY;
@@ -1998,7 +2006,7 @@ export class ClientsPage implements OnInit {
       ['Asset', audit.asset],
       ['Service request', audit.serviceRequestId, true],
       ['Risk state', this.prettyAuditState(audit.riskState)],
-      ['Risk score', audit.riskScore],
+      ['Risk score', this.kycaidRiskScore(audit.riskScore)],
       ['Blacklist flag', audit.hasBlacklistFlag],
       ['Blacklist connections', audit.blackListConnections],
       ['Risk reason', audit.riskReason],
@@ -2047,6 +2055,22 @@ export class ClientsPage implements OnInit {
     if (['failed', 'high_risk'].includes(v)) return 'cf-badge cf-badge--danger';
     if (['pending', 'review'].includes(v)) return 'cf-badge cf-badge--warning';
     return 'cf-badge cf-badge--neutral';
+  }
+
+  kycaidRiskScore(value: string | number | null | undefined): string {
+    return formatKycaidRiskScorePercent(value);
+  }
+
+  hasKycaidRiskScore(value: string | number | null | undefined): boolean {
+    return hasKycaidRiskScore(value);
+  }
+
+  kycaidRiskScoreBadge(value: string | number | null | undefined, state?: string | null): string {
+    return kycaidRiskScoreBadgeClass(value, state);
+  }
+
+  kycaidRiskScoreLabel(value: string | number | null | undefined, state?: string | null): string {
+    return kycaidRiskScoreBadgeLabel(value, state);
   }
 
   prettyAuditState(value: unknown): string {

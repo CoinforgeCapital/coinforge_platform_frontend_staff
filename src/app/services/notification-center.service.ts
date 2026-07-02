@@ -5,8 +5,8 @@ import { NotificationsService } from './notifications.service';
 import { RealtimeService } from './realtime.service';
 
 /**
- * Conecta el socket con el centro de notificaciones del staff. Las notificaciones son
- * temporales y viven en localStorage; aquí solo conectamos realtime y empujamos eventos.
+ * Conecta el socket con el centro de notificaciones del staff. Al iniciar hidrata la
+ * campana desde backend y despues empuja los eventos realtime que lleguen por socket.
  */
 @Injectable({ providedIn: 'root' })
 export class NotificationCenterService {
@@ -21,6 +21,7 @@ export class NotificationCenterService {
     this.started = true;
 
     this.realtime.connect();
+    void this.notifications.hydrate();
     this.subscription = this.realtime.notificationCreated$.subscribe((notification) => {
       this.notifications.push(notification);
     });
@@ -31,6 +32,6 @@ export class NotificationCenterService {
     this.subscription = undefined;
     this.started = false;
     this.realtime.disconnect();
-    this.notifications.clear();
+    this.notifications.clearLocal();
   }
 }

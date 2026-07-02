@@ -1077,7 +1077,16 @@
                   <td>{{ format(audit.requestedAt ?? audit.createdAt) }}</td>
                   <td><span [class]="walletAuditBadge(audit.riskState)">{{ prettyAuditState(audit.riskState) }}</span></td>
                   <td>{{ format(audit.asset) }}</td>
-                  <td>{{ format(audit.riskScore) }}</td>
+                  <td>
+                    <span class="kycaid-risk-score">
+                      <span class="kycaid-risk-score__value">{{ kycaidRiskScore(audit.riskScore) }}</span>
+                      @if (hasKycaidRiskScore(audit.riskScore)) {
+                        <span [class]="kycaidRiskScoreBadge(audit.riskScore, audit.riskState)">
+                          {{ kycaidRiskScoreLabel(audit.riskScore, audit.riskState) }}
+                        </span>
+                      }
+                    </span>
+                  </td>
                   <td class="mono">{{ format(audit.serviceRequestId) }}</td>
                   <td>{{ format(audit.updatedAt) }}</td>
                 </tr>
@@ -1401,10 +1410,34 @@
           @for (field of walletAuditFields(audit); track field.label) {
             <div [class.is-wide]="field.mono || field.value.length > 42">
               <dt>{{ field.label }}</dt>
-              <dd [class.mono]="field.mono">{{ field.value }}</dd>
+              <dd [class.mono]="field.mono">
+                @if (field.label === 'Risk score') {
+                  <span class="kycaid-risk-score">
+                    <span class="kycaid-risk-score__value">{{ field.value }}</span>
+                    @if (hasKycaidRiskScore(audit.riskScore)) {
+                      <span [class]="kycaidRiskScoreBadge(audit.riskScore, audit.riskState)">
+                        {{ kycaidRiskScoreLabel(audit.riskScore, audit.riskState) }}
+                      </span>
+                    }
+                  </span>
+                } @else {
+                  {{ field.value }}
+                }
+              </dd>
             </div>
           }
         </dl>
+        <div class="kycaid-risk-legend" aria-label="KYCAID risk score legend">
+          <span class="kycaid-risk-legend__title">Risk score legend</span>
+          <div class="kycaid-risk-legend__items">
+            @for (item of kycaidRiskLegend; track item.label) {
+              <span class="kycaid-risk-legend__item">
+                <span [class]="item.badgeClass">{{ item.label }}</span>
+                <span>{{ item.description }}</span>
+              </span>
+            }
+          </div>
+        </div>
         @if (audit.pdfReportUrl) {
           <div class="audit-actions">
             <a class="ghost" [href]="audit.pdfReportUrl" target="_blank" rel="noopener">

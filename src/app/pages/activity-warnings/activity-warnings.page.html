@@ -219,9 +219,34 @@
             <div><dt>Address</dt><dd class="mono">{{ shortAddress(w.wallet.publicAddress) }}</dd></div>
             <div><dt>State</dt><dd>{{ prettyState(w.wallet.state) }}</dd></div>
             <div><dt>KYCAID risk</dt><dd><span [class]="riskBadge(w.wallet.kycaidRiskState)">{{ prettyState(w.wallet.kycaidRiskState) }}</span></dd></div>
-            <div><dt>Risk score</dt><dd>{{ w.wallet.kycaidRiskScore ?? '-' }}</dd></div>
+            <div>
+              <dt>Risk score</dt>
+              <dd>
+                <span class="kycaid-risk-score">
+                  <span class="kycaid-risk-score__value">{{ kycaidRiskScore(w.wallet.kycaidRiskScore) }}</span>
+                  @if (hasKycaidRiskScore(w.wallet.kycaidRiskScore)) {
+                    <span [class]="kycaidRiskScoreBadge(w.wallet.kycaidRiskScore, w.wallet.kycaidRiskState)">
+                      {{ kycaidRiskScoreLabel(w.wallet.kycaidRiskScore, w.wallet.kycaidRiskState) }}
+                    </span>
+                  }
+                </span>
+              </dd>
+            </div>
             <div><dt>Reason</dt><dd>{{ w.wallet.kycaidRiskReason ?? '-' }}</dd></div>
           </dl>
+          @if (w.wallet.kycaidRiskState || hasKycaidRiskScore(w.wallet.kycaidRiskScore)) {
+            <div class="kycaid-risk-legend" aria-label="KYCAID risk score legend">
+              <span class="kycaid-risk-legend__title">Risk score legend</span>
+              <div class="kycaid-risk-legend__items">
+                @for (item of kycaidRiskLegend; track item.label) {
+                  <span class="kycaid-risk-legend__item">
+                    <span [class]="item.badgeClass">{{ item.label }}</span>
+                    <span>{{ item.description }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          }
         </section>
       }
 
@@ -230,9 +255,34 @@
           <h3>KYCAID</h3>
           <dl class="detail">
             <div><dt>Request</dt><dd class="mono">{{ w.kycaidServiceRequestId ?? '-' }}</dd></div>
-            <div><dt>Score</dt><dd>{{ w.kycaidRiskScore ?? '-' }}</dd></div>
+            <div>
+              <dt>Score</dt>
+              <dd>
+                <span class="kycaid-risk-score">
+                  <span class="kycaid-risk-score__value">{{ kycaidRiskScore(w.kycaidRiskScore) }}</span>
+                  @if (hasKycaidRiskScore(w.kycaidRiskScore)) {
+                    <span [class]="kycaidRiskScoreBadge(w.kycaidRiskScore, w.wallet?.kycaidRiskState)">
+                      {{ kycaidRiskScoreLabel(w.kycaidRiskScore, w.wallet?.kycaidRiskState) }}
+                    </span>
+                  }
+                </span>
+              </dd>
+            </div>
             <div><dt>Reason</dt><dd>{{ w.kycaidRiskReason ?? '-' }}</dd></div>
           </dl>
+          @if (!w.wallet) {
+            <div class="kycaid-risk-legend" aria-label="KYCAID risk score legend">
+              <span class="kycaid-risk-legend__title">Risk score legend</span>
+              <div class="kycaid-risk-legend__items">
+                @for (item of kycaidRiskLegend; track item.label) {
+                  <span class="kycaid-risk-legend__item">
+                    <span [class]="item.badgeClass">{{ item.label }}</span>
+                    <span>{{ item.description }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          }
         </section>
       }
     </div>

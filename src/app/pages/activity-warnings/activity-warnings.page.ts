@@ -11,6 +11,13 @@ import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { AuthService } from '../../services/auth.service';
 import { STAFF_PERMISSIONS, STAFF_ROLES } from '../../core/staff-permissions';
 import { formatFiatAmount } from '../../shared/amount-format';
+import {
+  formatKycaidRiskScorePercent,
+  hasKycaidRiskScore,
+  KYCAID_RISK_LEGEND_ITEMS,
+  kycaidRiskScoreBadgeClass,
+  kycaidRiskScoreBadgeLabel,
+} from '../../shared/kycaid-risk-score';
 
 type WarningTab = 'active' | 'solved';
 type ActivityWarningSortBy =
@@ -56,6 +63,7 @@ export class ActivityWarningsPage {
   readonly canManage = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningsManage);
   readonly canEscalate = this.auth.hasAnyRole(STAFF_PERMISSIONS.activityWarningEscalationCreate);
   readonly staffScopeTabs = STAFF_SCOPE_TABS;
+  readonly kycaidRiskLegend = KYCAID_RISK_LEGEND_ITEMS;
   readonly showStaffScopeTabs = computed(() => this.auth.currentRole() === STAFF_ROLES.complianceOfficer);
   readonly activeStaffScope = signal<ActivityWarningStaffScope>('mine');
   readonly activeTab = signal<WarningTab>('active');
@@ -355,6 +363,22 @@ export class ActivityWarningsPage {
       default:
         return 'cf-badge cf-badge--neutral';
     }
+  }
+
+  kycaidRiskScore(value: string | number | null | undefined): string {
+    return formatKycaidRiskScorePercent(value);
+  }
+
+  hasKycaidRiskScore(value: string | number | null | undefined): boolean {
+    return hasKycaidRiskScore(value);
+  }
+
+  kycaidRiskScoreBadge(value: string | number | null | undefined, state?: string | null): string {
+    return kycaidRiskScoreBadgeClass(value, state);
+  }
+
+  kycaidRiskScoreLabel(value: string | number | null | undefined, state?: string | null): string {
+    return kycaidRiskScoreBadgeLabel(value, state);
   }
 
   prettyState(state?: string | null): string {

@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { AppNotification, NotificationsService } from '../../services/notifications.service';
+import { AppNotification } from '../../services/api.service';
+import { NotificationsService } from '../../services/notifications.service';
 
 /**
  * Campana de notificaciones del topbar. Consume el centro de notificaciones genérico
@@ -44,6 +45,9 @@ import { AppNotification, NotificationsService } from '../../services/notificati
                 <span class="bell-item-icon"><i [class]="iconOf(n)" aria-hidden="true"></i></span>
                 <span class="bell-item-body">
                   <span class="bell-item-title">{{ n.title }}</span>
+                  @if ((n.unreadCount ?? 1) > 1 && !n.readAt) {
+                    <span class="bell-item-count">{{ n.unreadCount }} updates</span>
+                  }
                   @if (n.body) {
                     <span class="bell-item-text">{{ n.body }}</span>
                   }
@@ -175,6 +179,15 @@ import { AppNotification, NotificationsService } from '../../services/notificati
     }
     .bell-item-body { display: grid; gap: 2px; min-width: 0; flex: 1; }
     .bell-item-title { color: var(--cf-text); font-weight: 700; font-size: 0.88rem; }
+    .bell-item-count {
+      width: max-content;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(0, 212, 170, 0.13);
+      color: var(--cf-teal-700, #008d77);
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
     .bell-item-text {
       color: var(--cf-text-muted);
       font-size: 0.82rem;
@@ -253,7 +266,7 @@ export class NotificationsBellComponent {
     return icons[notification.type] ?? 'pi pi-bell';
   }
 
-  timeAgo(value?: string): string {
+  timeAgo(value?: string | null): string {
     if (!value) return '';
     const timestamp = new Date(value).getTime();
     if (Number.isNaN(timestamp)) return '';

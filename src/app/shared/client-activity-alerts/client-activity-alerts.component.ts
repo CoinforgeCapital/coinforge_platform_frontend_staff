@@ -13,6 +13,13 @@ import {
 } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { formatFiatAmount } from '../amount-format';
+import {
+  formatKycaidRiskScorePercent,
+  hasKycaidRiskScore,
+  KYCAID_RISK_LEGEND_ITEMS,
+  kycaidRiskScoreBadgeClass,
+  kycaidRiskScoreBadgeLabel,
+} from '../kycaid-risk-score';
 
 type WarningTab = 'active' | 'solved';
 
@@ -33,6 +40,7 @@ export class ClientActivityAlertsComponent {
   readonly canManage = input<boolean>(false);
 
   readonly pageSize = 10;
+  readonly kycaidRiskLegend = KYCAID_RISK_LEGEND_ITEMS;
   readonly activeTab = signal<WarningTab>('active');
   readonly limit = signal<TransactionWarningLimit | null>(null);
   readonly warnings = signal<ActivityWarning[]>([]);
@@ -176,6 +184,22 @@ export class ClientActivityAlertsComponent {
       default:
         return 'cf-badge cf-badge--neutral';
     }
+  }
+
+  kycaidRiskScore(value: string | number | null | undefined): string {
+    return formatKycaidRiskScorePercent(value);
+  }
+
+  hasKycaidRiskScore(value: string | number | null | undefined): boolean {
+    return hasKycaidRiskScore(value);
+  }
+
+  kycaidRiskScoreBadge(value: string | number | null | undefined, state?: string | null): string {
+    return kycaidRiskScoreBadgeClass(value, state);
+  }
+
+  kycaidRiskScoreLabel(value: string | number | null | undefined, state?: string | null): string {
+    return kycaidRiskScoreBadgeLabel(value, state);
   }
 
   prettyState(state?: string | null): string {

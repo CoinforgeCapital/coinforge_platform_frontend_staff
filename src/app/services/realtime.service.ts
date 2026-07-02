@@ -4,8 +4,7 @@ import { Subject } from 'rxjs';
 import { io, type Socket } from 'socket.io-client';
 
 import { environment } from '../../environments/environment';
-import { AppNotification } from './notifications.service';
-import { UserState } from './api.service';
+import { AppNotification, UserState } from './api.service';
 
 /** Evento emitido por el backend al crear un mensaje interno (compliance conversation). */
 export interface InternalMessageCreatedEvent {

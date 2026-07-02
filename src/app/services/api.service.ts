@@ -6,6 +6,25 @@ import { assertUploadFilesWithinLimit } from '../shared/upload-file-size';
 
 export interface StandardMessageResponse { ok: boolean; message: string; }
 export interface StandardDataResponse<T = unknown> { ok: boolean; message: string; data: T; }
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body?: string | null;
+  meta?: Record<string, unknown> | null;
+  groupKey?: string | null;
+  unreadCount?: number;
+  readAt?: string | null;
+  createdAt?: string | null;
+}
+export interface ListNotificationsResponse {
+  ok: boolean;
+  notifications: AppNotification[];
+  total: number;
+  unreadTotal: number;
+  page: number;
+  pageSize: number;
+}
 export interface ListUsersResponse { users: StaffUser[]; }
 export type ListSortDir = 'asc' | 'desc';
 export interface ListUsersPageResponse extends ListUsersResponse {
@@ -733,6 +752,7 @@ export interface BankData {
 }
 
 export interface CreateBlockchainRequest { name: string; }
+export interface UpdateBlockchainRequest { name: string; }
 export interface CreateFiatCurrencyRequest { name: string; symbol: string; }
 export interface CreateCryptoCurrencyRequest { blockchainId: string; name: string; symbol: string; }
 export interface CreateBankDataRequest {
@@ -919,6 +939,36 @@ export class ApiService {
 
   getCurrentUserState(options?: HttpRequestOptions): Promise<CurrentUserStateResponse> {
     return this.request.get<CurrentUserStateResponse>('/api/user/client/control/state', options);
+  }
+
+  listNotifications(page = 1, pageSize = 50, unread?: boolean): Promise<ListNotificationsResponse> {
+    return this.request.get<ListNotificationsResponse>('/api/notifications', {
+      params: {
+        page,
+        pageSize,
+        unread,
+      },
+    });
+  }
+
+  markNotificationRead(notificationId: string): Promise<{ ok: boolean; notification: AppNotification }> {
+    return this.request.patch<{ ok: boolean; notification: AppNotification }>(
+      `/api/notifications/${notificationId}/read`,
+    );
+  }
+
+  markAllNotificationsRead(): Promise<StandardMessageResponse> {
+    return this.request.patch<StandardMessageResponse>('/api/notifications/read-all');
+  }
+
+  markNotificationTypeRead(type: string): Promise<StandardMessageResponse> {
+    return this.request.patch<StandardMessageResponse>(
+      `/api/notifications/type/${encodeURIComponent(type)}/read`,
+    );
+  }
+
+  clearNotifications(): Promise<StandardMessageResponse> {
+    return this.request.delete<StandardMessageResponse>('/api/notifications');
   }
 
   listClients(): Promise<ListUsersResponse> {
@@ -1612,6 +1662,10 @@ export class ApiService {
 
   createBlockchain(body: CreateBlockchainRequest): Promise<StandardMessageResponse> {
     return this.request.post<StandardMessageResponse, CreateBlockchainRequest>('/api/blockchain', body);
+  }
+
+  updateBlockchain(id: string, body: UpdateBlockchainRequest): Promise<StandardDataResponse<CatalogItem>> {
+    return this.request.patch<StandardDataResponse<CatalogItem>, UpdateBlockchainRequest>(`/api/blockchain/${id}`, body);
   }
 
   deleteBlockchain(id: string): Promise<void> {
