@@ -90,6 +90,8 @@ export class PendingApprovalsPage {
   // ---- Permisos (espejo del backend) ----
   readonly canFinancials = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientFinancials);
   readonly canChangeTxState = this.auth.hasAnyRole(STAFF_PERMISSIONS.transactionStateChange);
+  readonly canSetPaymentReceived = this.auth.currentRole() === STAFF_ROLES.admin;
+  readonly canSetTransactionId = this.auth.hasAnyRole(STAFF_PERMISSIONS.transactionStateChange);
   readonly canKyc = this.auth.hasAnyRole(STAFF_PERMISSIONS.kycReview);
 
   readonly tabs: ApprovalTab[] = this.buildTabs();
@@ -128,12 +130,14 @@ export class PendingApprovalsPage {
   readonly dialogVisible = signal(false);
   readonly busy = signal(false);
   txTarget: SettableTransactionState | '' = '';
+  transactionTrx = '';
 
-  readonly txStateOptions: readonly { label: string; value: SettableTransactionState }[] = [
+  readonly txStateOptions: readonly { label: string; value: SettableTransactionState }[] = ([
     { label: 'Payment received', value: 'payment_received' },
     { label: 'In progress', value: 'in_progress' },
     { label: 'Completed', value: 'completed' },
-  ];
+  ] as readonly { label: string; value: SettableTransactionState }[])
+    .filter((option) => option.value !== 'payment_received' || this.canSetPaymentReceived);
 
   constructor() {
     void this.loadClientSearchIndex();
@@ -284,6 +288,7 @@ export class PendingApprovalsPage {
   }
   openTransaction(t: PendingTransaction): void {
     this.txTarget = '';
+    this.transactionTrx = t.transactionTrx ?? '';
     this.dialog.set({ type: 'transaction', data: t });
     this.dialogVisible.set(true);
   }
@@ -329,11 +334,24 @@ export class PendingApprovalsPage {
   setTxState(t: PendingTransaction): void {
     if (!this.txTarget) return;
     const target = this.txTarget;
+    const transactionTrx = this.transactionTrx.trim();
+    if (target === 'payment_received' && !this.canSetPaymentReceived) {
+      this.toast('error', 'Action not allowed', 'Only admin users can approve payment reception.');
+      return;
+    }
+    if (target === 'completed' && !transactionTrx) {
+      this.toast('error', 'Transaction ID required', 'Enter the crypto transaction ID before completing the transaction.');
+      return;
+    }
     void this.confirmApprovalWithRequirementCheck({
       header: 'Update transaction',
       baseMessage: `Set the transaction to "${this.prettyState(target)}"?`,
       checkRequirements: () => this.requirementWarnings.forTransaction(t.id),
-      action: () => this.api.updateTransactionState(t.id, target),
+      action: () => this.api.updateTransactionState(
+        t.id,
+        target,
+        target === 'completed' && this.canSetTransactionId ? transactionTrx : undefined,
+      ),
       summary: 'Transaction updated',
       reload: () => this.loadTransactions(),
     });

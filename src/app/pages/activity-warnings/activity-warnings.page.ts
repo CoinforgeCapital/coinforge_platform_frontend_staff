@@ -303,7 +303,7 @@ export class ActivityWarningsPage {
       `Created: ${this.formatDate(warning.createdAt)}`,
       `Trigger: ${this.formatAmount(warning.triggerAmountEur ?? warning.totalAmountEur)} EUR`,
       `Threshold: ${this.formatAmount(warning.thresholdAmountEur)} EUR`,
-      warning.transaction?.id ? `Transaction: ${warning.transaction.id}` : null,
+      warning.transaction?.transactionTrx ? `Transaction ID: ${warning.transaction.transactionTrx}` : null,
       warning.wallet?.publicAddress ? `Wallet: ${warning.wallet.publicAddress}` : null,
       warning.kycaidRiskReason ? `KYCAID reason: ${warning.kycaidRiskReason}` : null,
     ].filter((line): line is string => line !== null);

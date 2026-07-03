@@ -212,6 +212,7 @@ const ENTITY_GROUPS: readonly EntityGroup[] = [
     label: 'Transactions',
     icon: 'pi pi-sync',
     columns: [
+      { field: 'transactionTrx', label: 'Transaction ID' },
       { field: 'cryptoSymbol', label: 'Crypto' },
       { field: 'fiatSymbol', label: 'Fiat' },
       { field: 'amountSent', label: 'Sent' },
@@ -334,7 +335,6 @@ export class ClientsPage implements OnInit {
   readonly paymentAccountsKey = PAYMENT_ACCOUNTS_KEY;
   readonly walletKey = WALLET_KEY;
   readonly documentTabs = DOCUMENT_TABS;
-  readonly txStateOptions = TX_STATE_OPTIONS;
   readonly reqDocTypeOptions = REQUIREMENT_DOC_TYPES;
   readonly clientStateOptions = MANUAL_CLIENT_STATE_OPTIONS;
   readonly kycActions = KYC_ACTIONS;
@@ -343,6 +343,11 @@ export class ClientsPage implements OnInit {
   // ---- Permisos (espejo del backend) ----
   readonly canFinancials = this.auth.hasAnyRole(STAFF_PERMISSIONS.clientFinancials);
   readonly canChangeTxState = this.auth.hasAnyRole(STAFF_PERMISSIONS.transactionStateChange);
+  readonly canSetPaymentReceived = this.auth.currentRole() === STAFF_ROLES.admin;
+  readonly canSetTransactionId = this.auth.hasAnyRole(STAFF_PERMISSIONS.transactionStateChange);
+  readonly txStateOptions = TX_STATE_OPTIONS.filter(
+    (option) => option.value !== 'payment_received' || this.canSetPaymentReceived,
+  );
   readonly canCreateRequirement = this.auth.hasAnyRole(STAFF_PERMISSIONS.requirementsWrite);
   /** Ver/descargar documentos de requirements (GET + file download) — sin operator. */
   readonly canReadRequirements = this.auth.hasAnyRole(STAFF_PERMISSIONS.requirementsRead);
@@ -519,6 +524,7 @@ export class ClientsPage implements OnInit {
   // ---- Acciones (estado) ----
   readonly actionBusy = signal(false);
   txTarget: SettableTransactionState | '' = '';
+  transactionTrx = '';
 
   // ---- Crear requirement para el cliente (botón dentro de la pestaña Requirements) ----
   readonly reqFormOpen = signal(false);
@@ -918,6 +924,8 @@ export class ClientsPage implements OnInit {
     this.showItemDocs.set(false);
     this.walletAuditHistoryVisible.set(false);
     this.resetSupportTicketAssignmentHistory();
+    this.txTarget = '';
+    this.transactionTrx = String(item['transactionTrx'] ?? '');
     this.drillItem.set(item);
   }
 
@@ -940,6 +948,7 @@ export class ClientsPage implements OnInit {
     this.activeEntity.set(key);
     this.drillItem.set(null);
     this.txTarget = '';
+    this.transactionTrx = '';
     this.showItemDocs.set(false);
     this.reqFormOpen.set(false);
     this.walletAuditHistoryVisible.set(false);
@@ -963,6 +972,7 @@ export class ClientsPage implements OnInit {
   closeItem(): void {
     this.drillItem.set(null);
     this.txTarget = '';
+    this.transactionTrx = '';
     this.showItemDocs.set(false);
     this.walletAuditHistoryVisible.set(false);
     this.resetSupportTicketAssignmentHistory();
@@ -2112,11 +2122,24 @@ export class ClientsPage implements OnInit {
     if (!this.txTarget) return;
     const id = item['id'] as string;
     const target = this.txTarget;
+    const transactionTrx = this.transactionTrx.trim();
+    if (target === 'payment_received' && !this.canSetPaymentReceived) {
+      this.toast('error', 'Action not allowed', 'Only admin users can approve payment reception.');
+      return;
+    }
+    if (target === 'completed' && !transactionTrx) {
+      this.toast('error', 'Transaction ID required', 'Enter the crypto transaction ID before completing the transaction.');
+      return;
+    }
     void this.confirmFinancialApprovalWithRequirementCheck({
       header: 'Update transaction',
       baseMessage: `Set the transaction to "${this.roleLabel(target)}"?`,
       checkRequirements: () => this.requirementWarnings.forTransaction(id),
-      action: () => this.api.updateTransactionState(id, target),
+      action: () => this.api.updateTransactionState(
+        id,
+        target,
+        target === 'completed' && this.canSetTransactionId ? transactionTrx : undefined,
+      ),
       newState: target,
       item,
     });
@@ -2164,7 +2187,11 @@ export class ClientsPage implements OnInit {
         action()
           .then((res) => {
             this.applyLocalState(this.activeEntity(), String(item['id']), newState);
+            if (newState === 'completed' && this.canSetTransactionId) {
+              item['transactionTrx'] = this.transactionTrx.trim();
+            }
             this.txTarget = '';
+            this.transactionTrx = '';
             this.toast('success', 'State updated', res.message ?? 'Done.');
           })
           .catch((err) => this.toast('error', 'Action failed', this.errorOf(err)))

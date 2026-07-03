@@ -138,12 +138,21 @@ export class EntityCollectionComponent {
     const people: PersonRef[] = [];
     const fields: DetailField[] = [];
     let messages: MessageView[] = [];
+    const isTransactionRecord = this.isTransactionRecord(item);
 
     for (const [key, raw] of Object.entries(item)) {
       // Nunca exponer rutas de servidor, tokens ni blobs crudos en el detalle.
       if (this.isSensitiveKey(key)) continue;
 
       if (raw === null || raw === undefined || raw === '') {
+        if (isTransactionRecord && key === 'transactionTrx') {
+          fields.push({
+            label: this.detailFieldLabel(key, isTransactionRecord),
+            value: '-',
+            mono: true,
+            wide: false,
+          });
+        }
         // Referencia a usuario presente pero vacía (p. ej. action request sin asignar):
         // se muestra explícitamente como "Unassigned" en lugar de omitirse.
         if (this.isPersonKey(key)) {
@@ -206,10 +215,31 @@ export class EntityCollectionComponent {
       }
 
       const isId = key === 'id' || /Id$/.test(key) || (typeof raw === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{20,}$/i.test(raw));
-      fields.push({ label: this.humanize(key), value, mono: isId, wide: value.length > 38 });
+      fields.push({
+        label: this.detailFieldLabel(key, isTransactionRecord),
+        value,
+        mono: isId || key === 'transactionTrx',
+        wide: value.length > 38,
+      });
     }
 
     return { title, badges, people, fields, messages };
+  }
+
+  private detailFieldLabel(key: string, isTransactionRecord: boolean): string {
+    if (isTransactionRecord && key === 'transactionTrx') return 'Transaction ID';
+    if (isTransactionRecord && key === 'id') return 'BD registry ID';
+    return this.humanize(key);
+  }
+
+  private isTransactionRecord(item: Record<string, unknown>): boolean {
+    return (
+      'cryptoSymbol' in item &&
+      'fiatSymbol' in item &&
+      'amountSent' in item &&
+      'amountReceive' in item &&
+      'walletPublicAddress' in item
+    );
   }
 
   private isPersonKey(key: string): boolean {

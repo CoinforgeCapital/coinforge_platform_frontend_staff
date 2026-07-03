@@ -317,7 +317,7 @@
             <div><dt>Cancelled on</dt><dd>{{ formatDate(r.closedDate) }}</dd></div>
           }
           @if (r.transactionOrderId) {
-            <div><dt>Transaction</dt><dd class="mono">#{{ r.transactionOrderId.slice(0, 8) }}</dd></div>
+            <div><dt>Transaction ID</dt><dd class="mono">{{ r.transactionOrderTrx || '-' }}</dd></div>
           }
           @if (r.clientBankAccountId) {
             <div><dt>Bank account</dt><dd class="mono">#{{ r.clientBankAccountId.slice(0, 8) }}</dd></div>

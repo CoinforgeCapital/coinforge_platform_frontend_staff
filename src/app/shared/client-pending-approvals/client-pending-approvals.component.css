@@ -132,6 +132,29 @@
   box-shadow: var(--cf-ring);
 }
 
+.trx-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  color: var(--cf-text);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+.trx-field input {
+  min-height: 38px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+.trx-field input:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+
 .muted-note {
   display: flex;
   align-items: flex-start;

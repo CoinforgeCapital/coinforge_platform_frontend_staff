@@ -228,7 +228,7 @@
         <section class="detail-section">
           <h3>Transaction</h3>
           <dl class="detail">
-            <div><dt>Reference</dt><dd class="mono">{{ shortId(w.transaction.id) }}</dd></div>
+            <div><dt>Transaction ID</dt><dd class="mono">{{ w.transaction.transactionTrx || '-' }}</dd></div>
             <div><dt>Amount</dt><dd>{{ formatAmount(w.transaction.amountSent) }} {{ w.transaction.fiatSymbol ?? '' }}</dd></div>
             <div><dt>EUR amount</dt><dd>{{ formatAmount(w.transaction.amountSentEur) }} EUR</dd></div>
             <div><dt>Crypto</dt><dd>{{ w.transaction.cryptoSymbol ?? '-' }}</dd></div>

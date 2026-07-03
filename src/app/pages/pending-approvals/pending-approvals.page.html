@@ -249,11 +249,23 @@
       @case ('transaction') {
         <dl class="detail">
           <div><dt>Client</dt><dd>{{ d.data.client.email }}</dd></div>
-          <div><dt>Reference</dt><dd class="mono">{{ shortId(d.data.id) }}</dd></div>
+          <div><dt>Transaction ID</dt><dd class="mono">{{ d.data.transactionTrx || '-' }}</dd></div>
           <div><dt>Amount</dt><dd>{{ formatFiatAmount(d.data.amountSent) }} {{ d.data.fiatSymbol }} → {{ formatCryptoAmount(d.data.amountReceive) }} {{ d.data.cryptoSymbol }}</dd></div>
           <div><dt>State</dt><dd><span [class]="resourceStateBadge(d.data.state)">{{ prettyState(d.data.state) }}</span></dd></div>
         </dl>
         @if (canChangeTxState) {
+          @if (txTarget === 'completed' && canSetTransactionId) {
+            <label class="trx-field">
+              <span>Transaction ID</span>
+              <input
+                type="text"
+                [(ngModel)]="transactionTrx"
+                maxlength="120"
+                placeholder="Crypto transaction ID"
+                [disabled]="busy() || !canSetTransactionId"
+              />
+            </label>
+          }
           <div class="dialog-actions tx">
             <button type="button" class="ghost" (click)="openClient(d.data)" [disabled]="busy()">
               <i class="pi pi-user" aria-hidden="true"></i><span>Open client</span>
@@ -264,7 +276,7 @@
                 <option [value]="o.value">{{ o.label }}</option>
               }
             </select>
-            <button type="button" class="ghost" (click)="setTxState(d.data)" [disabled]="busy() || !txTarget">
+            <button type="button" class="ghost" (click)="setTxState(d.data)" [disabled]="busy() || !txTarget || (txTarget === 'completed' && canSetTransactionId && !transactionTrx.trim())">
               <i class="pi pi-save" aria-hidden="true"></i><span>Apply</span>
             </button>
           </div>

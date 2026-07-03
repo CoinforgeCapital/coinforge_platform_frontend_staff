@@ -254,6 +254,7 @@ export interface Requirement {
   staffUser?: StaffUser;
   closedBy?: StaffUser | null;
   transactionOrderId?: string | null;
+  transactionOrderTrx?: string | null;
   clientBankAccountId?: string | null;
 }
 
@@ -313,6 +314,7 @@ export interface ClientTransaction {
   fiatSymbol?: string;
   amountSent?: string;
   amountReceive?: string;
+  transactionTrx?: string | null;
   termsAccepted?: boolean;
   state?: string;
   createdAt?: string;
@@ -437,6 +439,10 @@ export interface KycaidWalletAuditListResponse {
 export type TransactionState = 'pending' | 'payment_received' | 'in_progress' | 'completed';
 /** Estados a los que el staff puede mover una transacción (no se vuelve a 'pending'). */
 export type SettableTransactionState = 'payment_received' | 'in_progress' | 'completed';
+export interface UpdateTransactionStateRequest {
+  state: SettableTransactionState;
+  transactionTrx?: string;
+}
 
 // ---- Cola de pendientes de aprobación (listados cross-cliente, paginados) ----
 /** Cliente dueño del elemento pendiente (cada listado es cross-cliente). */
@@ -476,6 +482,7 @@ export interface PendingTransaction {
   amountReceive?: string;
   fiatSymbol?: string;
   cryptoSymbol?: string;
+  transactionTrx?: string | null;
   termsAccepted?: boolean;
   state?: string;
   createdAt?: string;
@@ -498,6 +505,7 @@ export interface ActivityWarningClientRef {
 
 export interface ActivityWarningTransactionRef {
   id: string;
+  transactionTrx?: string | null;
   fiatSymbol?: string;
   amountSent?: string;
   amountSentEur?: string | null;
@@ -1336,10 +1344,17 @@ export class ApiService {
 
   // ---- Client financials: transactions (state change is operator/admin only) ----
 
-  updateTransactionState(id: string, state: SettableTransactionState): Promise<StandardDataResponse<ClientTransaction>> {
-    return this.request.patch<StandardDataResponse<ClientTransaction>, { state: SettableTransactionState }>(
+  updateTransactionState(
+    id: string,
+    state: SettableTransactionState,
+    transactionTrx?: string,
+  ): Promise<StandardDataResponse<ClientTransaction>> {
+    const body: UpdateTransactionStateRequest = transactionTrx
+      ? { state, transactionTrx }
+      : { state };
+    return this.request.patch<StandardDataResponse<ClientTransaction>, UpdateTransactionStateRequest>(
       `/api/transaction-order/staff/change-state/${id}`,
-      { state },
+      body,
     );
   }
 

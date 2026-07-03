@@ -323,7 +323,9 @@ button.crumb:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
 }
 .item-docs {
   margin-bottom: 16px;
@@ -344,7 +346,7 @@ button.crumb:hover {
   font: inherit;
 }
 .cf-select {
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 12px;
 }
 .cf-select:focus,
@@ -613,6 +615,53 @@ textarea.cf-input {
 
 .audit-actions a.ghost {
   text-decoration: none;
+}
+
+.transaction-state-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tx-state-select {
+  width: 170px;
+  flex: 0 0 170px;
+}
+
+.trx-inline-input {
+  min-height: 40px;
+  width: clamp(220px, 24vw, 340px);
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  padding: 0 12px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font: inherit;
+}
+
+.trx-inline-input:focus {
+  outline: none;
+  border-color: var(--cf-teal-500);
+  box-shadow: var(--cf-ring);
+}
+
+.transaction-state-editor .ghost {
+  min-height: 40px;
+}
+
+@media (max-width: 920px) {
+  .transaction-state-editor {
+    flex-wrap: wrap;
+  }
+
+  .tx-state-select,
+  .trx-inline-input,
+  .transaction-state-editor .ghost {
+    flex: 1 1 170px;
+  }
 }
 
 .wallet-audit-history-head {
