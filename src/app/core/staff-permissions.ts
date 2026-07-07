@@ -146,16 +146,24 @@ export const STAFF_PERMISSIONS = {
   complianceAssignmentReassign: [STAFF_ROLES.complianceOfficer],
   // GET /api/compliance-assignment/:complianceUserId (ver la cartera de un compliance concreto)
   complianceAssignmentByUser: [STAFF_ROLES.admin, STAFF_ROLES.operator, STAFF_ROLES.complianceOfficer],
-  // GET /api/activity-warning/staff + /staff/client/:clientId + /limit
+  // GET /api/activity-warning/staff + /staff/client/:clientId
   activityWarningsView: [
     STAFF_ROLES.admin,
     STAFF_ROLES.operator,
     STAFF_ROLES.complianceOfficer,
     STAFF_ROLES.compliance,
   ],
-  // PATCH /api/activity-warning/staff/:warningId/state y /staff/client/:clientId/limit.
+  // PATCH /api/activity-warning/staff/:warningId/state.
   // CO = cualquier cliente; compliance = asignado/asociado al cliente.
   activityWarningsManage: [STAFF_ROLES.complianceOfficer, STAFF_ROLES.compliance],
+  // CRUD /api/activity-warning-rule. Admin/operator/CO gestionan globales y personales;
+  // compliance solo reglas personales u overrides de sus clientes asignados.
+  activityWarningRulesManage: [
+    STAFF_ROLES.admin,
+    STAFF_ROLES.operator,
+    STAFF_ROLES.complianceOfficer,
+    STAFF_ROLES.compliance,
+  ],
   // POST /api/action-request con target COMPLIANCE_OFFICER desde una activity warning.
   activityWarningEscalationCreate: [STAFF_ROLES.compliance],
   // GET /api/action-request (lista global)
@@ -199,6 +207,7 @@ export const STAFF_NAV_ITEMS: readonly StaffNavItem[] = [
   { path: '/compliance-assignments', label: 'Compliance assignments', icon: 'pi pi-link', group: 'Compliance', roles: STAFF_PERMISSIONS.complianceAssignmentView },
   { path: '/pending-approvals', label: 'Pending approvals', icon: 'pi pi-inbox', group: 'Compliance', roles: STAFF_PERMISSIONS.clientFinancials },
   { path: '/activity-warnings', label: 'Activity warnings', icon: 'pi pi-exclamation-triangle', group: 'Compliance', roles: STAFF_PERMISSIONS.activityWarningsView },
+  { path: '/activity-warning-rules', label: 'Warning rules', icon: 'pi pi-sliders-h', group: 'Compliance', roles: STAFF_PERMISSIONS.activityWarningRulesManage },
   { path: '/transactions-reports', label: 'Transactions reports', icon: 'pi pi-file-pdf', group: 'Compliance', roles: STAFF_PERMISSIONS.transactionReports },
 
   { path: '/internal-messages', label: 'Internal messages', icon: 'pi pi-comments', group: 'Communications', roles: STAFF_PERMISSIONS.complianceConversations },

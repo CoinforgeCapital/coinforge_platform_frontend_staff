@@ -1,88 +1,14 @@
 <div class="activity-shell">
-  <section class="limits-panel">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">Limits</p>
-        <h3>Transaction warning limits</h3>
-      </div>
-      <button type="button" class="ghost" (click)="reload()" [disabled]="limitLoading() || warningsLoading()">
-        <i [class]="limitLoading() || warningsLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
-        <span>{{ limitLoading() || warningsLoading() ? 'Loading...' : 'Refresh' }}</span>
-      </button>
-    </div>
-
-    @if (limit(); as l) {
-      <div class="limit-grid">
-        <label class="limit-card editable">
-          <span>Single transaction limit</span>
-          @if (canManage()) {
-            <div class="limit-edit">
-              <input
-                type="text"
-                inputmode="decimal"
-                [ngModel]="limitDraft()"
-                (ngModelChange)="onLimitDraft($event)"
-                aria-label="Single transaction limit in EUR"
-              />
-              <strong>EUR</strong>
-            </div>
-          } @else {
-            <strong>{{ formatAmount(l.fiatSingleTransactionLimit) }} EUR</strong>
-          }
-          <small>Editable by compliance officers and the assigned compliance reviewer.</small>
-        </label>
-
-        <div class="limit-card">
-          <span>Big single transaction</span>
-          <strong>{{ formatAmount(l.fiatBigSingleTransactionLimit) }} EUR</strong>
-          <small>Fixed platform threshold.</small>
-        </div>
-
-        <div class="limit-card">
-          <span>Total volume low threshold</span>
-          <strong>{{ formatAmount(l.fiatAllLowTransactionsLimit) }} EUR</strong>
-          <small>One-time alert threshold.</small>
-        </div>
-
-        <div class="limit-card">
-          <span>Total volume high threshold</span>
-          <strong>{{ formatAmount(l.fiatAllBigTransactionsLimit) }} EUR</strong>
-          <small>One-time alert threshold.</small>
-        </div>
-      </div>
-
-      @if (canManage()) {
-        <div class="limit-actions">
-          <button
-            type="button"
-            class="ghost success"
-            (click)="saveLimit()"
-            [disabled]="limitSaving() || limitDraft() === l.fiatSingleTransactionLimit"
-          >
-            <i class="pi pi-save" aria-hidden="true"></i>
-            <span>{{ limitSaving() ? 'Saving...' : 'Save limit' }}</span>
-          </button>
-        </div>
-      } @else {
-        <p class="muted-note">
-          <i class="pi pi-info-circle" aria-hidden="true"></i>
-          <span>Your role can view these limits, but only compliance officers and assigned compliance reviewers can edit the single-transaction limit.</span>
-        </p>
-      }
-    } @else {
-      <div class="placeholder">
-        <i [class]="limitLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-sliders-h'" aria-hidden="true"></i>
-        <span>{{ limitLoading() ? 'Loading limits...' : 'No transaction warning limits found for this client.' }}</span>
-      </div>
-    }
-  </section>
-
   <section class="warnings-panel">
     <div class="section-head">
       <div>
         <p class="eyebrow">Alerts</p>
         <h3>Activity alerts</h3>
       </div>
+      <button type="button" class="ghost" (click)="reload()" [disabled]="warningsLoading()">
+        <i [class]="warningsLoading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" aria-hidden="true"></i>
+        <span>{{ warningsLoading() ? 'Loading...' : 'Refresh' }}</span>
+      </button>
       <span class="totals">
         {{ activeWarnings().length }} active / {{ solvedWarnings().length }} solved
       </span>
@@ -124,7 +50,7 @@
 
               <ng-template pTemplate="body" let-w>
                 <tr class="clickable" (click)="openWarning(w)">
-                  <td><span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span></td>
+                  <td><span [class]="warningBadge(w.state)">{{ warningDisplayName(w) }}</span></td>
                   <td>
                     <strong>{{ formatAmount(w.triggerAmountEur ?? w.totalAmountEur) }} EUR</strong>
                     @if (w.thresholdAmountEur) {
@@ -173,7 +99,7 @@
 
               <ng-template pTemplate="body" let-w>
                 <tr class="clickable" (click)="openWarning(w)">
-                  <td><span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span></td>
+                  <td><span [class]="warningBadge(w.state)">{{ warningDisplayName(w) }}</span></td>
                   <td>{{ w.reviewedBy?.email ?? '-' }}</td>
                   <td>{{ formatDate(w.reviewedAt) }}</td>
                   <td>{{ formatDate(w.createdAt) }}</td>
@@ -207,7 +133,7 @@
         <dl class="detail">
           <div><dt>Client</dt><dd>{{ w.client.email }}</dd></div>
           <div><dt>State</dt><dd><span [class]="warningBadge(w.state)">{{ prettyState(w.state) }}</span></dd></div>
-          <div><dt>Type</dt><dd>{{ prettyType(w.type) }}</dd></div>
+          <div><dt>Type</dt><dd>{{ warningDisplayName(w) }}</dd></div>
           <div><dt>Created</dt><dd>{{ formatDate(w.createdAt) }}</dd></div>
           <div><dt>Solved at</dt><dd>{{ formatDate(w.reviewedAt) }}</dd></div>
           <div><dt>Solved by</dt><dd>{{ w.reviewedBy?.email ?? '-' }}</dd></div>
@@ -223,6 +149,19 @@
           <div><dt>Transactions</dt><dd>{{ w.transactionCount ?? '-' }}</dd></div>
         </dl>
       </section>
+
+      @if (w.ruleSnapshot?.name || w.ruleSnapshot?.ruleType) {
+        <section class="detail-section">
+          <h3>Rule snapshot</h3>
+          <dl class="detail">
+            <div><dt>Name</dt><dd>{{ w.ruleSnapshot?.name ?? '-' }}</dd></div>
+            <div><dt>Rule type</dt><dd>{{ w.ruleSnapshot?.ruleType ?? '-' }}</dd></div>
+            <div><dt>Trigger mode</dt><dd>{{ prettyState(w.ruleSnapshot?.triggerMode) }}</dd></div>
+            <div><dt>Severity</dt><dd>{{ prettyState(w.ruleSnapshot?.severity) }}</dd></div>
+            <div><dt>Action</dt><dd>{{ prettyState(w.ruleSnapshot?.recommendedAction) }}</dd></div>
+          </dl>
+        </section>
+      }
 
       @if (w.transaction) {
         <section class="detail-section">

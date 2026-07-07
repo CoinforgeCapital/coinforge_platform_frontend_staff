@@ -87,7 +87,7 @@
                 <small class="mono">{{ shortId(w.client.id) }}</small>
               </td>
               <td>
-                <span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span>
+                <span [class]="warningBadge(w.state)">{{ warningDisplayName(w) }}</span>
               </td>
               <td>
                 <strong>{{ formatAmount(w.triggerAmountEur ?? w.totalAmountEur) }} EUR</strong>
@@ -145,7 +145,7 @@
                 <strong>{{ w.client.email }}</strong>
                 <small class="mono">{{ shortId(w.client.id) }}</small>
               </td>
-              <td><span [class]="warningBadge(w.state)">{{ prettyType(w.type) }}</span></td>
+              <td><span [class]="warningBadge(w.state)">{{ warningDisplayName(w) }}</span></td>
               <td>{{ w.reviewedBy?.email ?? '-' }}</td>
               <td>{{ formatDate(w.reviewedAt) }}</td>
               <td>{{ formatDate(w.createdAt) }}</td>
@@ -181,7 +181,7 @@
         <dl class="detail">
           <div><dt>Client</dt><dd>{{ w.client.email }}</dd></div>
           <div><dt>State</dt><dd><span [class]="warningBadge(w.state)">{{ prettyState(w.state) }}</span></dd></div>
-          <div><dt>Type</dt><dd>{{ prettyType(w.type) }}</dd></div>
+          <div><dt>Type</dt><dd>{{ warningDisplayName(w) }}</dd></div>
           <div><dt>Created</dt><dd>{{ formatDate(w.createdAt) }}</dd></div>
           <div><dt>Solved at</dt><dd>{{ formatDate(w.reviewedAt) }}</dd></div>
           <div><dt>Solved by</dt><dd>{{ w.reviewedBy?.email ?? '-' }}</dd></div>
@@ -197,6 +197,19 @@
           <div><dt>Transactions</dt><dd>{{ w.transactionCount ?? '-' }}</dd></div>
         </dl>
       </section>
+
+      @if (w.ruleSnapshot?.name || w.ruleSnapshot?.ruleType) {
+        <section class="detail-section">
+          <h3>Rule snapshot</h3>
+          <dl class="detail">
+            <div><dt>Name</dt><dd>{{ w.ruleSnapshot?.name ?? '-' }}</dd></div>
+            <div><dt>Rule type</dt><dd>{{ w.ruleSnapshot?.ruleType ?? '-' }}</dd></div>
+            <div><dt>Trigger mode</dt><dd>{{ prettyState(w.ruleSnapshot?.triggerMode) }}</dd></div>
+            <div><dt>Severity</dt><dd>{{ prettyState(w.ruleSnapshot?.severity) }}</dd></div>
+            <div><dt>Action</dt><dd>{{ prettyState(w.ruleSnapshot?.recommendedAction) }}</dd></div>
+          </dl>
+        </section>
+      }
 
       @if (w.transaction) {
         <section class="detail-section">

@@ -298,7 +298,7 @@ export class ActivityWarningsPage {
       'Activity warning context',
       `Warning ID: ${warning.id}`,
       `Client: ${warning.client?.email ?? '-'} (${warning.client?.id ?? '-'})`,
-      `Type: ${this.prettyType(warning.type)}`,
+      `Type: ${this.warningDisplayName(warning)}`,
       `State: ${this.prettyState(warning.state)}`,
       `Created: ${this.formatDate(warning.createdAt)}`,
       `Trigger: ${this.formatAmount(warning.triggerAmountEur ?? warning.totalAmountEur)} EUR`,
@@ -319,15 +319,20 @@ export class ActivityWarningsPage {
 
   warningTitle(warning: ActivityWarning | null): string {
     if (!warning) return 'Activity warning';
-    return `${this.prettyType(warning.type)} - ${warning.client?.email ?? 'Client'}`;
+    return `${this.warningDisplayName(warning)} - ${warning.client?.email ?? 'Client'}`;
   }
 
   prettyType(type?: string): string {
     return activityWarningTypeLabel(type);
   }
 
+  warningDisplayName(warning: ActivityWarning): string {
+    return warning.ruleSnapshot?.name?.trim() || warning.rule?.name || this.prettyType(warning.type);
+  }
+
   warningSummary(warning: ActivityWarning): string {
     if (warning.summary?.trim()) return warning.summary;
+    if (warning.ruleSnapshot?.description?.trim()) return warning.ruleSnapshot.description;
     if (warning.kycaidRiskReason) return warning.kycaidRiskReason;
     if (warning.transactionCount) return `${warning.transactionCount} transactions matched the rule.`;
     if (warning.triggerAmountEur && warning.thresholdAmountEur) {

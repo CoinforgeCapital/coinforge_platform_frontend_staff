@@ -543,6 +543,8 @@ export interface ActivityWarning {
   kycaidServiceRequestId?: string | null;
   kycaidRiskScore?: string | null;
   kycaidRiskReason?: string | null;
+  rule?: { id: string; name: string } | null;
+  ruleSnapshot?: ActivityWarningRuleSnapshot | null;
   reviewedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -560,21 +562,6 @@ export interface ListActivityWarningsResponse {
   countsByState?: Partial<Record<ActivityWarningState, number>>;
 }
 
-export interface TransactionWarningLimit {
-  id: string;
-  clientId: string;
-  fiatSingleTransactionLimit: string;
-  fiatBigSingleTransactionLimit: string;
-  fiatAllLowTransactionsLimit: string;
-  fiatAllBigTransactionsLimit: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface TransactionWarningLimitResponse {
-  limit: TransactionWarningLimit;
-}
-
 export interface UpdateActivityWarningStateRequest {
   state: ActivityWarningState;
 }
@@ -583,15 +570,97 @@ export interface UpdateActivityWarningStateResponse extends StandardMessageRespo
   warning: ActivityWarning;
 }
 
-export interface UpdateTransactionWarningLimitRequest {
-  fiatSingleTransactionLimit: string;
-}
-
-export interface UpdateTransactionWarningLimitResponse extends StandardMessageResponse {
-  limit: TransactionWarningLimit;
-}
-
 export type ActivityWarningStaffScope = 'mine' | 'others';
+
+export type ActivityWarningRuleScope = 'global' | 'client';
+export type ActivityWarningRuleType =
+  | 'SINGLE_TRANSACTION_AMOUNT'
+  | 'TOTAL_AMOUNT_CROSSED'
+  | 'AMOUNT_IN_PERIOD'
+  | 'TRANSACTION_COUNT_IN_PERIOD';
+export type ActivityWarningRuleWindowMode = 'none' | 'lifetime' | 'rolling_days';
+export type ActivityWarningRuleTriggerMode =
+  | 'per_transaction'
+  | 'active_warning_only'
+  | 'first_threshold_crossing';
+export type ActivityWarningRuleSeverity = 'review' | 'high_risk';
+export type ActivityWarningRuleRecommendedAction = 'manual_review' | 'request_documentation';
+
+export interface ActivityWarningRuleSnapshot {
+  name?: string | null;
+  description?: string | null;
+  ruleType?: ActivityWarningRuleType | string | null;
+  amountThresholdEur?: string | null;
+  transactionCountThreshold?: number | null;
+  windowDays?: number | null;
+  windowMode?: ActivityWarningRuleWindowMode | string | null;
+  triggerMode?: ActivityWarningRuleTriggerMode | string | null;
+  severity?: ActivityWarningRuleSeverity | string | null;
+  recommendedAction?: ActivityWarningRuleRecommendedAction | string | null;
+}
+
+export interface ActivityWarningRule {
+  id: string;
+  name: string;
+  description?: string | null;
+  scope: ActivityWarningRuleScope;
+  client?: { id: string; email: string } | null;
+  replacesRule?: { id: string; name: string } | null;
+  ruleType: ActivityWarningRuleType;
+  amountThresholdEur?: string | null;
+  transactionCountThreshold?: number | null;
+  windowDays?: number | null;
+  windowMode: ActivityWarningRuleWindowMode;
+  triggerMode: ActivityWarningRuleTriggerMode;
+  severity: ActivityWarningRuleSeverity;
+  recommendedAction: ActivityWarningRuleRecommendedAction;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: { id: string; email: string; nickname?: string | null } | null;
+  updatedBy?: { id: string; email: string; nickname?: string | null } | null;
+}
+
+export interface ListActivityWarningRulesQuery {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  scope?: ActivityWarningRuleScope;
+  ruleType?: ActivityWarningRuleType;
+  active?: boolean;
+  clientId?: string;
+  sortBy?: 'createdAt' | 'updatedAt' | 'name' | 'scope' | 'ruleType' | 'active' | 'clientEmail';
+  sortDir?: ListSortDir;
+}
+
+export interface ListActivityWarningRulesResponse {
+  ok: boolean;
+  rules: ActivityWarningRule[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface UpsertActivityWarningRuleRequest {
+  name: string;
+  description?: string | null;
+  scope: ActivityWarningRuleScope;
+  clientId?: string | null;
+  replacesRuleId?: string | null;
+  ruleType: ActivityWarningRuleType;
+  amountThresholdEur?: string | null;
+  transactionCountThreshold?: number | null;
+  windowDays?: number | null;
+  windowMode: ActivityWarningRuleWindowMode;
+  triggerMode: ActivityWarningRuleTriggerMode;
+  severity: ActivityWarningRuleSeverity;
+  recommendedAction: ActivityWarningRuleRecommendedAction;
+  active?: boolean;
+}
+
+export interface ActivityWarningRuleResponse extends StandardMessageResponse {
+  rule: ActivityWarningRule;
+}
 
 export type RiskLevel = 'pending_review' | 'low' | 'medium' | 'high';
 export type RiskFlag = 'none' | 'review' | 'high_risk' | 'suspicious';
@@ -1430,20 +1499,6 @@ export class ApiService {
     });
   }
 
-  getClientTransactionWarningLimit(clientId: string): Promise<TransactionWarningLimitResponse> {
-    return this.request.get<TransactionWarningLimitResponse>(`/api/activity-warning/staff/client/${clientId}/limit`);
-  }
-
-  updateClientTransactionWarningLimit(
-    clientId: string,
-    body: UpdateTransactionWarningLimitRequest,
-  ): Promise<UpdateTransactionWarningLimitResponse> {
-    return this.request.patch<UpdateTransactionWarningLimitResponse, UpdateTransactionWarningLimitRequest>(
-      `/api/activity-warning/staff/client/${clientId}/limit`,
-      body,
-    );
-  }
-
   updateActivityWarningState(
     warningId: string,
     body: UpdateActivityWarningStateRequest,
@@ -1452,6 +1507,37 @@ export class ApiService {
       `/api/activity-warning/staff/${warningId}/state`,
       body,
     );
+  }
+
+  listActivityWarningRules(
+    query: ListActivityWarningRulesQuery = {},
+  ): Promise<ListActivityWarningRulesResponse> {
+    return this.request.get<ListActivityWarningRulesResponse>('/api/activity-warning-rule', {
+      params: { ...query },
+    });
+  }
+
+  createActivityWarningRule(
+    body: UpsertActivityWarningRuleRequest,
+  ): Promise<ActivityWarningRuleResponse> {
+    return this.request.post<ActivityWarningRuleResponse, UpsertActivityWarningRuleRequest>(
+      '/api/activity-warning-rule',
+      body,
+    );
+  }
+
+  updateActivityWarningRule(
+    ruleId: string,
+    body: Partial<UpsertActivityWarningRuleRequest>,
+  ): Promise<ActivityWarningRuleResponse> {
+    return this.request.patch<ActivityWarningRuleResponse, Partial<UpsertActivityWarningRuleRequest>>(
+      `/api/activity-warning-rule/${ruleId}`,
+      body,
+    );
+  }
+
+  deleteActivityWarningRule(ruleId: string): Promise<StandardMessageResponse> {
+    return this.request.delete<StandardMessageResponse>(`/api/activity-warning-rule/${ruleId}`);
   }
 
   listInternalConversations(): Promise<ListInternalConversationsResponse> {

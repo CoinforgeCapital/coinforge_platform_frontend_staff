@@ -104,6 +104,15 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'activity-warning-rules',
+        canMatch: [roleMatchGuard],
+        data: { roles: STAFF_PERMISSIONS.activityWarningRulesManage },
+        loadComponent: () =>
+          import('./pages/activity-warning-rules/activity-warning-rules.page').then(
+            (m) => m.ActivityWarningRulesPage,
+          ),
+      },
+      {
         path: 'transactions-reports',
         canMatch: [roleMatchGuard],
         data: { roles: STAFF_PERMISSIONS.transactionReports },

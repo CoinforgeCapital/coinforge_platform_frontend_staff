@@ -9,7 +9,6 @@ import {
   ActivityWarning,
   ActivityWarningState,
   ApiService,
-  TransactionWarningLimit,
 } from '../../services/api.service';
 import { activityWarningTypeLabel } from '../../core/activity-warning-labels';
 import { formatFiatAmount } from '../amount-format';
@@ -42,12 +41,8 @@ export class ClientActivityAlertsComponent {
   readonly pageSize = 10;
   readonly kycaidRiskLegend = KYCAID_RISK_LEGEND_ITEMS;
   readonly activeTab = signal<WarningTab>('active');
-  readonly limit = signal<TransactionWarningLimit | null>(null);
   readonly warnings = signal<ActivityWarning[]>([]);
-  readonly limitDraft = signal('');
-  readonly limitLoading = signal(false);
   readonly warningsLoading = signal(false);
-  readonly limitSaving = signal(false);
   readonly busy = signal(false);
   readonly selected = signal<ActivityWarning | null>(null);
   readonly detailVisible = signal(false);
@@ -62,9 +57,7 @@ export class ClientActivityAlertsComponent {
       const id = this.clientId();
       if (!id || id === this.loadedForId) return;
       this.loadedForId = id;
-      this.limit.set(null);
       this.warnings.set([]);
-      this.limitDraft.set('');
       this.selected.set(null);
       this.detailVisible.set(false);
       void this.reload();
@@ -73,38 +66,11 @@ export class ClientActivityAlertsComponent {
 
   async reload(): Promise<void> {
     const id = this.clientId();
-    await Promise.all([this.loadLimit(id), this.loadWarnings(id)]);
+    await this.loadWarnings(id);
   }
 
   onTabChange(key: string | number | undefined): void {
     this.activeTab.set((key as WarningTab) ?? 'active');
-  }
-
-  onLimitDraft(value: string): void {
-    this.limitDraft.set(value);
-  }
-
-  async saveLimit(): Promise<void> {
-    if (!this.canManage()) return;
-    const value = this.limitDraft().trim().replace(',', '.');
-    if (!/^\d+(\.\d{1,2})?$/.test(value) || Number(value) <= 0) {
-      this.toast('error', 'Invalid limit', 'Enter a positive EUR amount with up to two decimals.');
-      return;
-    }
-
-    this.limitSaving.set(true);
-    try {
-      const res = await this.api.updateClientTransactionWarningLimit(this.clientId(), {
-        fiatSingleTransactionLimit: value,
-      });
-      this.limit.set(res.limit);
-      this.limitDraft.set(res.limit.fiatSingleTransactionLimit);
-      this.toast('success', 'Limit updated', res.message ?? 'The transaction warning limit was updated.');
-    } catch (err) {
-      this.toast('error', 'Could not update limit', this.errorOf(err));
-    } finally {
-      this.limitSaving.set(false);
-    }
   }
 
   openWarning(warning: ActivityWarning): void {
@@ -140,15 +106,20 @@ export class ClientActivityAlertsComponent {
 
   warningTitle(warning: ActivityWarning | null): string {
     if (!warning) return 'Activity warning';
-    return `${this.prettyType(warning.type)} - ${warning.client?.email ?? this.clientEmail()}`;
+    return `${this.warningDisplayName(warning)} - ${warning.client?.email ?? this.clientEmail()}`;
   }
 
   prettyType(type?: string): string {
     return activityWarningTypeLabel(type);
   }
 
+  warningDisplayName(warning: ActivityWarning): string {
+    return warning.ruleSnapshot?.name?.trim() || warning.rule?.name || this.prettyType(warning.type);
+  }
+
   warningSummary(warning: ActivityWarning): string {
     if (warning.summary?.trim()) return warning.summary;
+    if (warning.ruleSnapshot?.description?.trim()) return warning.ruleSnapshot.description;
     if (warning.kycaidRiskReason) return warning.kycaidRiskReason;
     if (warning.transactionCount) return `${warning.transactionCount} transactions matched the rule.`;
     if (warning.triggerAmountEur && warning.thresholdAmountEur) {
@@ -224,19 +195,6 @@ export class ClientActivityAlertsComponent {
 
   formatAmount(value?: string | null): string {
     return formatFiatAmount(value);
-  }
-
-  private async loadLimit(clientId: string): Promise<void> {
-    this.limitLoading.set(true);
-    try {
-      const res = await this.api.getClientTransactionWarningLimit(clientId);
-      this.limit.set(res.limit);
-      this.limitDraft.set(res.limit.fiatSingleTransactionLimit);
-    } catch (err) {
-      this.toast('error', 'Could not load limits', this.errorOf(err));
-    } finally {
-      this.limitLoading.set(false);
-    }
   }
 
   private async loadWarnings(clientId: string): Promise<void> {
